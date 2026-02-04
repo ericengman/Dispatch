@@ -9,12 +9,12 @@ Requirements for milestone v1.1 Screenshot Integration Fix. Each maps to roadmap
 
 ### Foundation (Shared Library)
 
-- [ ] **FNDTN-01**: Create shared bash library at `~/.claude/lib/dispatch.sh` with Dispatch integration functions
-- [ ] **FNDTN-02**: Library provides `dispatch_init` function to check Dispatch availability and create screenshot run
-- [ ] **FNDTN-03**: Library provides `dispatch_finalize` function to mark run complete with proper delay
-- [ ] **FNDTN-04**: Library uses temp files (`/tmp/dispatch-*.txt`) for state persistence between bash calls
-- [ ] **FNDTN-05**: Library provides graceful fallback path when Dispatch not running with clear output message
-- [ ] **FNDTN-06**: Library derives project name from git root, not current directory
+- [x] **FNDTN-01**: Create shared bash library at `~/.claude/lib/dispatch.sh` with Dispatch integration functions
+- [x] **FNDTN-02**: Library provides `dispatch_init` function to check Dispatch availability and create screenshot run
+- [x] **FNDTN-03**: Library provides `dispatch_finalize` function to mark run complete with proper delay
+- [x] **FNDTN-04**: Library uses temp files (`/tmp/dispatch-*.txt`) for state persistence between bash calls
+- [x] **FNDTN-05**: Library provides graceful fallback path when Dispatch not running with clear output message
+- [x] **FNDTN-06**: Library derives project name from git root, not current directory
 
 ### Hook Integration
 
@@ -88,12 +88,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| FNDTN-01 | Phase 8 | Pending |
-| FNDTN-02 | Phase 8 | Pending |
-| FNDTN-03 | Phase 8 | Pending |
-| FNDTN-04 | Phase 8 | Pending |
-| FNDTN-05 | Phase 8 | Pending |
-| FNDTN-06 | Phase 8 | Pending |
+| FNDTN-01 | Phase 8 | Complete |
+| FNDTN-02 | Phase 8 | Complete |
+| FNDTN-03 | Phase 8 | Complete |
+| FNDTN-04 | Phase 8 | Complete |
+| FNDTN-05 | Phase 8 | Complete |
+| FNDTN-06 | Phase 8 | Complete |
 | HOOK-01 | Phase 9 | Pending |
 | HOOK-02 | Phase 9 | Pending |
 | HOOK-03 | Phase 9 | Pending |

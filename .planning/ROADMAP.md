@@ -30,7 +30,7 @@ v1.0 phases were part of brownfield development. See `Docs/TODO_SimulatorScreens
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 8: Foundation** - Create shared bash library for Dispatch integration
+- [x] **Phase 8: Foundation** - Create shared bash library for Dispatch integration
 - [ ] **Phase 9: Hook Integration** - Add SessionStart hook for early Dispatch detection
 - [ ] **Phase 10: Dispatch App Updates** - Auto-install library and hooks via HookInstaller
 - [ ] **Phase 11: Skill Migration** - Update all screenshot-taking skills to use shared library
@@ -52,7 +52,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans:** 1 plan
 
 Plans:
-- [ ] 08-01-PLAN.md — Create dispatch.sh shared library with init/finalize functions
+- [x] 08-01-PLAN.md — Create dispatch.sh shared library with init/finalize functions
 
 ### Phase 9: Hook Integration
 **Goal**: SessionStart hook detects Dispatch availability at session start and sets environment variables
@@ -130,7 +130,7 @@ Phases execute in numeric order: 8 -> 8.1 -> 8.2 -> 9 -> ...
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 1-7 | v1.0 | - | Complete | - |
-| 8. Foundation | v1.1 | 0/1 | Planned | - |
+| 8. Foundation | v1.1 | 1/1 | Complete | 2026-02-03 |
 | 9. Hook Integration | v1.1 | 0/? | Not started | - |
 | 10. Dispatch App Updates | v1.1 | 0/? | Not started | - |
 | 11. Skill Migration | v1.1 | 0/? | Not started | - |
