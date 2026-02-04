@@ -89,10 +89,12 @@ Plans:
   2. `test-feature`, `explore-app`, and `test-dynamic-type` skills source shared library
   3. All other screenshot-taking skills source shared library
   4. No duplicated Dispatch integration code remains in any skill
-**Plans**: TBD
+**Plans:** 3 plans
 
 Plans:
-- [ ] 11-01: TBD
+- [ ] 11-01-PLAN.md — Migrate single-run skills (test-feature, explore-app, qa-feature) to shared library
+- [ ] 11-02-PLAN.md — Migrate multi-run skill (test-dynamic-type) to shared library
+- [ ] 11-03-PLAN.md — Verify migration complete, no inline code remains
 
 ### Phase 12: Verification
 **Goal**: End-to-end screenshot flow verified working across multiple skills
@@ -133,6 +135,6 @@ Phases execute in numeric order: 8 -> 8.1 -> 8.2 -> 9 -> ...
 | 8. Foundation | v1.1 | 1/1 | Complete | 2026-02-03 |
 | 9. Hook Integration | v1.1 | 1/1 | Complete | 2026-02-03 |
 | 10. Dispatch App Updates | v1.1 | 1/1 | Complete | 2026-02-03 |
-| 11. Skill Migration | v1.1 | 0/? | Not started | - |
+| 11. Skill Migration | v1.1 | 0/3 | Not started | - |
 | 12. Verification | v1.1 | 0/? | Not started | - |
 | 13. Polish | v1.1 | 0/? | Not started | - |
