@@ -24,9 +24,9 @@ Requirements for milestone v1.1 Screenshot Integration Fix. Each maps to roadmap
 
 ### Dispatch App Updates
 
-- [ ] **APP-01**: HookInstaller auto-installs shared library to `~/.claude/lib/dispatch.sh`
-- [ ] **APP-02**: HookInstaller updates library on Dispatch version upgrade
-- [ ] **APP-03**: HookInstaller installs SessionStart hook for Dispatch detection
+- [x] **APP-01**: HookInstaller auto-installs shared library to `~/.claude/lib/dispatch.sh`
+- [x] **APP-02**: HookInstaller updates library on Dispatch version upgrade
+- [x] **APP-03**: HookInstaller installs SessionStart hook for Dispatch detection
 
 ### Skill Migration
 
@@ -97,9 +97,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | HOOK-01 | Phase 9 | Complete |
 | HOOK-02 | Phase 9 | Complete |
 | HOOK-03 | Phase 9 | Complete |
-| APP-01 | Phase 10 | Pending |
-| APP-02 | Phase 10 | Pending |
-| APP-03 | Phase 10 | Pending |
+| APP-01 | Phase 10 | Complete |
+| APP-02 | Phase 10 | Complete |
+| APP-03 | Phase 10 | Complete |
 | SKILL-01 | Phase 11 | Pending |
 | SKILL-02 | Phase 11 | Pending |
 | SKILL-03 | Phase 11 | Pending |
@@ -122,4 +122,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-02-03*
-*Last updated: 2026-02-03 after Phase 9 completion*
+*Last updated: 2026-02-03 after Phase 10 completion*
