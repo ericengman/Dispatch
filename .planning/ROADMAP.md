@@ -49,10 +49,10 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Calling `dispatch_finalize` marks the run complete and triggers Dispatch filesystem scan
   4. When Dispatch is not running, library outputs clear fallback message and returns temp path
   5. Project name is derived from git root, not current working directory
-**Plans**: TBD
+**Plans:** 1 plan
 
 Plans:
-- [ ] 08-01: TBD
+- [ ] 08-01-PLAN.md — Create dispatch.sh shared library with init/finalize functions
 
 ### Phase 9: Hook Integration
 **Goal**: SessionStart hook detects Dispatch availability at session start and sets environment variables
@@ -130,7 +130,7 @@ Phases execute in numeric order: 8 -> 8.1 -> 8.2 -> 9 -> ...
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 1-7 | v1.0 | - | Complete | - |
-| 8. Foundation | v1.1 | 0/? | Not started | - |
+| 8. Foundation | v1.1 | 0/1 | Planned | - |
 | 9. Hook Integration | v1.1 | 0/? | Not started | - |
 | 10. Dispatch App Updates | v1.1 | 0/? | Not started | - |
 | 11. Skill Migration | v1.1 | 0/? | Not started | - |
