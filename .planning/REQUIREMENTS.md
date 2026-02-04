@@ -88,38 +88,38 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| FNDTN-01 | TBD | Pending |
-| FNDTN-02 | TBD | Pending |
-| FNDTN-03 | TBD | Pending |
-| FNDTN-04 | TBD | Pending |
-| FNDTN-05 | TBD | Pending |
-| FNDTN-06 | TBD | Pending |
-| HOOK-01 | TBD | Pending |
-| HOOK-02 | TBD | Pending |
-| HOOK-03 | TBD | Pending |
-| APP-01 | TBD | Pending |
-| APP-02 | TBD | Pending |
-| APP-03 | TBD | Pending |
-| SKILL-01 | TBD | Pending |
-| SKILL-02 | TBD | Pending |
-| SKILL-03 | TBD | Pending |
-| SKILL-04 | TBD | Pending |
-| SKILL-05 | TBD | Pending |
-| SKILL-06 | TBD | Pending |
-| VERIFY-01 | TBD | Pending |
-| VERIFY-02 | TBD | Pending |
-| VERIFY-03 | TBD | Pending |
-| VERIFY-04 | TBD | Pending |
-| POLISH-01 | TBD | Pending |
-| POLISH-02 | TBD | Pending |
-| POLISH-03 | TBD | Pending |
-| POLISH-04 | TBD | Pending |
+| FNDTN-01 | Phase 8 | Pending |
+| FNDTN-02 | Phase 8 | Pending |
+| FNDTN-03 | Phase 8 | Pending |
+| FNDTN-04 | Phase 8 | Pending |
+| FNDTN-05 | Phase 8 | Pending |
+| FNDTN-06 | Phase 8 | Pending |
+| HOOK-01 | Phase 9 | Pending |
+| HOOK-02 | Phase 9 | Pending |
+| HOOK-03 | Phase 9 | Pending |
+| APP-01 | Phase 10 | Pending |
+| APP-02 | Phase 10 | Pending |
+| APP-03 | Phase 10 | Pending |
+| SKILL-01 | Phase 11 | Pending |
+| SKILL-02 | Phase 11 | Pending |
+| SKILL-03 | Phase 11 | Pending |
+| SKILL-04 | Phase 11 | Pending |
+| SKILL-05 | Phase 11 | Pending |
+| SKILL-06 | Phase 11 | Pending |
+| VERIFY-01 | Phase 12 | Pending |
+| VERIFY-02 | Phase 12 | Pending |
+| VERIFY-03 | Phase 12 | Pending |
+| VERIFY-04 | Phase 12 | Pending |
+| POLISH-01 | Phase 13 | Pending |
+| POLISH-02 | Phase 13 | Pending |
+| POLISH-03 | Phase 13 | Pending |
+| POLISH-04 | Phase 13 | Pending |
 
 **Coverage:**
 - v1.1 requirements: 26 total
-- Mapped to phases: 0 (pending roadmap)
-- Unmapped: 26 ⚠️
+- Mapped to phases: 26
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-03*
-*Last updated: 2026-02-03 after initial definition*
+*Last updated: 2026-02-03 after roadmap creation*
