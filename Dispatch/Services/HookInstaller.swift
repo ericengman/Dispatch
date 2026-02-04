@@ -5,8 +5,8 @@
 //  Service for installing/uninstalling Claude Code completion hooks
 //
 
-import Foundation
 import Combine
+import Foundation
 
 // MARK: - Hook Installation Status
 
@@ -35,13 +35,19 @@ actor HookInstaller {
     private let hookMarker = "# Dispatch completion notification hook"
     private let dispatchVersion = "1.0"
 
+    // Library properties
+    private let libraryDirectory: URL
+    private let libraryFileName = "dispatch.sh"
+    private let sessionStartHookFileName = "session-start.sh"
+    private let libraryVersionMarker = "DISPATCH_LIB_VERSION="
+    private let sessionStartMarker = "# session-start.sh - Detect Dispatch availability"
+
     // MARK: - Initialization
 
     private init() {
         let home = FileManager.default.homeDirectoryForCurrentUser
-        self.hookDirectory = home.appendingPathComponent(".claude/hooks", isDirectory: true)
-
-        logDebug("HookInstaller initialized, hook directory: \(hookDirectory.path)", category: .hooks)
+        hookDirectory = home.appendingPathComponent(".claude/hooks", isDirectory: true)
+        libraryDirectory = home.appendingPathComponent(".claude/lib", isDirectory: true)
     }
 
     // MARK: - Status Check
@@ -196,7 +202,7 @@ actor HookInstaller {
         case .notInstalled:
             try install(port: port)
 
-        case .error(let message):
+        case let .error(message):
             throw HookInstallerError.updateFailed(message)
         }
     }
@@ -215,6 +221,141 @@ actor HookInstaller {
           -d "{\\"session\\": \\"$CLAUDE_SESSION_ID\\", \\"timestamp\\": \\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\\"}" \\
           2>/dev/null || true
         """
+    }
+
+    // MARK: - Library Installation
+
+    /// Installs the dispatch.sh library if needed (new install or version mismatch)
+    func installLibraryIfNeeded() throws {
+        // Load bundled library
+        guard let bundledURL = Bundle.main.url(forResource: "dispatch-lib", withExtension: "sh") else {
+            throw HookInstallerError.resourceNotFound("dispatch-lib.sh not found in app bundle")
+        }
+
+        let bundledContent = try String(contentsOf: bundledURL, encoding: .utf8)
+        let libraryPath = libraryDirectory.appendingPathComponent(libraryFileName)
+
+        // Get app version
+        guard let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String else {
+            logWarning("Could not determine app version, installing library anyway", category: .hooks)
+            try installLibrary(content: bundledContent, to: libraryPath)
+            return
+        }
+
+        // Check if library exists
+        guard FileManager.default.fileExists(atPath: libraryPath.path) else {
+            logInfo("Library not found, installing", category: .hooks)
+            try installLibrary(content: bundledContent, to: libraryPath)
+            return
+        }
+
+        // Library exists - check version
+        do {
+            let existingContent = try String(contentsOf: libraryPath, encoding: .utf8)
+
+            // Extract version from existing file
+            if let versionLine = existingContent.components(separatedBy: .newlines)
+                .first(where: { $0.contains(libraryVersionMarker) }) {
+                // Extract version string (format: DISPATCH_LIB_VERSION="X.X.X")
+                let versionString = versionLine
+                    .replacingOccurrences(of: libraryVersionMarker, with: "")
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                    .replacingOccurrences(of: "\"", with: "")
+
+                logDebug("Found library version: \(versionString), app version: \(appVersion)", category: .hooks)
+
+                // Compare versions (semantic version comparison)
+                if versionString.compare(appVersion, options: .numeric) == .orderedSame {
+                    logDebug("Library version matches app version, no update needed", category: .hooks)
+                    return
+                } else {
+                    logInfo("Library version mismatch (\(versionString) vs \(appVersion)), updating", category: .hooks)
+                    try installLibrary(content: bundledContent, to: libraryPath)
+                }
+            } else {
+                logWarning("Could not find version in existing library, reinstalling", category: .hooks)
+                try installLibrary(content: bundledContent, to: libraryPath)
+            }
+        } catch {
+            logError("Error reading existing library: \(error), reinstalling", category: .hooks)
+            try installLibrary(content: bundledContent, to: libraryPath)
+        }
+    }
+
+    /// Installs the session-start.sh hook if needed
+    func installSessionStartHookIfNeeded() throws {
+        // Load bundled hook
+        guard let bundledURL = Bundle.main.url(forResource: "session-start-hook", withExtension: "sh") else {
+            throw HookInstallerError.resourceNotFound("session-start-hook.sh not found in app bundle")
+        }
+
+        let bundledContent = try String(contentsOf: bundledURL, encoding: .utf8)
+        let hookPath = hookDirectory.appendingPathComponent(sessionStartHookFileName)
+
+        // Check if hook exists
+        guard FileManager.default.fileExists(atPath: hookPath.path) else {
+            logInfo("Session start hook not found, installing", category: .hooks)
+            try installSessionStartHook(content: bundledContent, to: hookPath)
+            return
+        }
+
+        // Hook exists - check if it's our hook
+        do {
+            let existingContent = try String(contentsOf: hookPath, encoding: .utf8)
+
+            if existingContent.contains(sessionStartMarker) {
+                // Our hook - could check version here if needed, for now just update it
+                logInfo("Session start hook exists (ours), updating", category: .hooks)
+                try installSessionStartHook(content: bundledContent, to: hookPath)
+            } else {
+                // User's custom hook - don't overwrite
+                logInfo("Session start hook exists (custom), preserving user's version", category: .hooks)
+            }
+        } catch {
+            logError("Error reading existing session start hook: \(error), skipping update", category: .hooks)
+        }
+    }
+
+    // MARK: - Private Installation Helpers
+
+    private func installLibrary(content: String, to path: URL) throws {
+        // Create directory if needed
+        try FileManager.default.createDirectory(
+            at: libraryDirectory,
+            withIntermediateDirectories: true,
+            attributes: nil
+        )
+
+        // Write file
+        try content.write(to: path, atomically: true, encoding: .utf8)
+
+        // Make executable
+        try FileManager.default.setAttributes(
+            [.posixPermissions: 0o755],
+            ofItemAtPath: path.path
+        )
+
+        logInfo("Library installed successfully at \(path.path)", category: .hooks)
+    }
+
+    private func installSessionStartHook(content: String, to path: URL) throws {
+        // Create directory if needed
+        try FileManager.default.createDirectory(
+            at: hookDirectory,
+            withIntermediateDirectories: true,
+            attributes: nil
+        )
+
+        // Write file
+        try content.write(to: path, atomically: true, encoding: .utf8)
+
+        // Make executable
+        try FileManager.default.setAttributes(
+            [.posixPermissions: 0o755],
+            ofItemAtPath: path.path
+        )
+
+        logInfo("Session start hook installed successfully at \(path.path)", category: .hooks)
     }
 
     // MARK: - Verification
@@ -294,17 +435,23 @@ enum HookInstallerError: Error, LocalizedError {
     case uninstallFailed(String)
     case updateFailed(String)
     case permissionDenied
+    case resourceNotFound(String)
+    case libraryInstallFailed(String)
 
     var errorDescription: String? {
         switch self {
-        case .installFailed(let message):
+        case let .installFailed(message):
             return "Failed to install hook: \(message)"
-        case .uninstallFailed(let message):
+        case let .uninstallFailed(message):
             return "Failed to uninstall hook: \(message)"
-        case .updateFailed(let message):
+        case let .updateFailed(message):
             return "Failed to update hook: \(message)"
         case .permissionDenied:
             return "Permission denied when accessing hook file"
+        case let .resourceNotFound(message):
+            return "Resource not found: \(message)"
+        case let .libraryInstallFailed(message):
+            return "Failed to install library: \(message)"
         }
     }
 }
@@ -324,7 +471,6 @@ final class HookInstallerManager: ObservableObject {
         Task {
             await refreshStatus()
         }
-        logDebug("HookInstallerManager initialized", category: .hooks)
     }
 
     func refreshStatus() async {
@@ -383,5 +529,23 @@ final class HookInstallerManager: ObservableObject {
 
     func getHookPath() async -> String {
         await HookInstaller.shared.getHookPath()
+    }
+
+    func installLibraryIfNeeded() async {
+        do {
+            try await HookInstaller.shared.installLibraryIfNeeded()
+            logInfo("Library installation check complete", category: .hooks)
+        } catch {
+            logError("Library installation failed: \(error)", category: .hooks)
+        }
+    }
+
+    func installSessionStartHookIfNeeded() async {
+        do {
+            try await HookInstaller.shared.installSessionStartHookIfNeeded()
+            logInfo("Session start hook installation check complete", category: .hooks)
+        } catch {
+            logError("Session start hook installation failed: \(error)", category: .hooks)
+        }
     }
 }
