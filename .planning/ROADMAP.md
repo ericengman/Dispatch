@@ -75,10 +75,10 @@ Plans:
   1. Launching Dispatch creates/updates `~/.claude/lib/dispatch.sh` automatically
   2. Launching Dispatch creates/updates SessionStart hook automatically
   3. Dispatch version upgrade updates library with new version
-**Plans**: TBD
+**Plans:** 1 plan
 
 Plans:
-- [ ] 10-01: TBD
+- [ ] 10-01-PLAN.md — Bundle and auto-install library and hooks via HookInstaller on app launch
 
 ### Phase 11: Skill Migration
 **Goal**: All screenshot-taking skills source the shared library instead of inline integration code
@@ -132,7 +132,7 @@ Phases execute in numeric order: 8 -> 8.1 -> 8.2 -> 9 -> ...
 | 1-7 | v1.0 | - | Complete | - |
 | 8. Foundation | v1.1 | 1/1 | Complete | 2026-02-03 |
 | 9. Hook Integration | v1.1 | 1/1 | Complete | 2026-02-03 |
-| 10. Dispatch App Updates | v1.1 | 0/? | Not started | - |
+| 10. Dispatch App Updates | v1.1 | 0/1 | Not started | - |
 | 11. Skill Migration | v1.1 | 0/? | Not started | - |
 | 12. Verification | v1.1 | 0/? | Not started | - |
 | 13. Polish | v1.1 | 0/? | Not started | - |
