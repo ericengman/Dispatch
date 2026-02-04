@@ -62,10 +62,10 @@ Plans:
   1. SessionStart hook exists at `~/.claude/hooks/session-start.sh`
   2. Hook sets environment variables via `CLAUDE_ENV_FILE` accessible throughout session
   3. Session-start output shows Dispatch health check result (available or not)
-**Plans**: TBD
+**Plans:** 1 plan
 
 Plans:
-- [ ] 09-01: TBD
+- [ ] 09-01-PLAN.md — Create session-start.sh hook with Dispatch health check and CLAUDE_ENV_FILE integration
 
 ### Phase 10: Dispatch App Updates
 **Goal**: Dispatch app auto-installs shared library and hooks when launched
@@ -131,7 +131,7 @@ Phases execute in numeric order: 8 -> 8.1 -> 8.2 -> 9 -> ...
 |-------|-----------|----------------|--------|-----------|
 | 1-7 | v1.0 | - | Complete | - |
 | 8. Foundation | v1.1 | 1/1 | Complete | 2026-02-03 |
-| 9. Hook Integration | v1.1 | 0/? | Not started | - |
+| 9. Hook Integration | v1.1 | 0/1 | Not started | - |
 | 10. Dispatch App Updates | v1.1 | 0/? | Not started | - |
 | 11. Skill Migration | v1.1 | 0/? | Not started | - |
 | 12. Verification | v1.1 | 0/? | Not started | - |
