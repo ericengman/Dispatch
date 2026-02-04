@@ -5,8 +5,8 @@
 //  Main application entry point
 //
 
-import SwiftUI
 import SwiftData
+import SwiftUI
 
 @main
 struct DispatchApp: App {
@@ -20,7 +20,9 @@ struct DispatchApp: App {
             PromptChain.self,
             ChainItem.self,
             QueueItem.self,
-            AppSettings.self
+            AppSettings.self,
+            SimulatorRun.self,
+            Screenshot.self
         ])
 
         let modelConfiguration = ModelConfiguration(
@@ -47,6 +49,7 @@ struct DispatchApp: App {
 
     @StateObject private var hotkeyManager = HotkeyManager.shared
     @StateObject private var hookServerManager = HookServerManager.shared
+    @StateObject private var screenshotWatcherManager = ScreenshotWatcherManager.shared
 
     // MARK: - Body
 
@@ -164,31 +167,79 @@ struct DispatchApp: App {
         // Configure settings manager
         SettingsManager.shared.configure(with: sharedModelContainer.mainContext)
 
+        // Configure screenshot watcher
+        screenshotWatcherManager.configure(with: sharedModelContainer.mainContext)
+
         // Start hook server
         Task {
             await hookServerManager.start()
         }
 
+        // Start screenshot watcher
+        Task {
+            await screenshotWatcherManager.start()
+        }
+
+        // Run screenshot cleanup for all projects on launch
+        Task {
+            await runScreenshotCleanup()
+        }
+
         // Register global hotkey
         hotkeyManager.registerFromSettings()
 
-        // Check and install hooks if needed
+        // Install/update external files and refresh hook status
         Task {
+            logInfo("Installing/updating external files...", category: .hooks)
+
+            // Install library if needed (non-blocking)
+            await HookInstallerManager.shared.installLibraryIfNeeded()
+
+            // Install session start hook if needed (non-blocking)
+            await HookInstallerManager.shared.installSessionStartHookIfNeeded()
+
+            // Refresh hook status (existing)
             await HookInstallerManager.shared.refreshStatus()
         }
 
         logInfo("Dispatch app setup complete", category: .app)
+    }
+
+    /// Cleans up old screenshot runs for all projects
+    private func runScreenshotCleanup() async {
+        logInfo("Running screenshot cleanup on launch", category: .simulator)
+
+        let context = sharedModelContainer.mainContext
+
+        // Get all unique project names with runs
+        let descriptor = FetchDescriptor<SimulatorRun>()
+
+        do {
+            let runs = try context.fetch(descriptor)
+            let projectNames = Set(runs.compactMap { $0.project?.name })
+
+            for projectName in projectNames {
+                await ScreenshotWatcherService.shared.cleanupOldRuns(
+                    for: projectName,
+                    context: context
+                )
+            }
+
+            logInfo("Screenshot cleanup complete for \(projectNames.count) projects", category: .simulator)
+        } catch {
+            error.log(category: .simulator, context: "Failed to run screenshot cleanup")
+        }
     }
 }
 
 // MARK: - App Delegate
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    func applicationDidFinishLaunching(_ notification: Notification) {
+    func applicationDidFinishLaunching(_: Notification) {
         logInfo("Application did finish launching", category: .app)
     }
 
-    func applicationWillTerminate(_ notification: Notification) {
+    func applicationWillTerminate(_: Notification) {
         logInfo("Application will terminate", category: .app)
 
         // Stop hook server
@@ -205,7 +256,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+    func applicationShouldTerminateAfterLastWindowClosed(_: NSApplication) -> Bool {
         // Keep running if menu bar mode is enabled
         return !(SettingsManager.shared.settings?.showInMenuBar ?? false)
     }
