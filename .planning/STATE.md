@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-03)
 
 **Core value:** Users can dispatch prompts (including annotated simulator screenshots) to Claude Code with zero friction
-**Current focus:** Phase 11 - Skill Migration (next)
+**Current focus:** Phase 11 - Skill Migration (in progress)
 
 ## Current Position
 
-Phase: 10 of 13 (Dispatch App Updates) — COMPLETE
-Plan: 1/1 plans complete
-Status: Phase 10 verified, ready for Phase 11
-Last activity: 2026-02-03 — Phase 10 complete and verified
+Phase: 11 of 13 (Skill Migration)
+Plan: 2/4 plans complete
+Status: In progress - test-dynamic-type migrated
+Last activity: 2026-02-04 — Completed 11-02-PLAN.md
 
-Progress: [============>.] 77% (Phase 10 complete, 3 phases remaining)
+Progress: [=============.] 81% (Plan 11-02 complete, 2 plans remaining in phase)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 3 (v1.1)
+- Total plans completed: 5 (v1.1)
 - Average duration: 3m
-- Total execution time: 10m
+- Total execution time: 14m
 
 **By Phase:**
 
@@ -30,10 +30,11 @@ Progress: [============>.] 77% (Phase 10 complete, 3 phases remaining)
 | 8 | 1 | 3m | 3m |
 | 9 | 1 | 3m | 3m |
 | 10 | 1 | 4m | 4m |
+| 11 | 2 | 4m | 2m |
 
 **Recent Trend:**
-- Last 5 plans: 08-01 (3m), 09-01 (3m), 10-01 (4m)
-- Trend: Consistent ~3-4m execution time
+- Last 5 plans: 08-01 (3m), 09-01 (3m), 10-01 (4m), 11-01 (2m), 11-02 (2m)
+- Trend: Skill migrations faster (~2m) due to repetitive pattern
 
 *Updated after each plan completion*
 
@@ -55,6 +56,8 @@ Recent decisions affecting current work:
 - [10-01]: Auto-install library and hook on every app launch (AUTO-INSTALL-01)
 - [10-01]: Semantic version comparison for library updates (VERSION-CHECK-01)
 - [10-01]: Preserve user's custom session-start hook (PRESERVE-CUSTOM-01)
+- [11-01]: Source library at start of skill bash execution (SKILL-SOURCE-01)
+- [11-02]: Multi-run pattern: dispatch_init/dispatch_finalize in loop for each text size (SKILL-MULTIRUN-01)
 
 ### Pending Todos
 
@@ -62,15 +65,27 @@ None yet.
 
 ### Blockers/Concerns
 
-None - Phase 10 complete with all must-haves verified
+None - skill migrations proceeding as planned
 
 ## Session Continuity
 
-Last session: 2026-02-03
-Stopped at: Phase 10 complete, ready for Phase 11
+Last session: 2026-02-04
+Stopped at: Completed 11-02-PLAN.md (test-dynamic-type migration)
 Resume file: None
 
 ## Recent Deliverables
+
+### Phase 11 Plan 02 (test-dynamic-type Migration)
+- Migrated: `~/.claude/skills/test-dynamic-type/SKILL.md`
+- Pattern: Multi-run loop with dispatch_init/dispatch_finalize per text size
+- Removed: ~40 lines of inline curl commands
+- Added: Library sourcing and function calls
+
+### Phase 11 Plan 01 (test-feature Migration)
+- Migrated: `~/.claude/skills/test-feature/SKILL.md`
+- Pattern: Single-run with library sourcing
+- Removed: ~30 lines of inline curl commands
+- Added: Library sourcing and function calls
 
 ### Phase 10 Plan 01 (Dispatch App Updates)
 - Bundled resources: `Dispatch/Resources/dispatch-lib.sh`, `Dispatch/Resources/session-start-hook.sh`
