@@ -18,9 +18,9 @@ Requirements for milestone v1.1 Screenshot Integration Fix. Each maps to roadmap
 
 ### Hook Integration
 
-- [ ] **HOOK-01**: Create SessionStart hook at `~/.claude/hooks/session-start.sh` for early Dispatch detection
-- [ ] **HOOK-02**: SessionStart hook sets environment variables via `CLAUDE_ENV_FILE` for session-wide access
-- [ ] **HOOK-03**: Hook performs health check against Dispatch API at session start
+- [x] **HOOK-01**: Create SessionStart hook at `~/.claude/hooks/session-start.sh` for early Dispatch detection
+- [x] **HOOK-02**: SessionStart hook sets environment variables via `CLAUDE_ENV_FILE` for session-wide access
+- [x] **HOOK-03**: Hook performs health check against Dispatch API at session start
 
 ### Dispatch App Updates
 
@@ -94,9 +94,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FNDTN-04 | Phase 8 | Complete |
 | FNDTN-05 | Phase 8 | Complete |
 | FNDTN-06 | Phase 8 | Complete |
-| HOOK-01 | Phase 9 | Pending |
-| HOOK-02 | Phase 9 | Pending |
-| HOOK-03 | Phase 9 | Pending |
+| HOOK-01 | Phase 9 | Complete |
+| HOOK-02 | Phase 9 | Complete |
+| HOOK-03 | Phase 9 | Complete |
 | APP-01 | Phase 10 | Pending |
 | APP-02 | Phase 10 | Pending |
 | APP-03 | Phase 10 | Pending |
@@ -122,4 +122,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-02-03*
-*Last updated: 2026-02-03 after roadmap creation*
+*Last updated: 2026-02-03 after Phase 9 completion*
