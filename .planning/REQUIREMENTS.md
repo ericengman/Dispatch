@@ -30,12 +30,12 @@ Requirements for milestone v1.1 Screenshot Integration Fix. Each maps to roadmap
 
 ### Skill Migration
 
-- [ ] **SKILL-01**: Audit all skills in `~/.claude/skills/` to identify which take screenshots
-- [ ] **SKILL-02**: Update `test-feature` skill to source shared library instead of inline integration
-- [ ] **SKILL-03**: Update `explore-app` skill to source shared library
-- [ ] **SKILL-04**: Update `test-dynamic-type` skill to source shared library
-- [ ] **SKILL-05**: Update all other screenshot-taking skills to source shared library
-- [ ] **SKILL-06**: Remove duplicated Dispatch integration code from all migrated skills
+- [x] **SKILL-01**: Audit all skills in `~/.claude/skills/` to identify which take screenshots
+- [x] **SKILL-02**: Update `test-feature` skill to source shared library instead of inline integration
+- [x] **SKILL-03**: Update `explore-app` skill to source shared library
+- [x] **SKILL-04**: Update `test-dynamic-type` skill to source shared library
+- [x] **SKILL-05**: Update all other screenshot-taking skills to source shared library
+- [x] **SKILL-06**: Remove duplicated Dispatch integration code from all migrated skills
 
 ### Verification
 
@@ -100,12 +100,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | APP-01 | Phase 10 | Complete |
 | APP-02 | Phase 10 | Complete |
 | APP-03 | Phase 10 | Complete |
-| SKILL-01 | Phase 11 | Pending |
-| SKILL-02 | Phase 11 | Pending |
-| SKILL-03 | Phase 11 | Pending |
-| SKILL-04 | Phase 11 | Pending |
-| SKILL-05 | Phase 11 | Pending |
-| SKILL-06 | Phase 11 | Pending |
+| SKILL-01 | Phase 11 | Complete |
+| SKILL-02 | Phase 11 | Complete |
+| SKILL-03 | Phase 11 | Complete |
+| SKILL-04 | Phase 11 | Complete |
+| SKILL-05 | Phase 11 | Complete |
+| SKILL-06 | Phase 11 | Complete |
 | VERIFY-01 | Phase 12 | Pending |
 | VERIFY-02 | Phase 12 | Pending |
 | VERIFY-03 | Phase 12 | Pending |
@@ -122,4 +122,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-02-03*
-*Last updated: 2026-02-03 after Phase 10 completion*
+*Last updated: 2026-02-04 after Phase 11 completion*

@@ -33,7 +33,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 8: Foundation** - Create shared bash library for Dispatch integration
 - [x] **Phase 9: Hook Integration** - Add SessionStart hook for early Dispatch detection
 - [x] **Phase 10: Dispatch App Updates** - Auto-install library and hooks via HookInstaller
-- [ ] **Phase 11: Skill Migration** - Update all screenshot-taking skills to use shared library
+- [x] **Phase 11: Skill Migration** - Update all screenshot-taking skills to use shared library
 - [ ] **Phase 12: Verification** - End-to-end testing of screenshot flow
 - [ ] **Phase 13: Polish** - Settings UI, tooltips, error display
 
@@ -92,9 +92,9 @@ Plans:
 **Plans:** 3 plans
 
 Plans:
-- [ ] 11-01-PLAN.md — Migrate single-run skills (test-feature, explore-app, qa-feature) to shared library
-- [ ] 11-02-PLAN.md — Migrate multi-run skill (test-dynamic-type) to shared library
-- [ ] 11-03-PLAN.md — Verify migration complete, no inline code remains
+- [x] 11-01-PLAN.md — Migrate single-run skills (test-feature, explore-app, qa-feature) to shared library
+- [x] 11-02-PLAN.md — Migrate multi-run skill (test-dynamic-type) to shared library
+- [x] 11-03-PLAN.md — Verify migration complete, no inline code remains
 
 ### Phase 12: Verification
 **Goal**: End-to-end screenshot flow verified working across multiple skills
@@ -135,6 +135,6 @@ Phases execute in numeric order: 8 -> 8.1 -> 8.2 -> 9 -> ...
 | 8. Foundation | v1.1 | 1/1 | Complete | 2026-02-03 |
 | 9. Hook Integration | v1.1 | 1/1 | Complete | 2026-02-03 |
 | 10. Dispatch App Updates | v1.1 | 1/1 | Complete | 2026-02-03 |
-| 11. Skill Migration | v1.1 | 0/3 | Not started | - |
+| 11. Skill Migration | v1.1 | 3/3 | Complete | 2026-02-04 |
 | 12. Verification | v1.1 | 0/? | Not started | - |
 | 13. Polish | v1.1 | 0/? | Not started | - |
