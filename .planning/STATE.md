@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-03)
 
 **Core value:** Users can dispatch prompts (including annotated simulator screenshots) to Claude Code with zero friction
-**Current focus:** Phase 13 - Polish (next)
+**Current focus:** v1.1 Milestone Complete
 
 ## Current Position
 
-Phase: 13 of 13 (Polish)
-Plan: 2/4 plans complete (13-01, 13-02)
-Status: In progress - Annotation tooltips and error handling complete
-Last activity: 2026-02-07 — Completed 13-02-PLAN.md (Annotation Tooltips & Error Handling)
+Phase: 13 of 13 (Polish) - COMPLETE
+Plan: 2/2 plans complete (13-01, 13-02)
+Status: Phase 13 complete, v1.1 milestone complete
+Last activity: 2026-02-07 — Completed Phase 13 (Polish)
 
-Progress: [================░] 97% (Phase 13 in progress)
+Progress: [================] 100% (v1.1 milestone complete)
 
 ## Performance Metrics
 
@@ -74,12 +74,17 @@ None yet.
 
 ### Blockers/Concerns
 
-None - Phase 13 in progress (2/4 plans complete)
+None - v1.1 milestone complete
+
+### Known Gaps (Future Work)
+
+- 20 skills still use hardcoded `/tmp` paths instead of Dispatch library (test-daily-questions, test-all-sync, etc.)
+- Phase 11 migrated only 4 skills; remaining skills need migration for complete integration
 
 ## Session Continuity
 
 Last session: 2026-02-07
-Stopped at: Completed 13-02-PLAN.md (Annotation Tooltips & Error Handling)
+Stopped at: v1.1 milestone complete
 Resume file: None
 
 ## Recent Deliverables

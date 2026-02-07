@@ -3,7 +3,7 @@
 ## Milestones
 
 - [x] **v1.0 MVP** - Phases 1-7 (shipped)
-- [ ] **v1.1 Screenshot Integration Fix** - Phases 8-13 (in progress)
+- [x] **v1.1 Screenshot Integration Fix** - Phases 8-13 (complete)
 
 ## Phases
 
@@ -20,7 +20,7 @@ v1.0 phases were part of brownfield development. See `Docs/TODO_SimulatorScreens
 
 </details>
 
-### v1.1 Screenshot Integration Fix (In Progress)
+### v1.1 Screenshot Integration Fix (Complete)
 
 **Milestone Goal:** Fix screenshot path routing so skills save to Dispatch-monitored location, enabling end-to-end screenshot review workflow.
 
@@ -35,7 +35,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 10: Dispatch App Updates** - Auto-install library and hooks via HookInstaller
 - [x] **Phase 11: Skill Migration** - Update all screenshot-taking skills to use shared library
 - [x] **Phase 12: Verification** - End-to-end testing of screenshot flow
-- [ ] **Phase 13: Polish** - Settings UI, tooltips, error display
+- [x] **Phase 13: Polish** - Settings UI, tooltips, error display
 
 ## Phase Details
 
@@ -124,8 +124,8 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 13-01-PLAN.md — Add Screenshots settings tab with directory and max runs configuration
-- [ ] 13-02-PLAN.md — Add annotation tooltips, dispatch error alerts, and integration status indicator
+- [x] 13-01-PLAN.md — Add Screenshots settings tab with directory and max runs configuration
+- [x] 13-02-PLAN.md — Add annotation tooltips, dispatch error alerts, and integration status indicator
 
 ## Progress
 
@@ -140,4 +140,4 @@ Phases execute in numeric order: 8 -> 8.1 -> 8.2 -> 9 -> ...
 | 10. Dispatch App Updates | v1.1 | 1/1 | Complete | 2026-02-03 |
 | 11. Skill Migration | v1.1 | 3/3 | Complete | 2026-02-04 |
 | 12. Verification | v1.1 | 3/3 | Complete | 2026-02-07 |
-| 13. Polish | v1.1 | 0/2 | Not started | - |
+| 13. Polish | v1.1 | 2/2 | Complete | 2026-02-07 |

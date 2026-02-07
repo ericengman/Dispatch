@@ -46,10 +46,10 @@ Requirements for milestone v1.1 Screenshot Integration Fix. Each maps to roadmap
 
 ### Polish (Settings & UI)
 
-- [ ] **POLISH-01**: Add Settings UI section for screenshot configuration (directory, max runs)
-- [ ] **POLISH-02**: Add tooltip hints for annotation tools in Annotation Window
-- [ ] **POLISH-03**: Display user-visible error when dispatch fails (not just log)
-- [ ] **POLISH-04**: Show integration status indicator in Dispatch UI (library installed, hook active)
+- [x] **POLISH-01**: Add Settings UI section for screenshot configuration (directory, max runs)
+- [x] **POLISH-02**: Add tooltip hints for annotation tools in Annotation Window
+- [x] **POLISH-03**: Display user-visible error when dispatch fails (not just log)
+- [x] **POLISH-04**: Show integration status indicator in Dispatch UI (library installed, hook active)
 
 ## Future Requirements
 
@@ -110,10 +110,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | VERIFY-02 | Phase 12 | Complete |
 | VERIFY-03 | Phase 12 | Complete |
 | VERIFY-04 | Phase 12 | Complete |
-| POLISH-01 | Phase 13 | Pending |
-| POLISH-02 | Phase 13 | Pending |
-| POLISH-03 | Phase 13 | Pending |
-| POLISH-04 | Phase 13 | Pending |
+| POLISH-01 | Phase 13 | Complete |
+| POLISH-02 | Phase 13 | Complete |
+| POLISH-03 | Phase 13 | Complete |
+| POLISH-04 | Phase 13 | Complete |
 
 **Coverage:**
 - v1.1 requirements: 26 total
@@ -122,4 +122,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-02-03*
-*Last updated: 2026-02-07 after Phase 12 completion*
+*Last updated: 2026-02-07 after Phase 13 completion (v1.1 milestone complete)*
