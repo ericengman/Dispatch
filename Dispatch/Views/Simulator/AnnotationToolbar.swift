@@ -165,7 +165,22 @@ struct ToolButton: View {
             )
         }
         .buttonStyle(.plain)
-        .help("\(tool.displayName) (\(String(tool.shortcutKey).uppercased()))")
+        .help(tooltipText)
+    }
+
+    private var tooltipText: String {
+        switch tool {
+        case .crop:
+            return "Crop image to selected region (C)"
+        case .freehand:
+            return "Draw freehand annotations (D)"
+        case .arrow:
+            return "Draw arrow to point at specific area (A)"
+        case .rectangle:
+            return "Draw rectangle to highlight region (R)"
+        case .text:
+            return "Add text annotation (T)"
+        }
     }
 }
 
@@ -198,7 +213,7 @@ struct ColorButton: View {
             .frame(width: 28, height: 28)
         }
         .buttonStyle(.plain)
-        .help("\(color.rawValue.capitalized) (\(color.shortcutNumber))")
+        .help("\(color.rawValue.capitalized) color (\(color.shortcutNumber))")
     }
 }
 
