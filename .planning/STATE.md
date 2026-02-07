@@ -63,6 +63,8 @@ Recent decisions affecting current work:
 - [12-02]: Override dispatch_check_health in tests to avoid curl timeout when server unavailable
 - [12-01]: Component-level verification sufficient alternative to manual E2E testing (TEST-DEFER-01)
 - [12-03]: Document both single-run and multi-run patterns with working examples
+- [13-01]: Follow existing Settings tab pattern for consistency
+- [13-01]: Use NSOpenPanel for directory selection
 - [13-02]: Integration status with separate library and hook checks, combined color coding (STATUS-PATTERN-01)
 - [13-02]: Error alerts with actionable "Open Settings" button for permission issues (ERROR-ACTION-01)
 
@@ -89,10 +91,10 @@ Resume file: None
 - POLISH-02, POLISH-03, POLISH-04 requirements satisfied
 
 ### Phase 13 Plan 01 (Screenshots Settings Tab)
-- Added Screenshots tab to Settings window for integration management
-- Exposed library and hook installation status with visual indicators
-- Provided manual control for hook installation and file opening
-- POLISH-01 requirement satisfied
+- Added Screenshots tab to Settings window with ScreenshotSettingsView
+- Implemented NSOpenPanel-based directory picker for custom screenshot location
+- Added max runs per project configuration with 5/10/20/50/unlimited options
+- Settings persist via SettingsManager with immediate UI updates
 
 ### Phase 12 Plan 03 (Documentation Update)
 - Enhanced library documentation with single-run and multi-run pattern examples
