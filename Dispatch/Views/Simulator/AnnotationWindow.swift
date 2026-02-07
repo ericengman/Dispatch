@@ -104,6 +104,10 @@ struct AnnotationWindowContent: View {
     // MARK: - State
 
     @State private var selectedScreenshot: Screenshot?
+    @State private var dispatchError: String?
+    @State private var showingDispatchError = false
+    @State private var libraryInstalled = false
+    @State private var hookInstalled = false
 
     // MARK: - Body
 
@@ -126,8 +130,19 @@ struct AnnotationWindowContent: View {
             bottomStrip
         }
         .background(Color(nsColor: .windowBackgroundColor))
+        .alert("Dispatch Failed", isPresented: $showingDispatchError) {
+            Button("OK", role: .cancel) {
+                dispatchError = nil
+            }
+            Button("Open Settings") {
+                openTerminalSettings()
+            }
+        } message: {
+            Text(dispatchError ?? "Failed to send to Terminal. Check automation permissions.")
+        }
         .onAppear {
             setupInitialState()
+            checkIntegrationStatus()
         }
         .onKeyPress(keys: [.escape]) { _ in
             windowController.close()
@@ -226,6 +241,9 @@ struct AnnotationWindowContent: View {
 
     private var dispatchSection: some View {
         VStack(spacing: 12) {
+            // Integration status
+            integrationStatusView
+
             // Keyboard shortcut hint
             HStack {
                 Spacer()
@@ -259,6 +277,18 @@ struct AnnotationWindowContent: View {
             .buttonStyle(.borderedProminent)
             .disabled(!canDispatch)
             .keyboardShortcut(.return, modifiers: .command)
+        }
+    }
+
+    @ViewBuilder
+    private var integrationStatusView: some View {
+        HStack(spacing: 4) {
+            Image(systemName: statusIcon)
+                .font(.caption2)
+                .foregroundStyle(statusColor)
+            Text(statusText)
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
     }
 
@@ -303,6 +333,30 @@ struct AnnotationWindowContent: View {
         annotationVM.hasQueuedImages && !annotationVM.promptText.isEmpty
     }
 
+    private var statusIcon: String {
+        switch (libraryInstalled, hookInstalled) {
+        case (true, true): return "checkmark.circle.fill"
+        case (true, false): return "exclamationmark.circle"
+        case (false, _): return "xmark.circle"
+        }
+    }
+
+    private var statusColor: Color {
+        switch (libraryInstalled, hookInstalled) {
+        case (true, true): return .green
+        case (true, false): return .orange
+        case (false, _): return .red
+        }
+    }
+
+    private var statusText: String {
+        switch (libraryInstalled, hookInstalled) {
+        case (true, true): return "Integration ready"
+        case (true, false): return "Library ready, hook inactive"
+        case (false, _): return "Library not installed"
+        }
+    }
+
     // MARK: - Actions
 
     private func setupInitialState() {
@@ -340,9 +394,63 @@ struct AnnotationWindowContent: View {
                 annotationVM.handleDispatchComplete()
 
                 logInfo("Dispatched \(imageCount) images with prompt", category: .simulator)
+            } catch let error as TerminalServiceError {
+                // Handle specific Terminal errors with helpful messages
+                handleDispatchError(error)
             } catch {
+                // Generic error
+                dispatchError = error.localizedDescription
+                showingDispatchError = true
                 error.log(category: .simulator, context: "Failed to dispatch images")
             }
+        } else {
+            // Clipboard copy failure
+            dispatchError = "Failed to copy images to clipboard. Check available memory."
+            showingDispatchError = true
+            logError("Failed to copy images to clipboard", category: .simulator)
+        }
+    }
+
+    private func handleDispatchError(_ error: TerminalServiceError) {
+        switch error {
+        case .permissionDenied:
+            dispatchError = "Terminal automation permission denied. Grant access in System Settings > Privacy & Security > Automation."
+        case .accessibilityPermissionDenied:
+            dispatchError = "Accessibility permission denied. Grant access in System Settings > Privacy & Security > Accessibility."
+        case .terminalNotRunning:
+            dispatchError = "Terminal.app is not running. Launch Terminal and try again."
+        case .noWindowsOpen:
+            dispatchError = "No Terminal windows are open. Open a Terminal window and try again."
+        default:
+            dispatchError = error.localizedDescription
+        }
+        showingDispatchError = true
+        error.log(category: .simulator, context: "Dispatch failed")
+    }
+
+    private func openTerminalSettings() {
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Automation") {
+            NSWorkspace.shared.open(url)
+        }
+    }
+
+    private func checkIntegrationStatus() {
+        Task {
+            // Check library
+            let libraryPath = FileManager.default.homeDirectoryForCurrentUser
+                .appendingPathComponent(".claude/lib/dispatch.sh")
+            let exists = FileManager.default.fileExists(atPath: libraryPath.path)
+            if exists {
+                let attributes = try? FileManager.default.attributesOfItem(atPath: libraryPath.path)
+                let permissions = attributes?[.posixPermissions] as? Int ?? 0
+                libraryInstalled = (permissions & 0o111) != 0
+            } else {
+                libraryInstalled = false
+            }
+
+            // Check hook
+            await HookInstallerManager.shared.refreshStatus()
+            hookInstalled = HookInstallerManager.shared.status.isInstalled
         }
     }
 
