@@ -121,10 +121,11 @@ Plans:
   2. Annotation tools show tooltip hints on hover
   3. Failed dispatch shows user-visible error message (not just log)
   4. Dispatch UI shows integration status indicator (library installed, hook active)
-**Plans**: TBD
+**Plans:** 2 plans
 
 Plans:
-- [ ] 13-01: TBD
+- [ ] 13-01-PLAN.md — Add Screenshots settings tab with directory and max runs configuration
+- [ ] 13-02-PLAN.md — Add annotation tooltips, dispatch error alerts, and integration status indicator
 
 ## Progress
 
@@ -139,4 +140,4 @@ Phases execute in numeric order: 8 -> 8.1 -> 8.2 -> 9 -> ...
 | 10. Dispatch App Updates | v1.1 | 1/1 | Complete | 2026-02-03 |
 | 11. Skill Migration | v1.1 | 3/3 | Complete | 2026-02-04 |
 | 12. Verification | v1.1 | 3/3 | Complete | 2026-02-07 |
-| 13. Polish | v1.1 | 0/? | Not started | - |
+| 13. Polish | v1.1 | 0/2 | Not started | - |
