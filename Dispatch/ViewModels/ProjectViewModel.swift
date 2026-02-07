@@ -29,9 +29,7 @@ final class ProjectViewModel: ObservableObject {
 
     static let shared = ProjectViewModel()
 
-    private init() {
-        logDebug("ProjectViewModel initialized", category: .data)
-    }
+    private init() {}
 
     func configure(with context: ModelContext) {
         self.modelContext = context

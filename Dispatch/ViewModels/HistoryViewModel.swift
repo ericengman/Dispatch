@@ -33,7 +33,6 @@ final class HistoryViewModel: ObservableObject {
 
     private init() {
         setupSearchDebounce()
-        logDebug("HistoryViewModel initialized", category: .history)
     }
 
     func configure(with context: ModelContext, retentionDays: Int = 30) {
@@ -54,9 +53,6 @@ final class HistoryViewModel: ObservableObject {
         isLoading = true
 
         Task {
-            let perf = PerformanceLogger("fetchHistory", category: .history)
-            defer { perf.end() }
-
             do {
                 var descriptor = FetchDescriptor<PromptHistory>()
                 descriptor.sortBy = [SortDescriptor(\.sentAt, order: .reverse)]
@@ -77,7 +73,6 @@ final class HistoryViewModel: ObservableObject {
                 await MainActor.run {
                     self.entries = results
                     self.isLoading = false
-                    logDebug("Fetched \(results.count) history entries", category: .history)
                 }
 
             } catch {

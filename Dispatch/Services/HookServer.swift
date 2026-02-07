@@ -5,9 +5,9 @@
 //  Local HTTP server for receiving Claude Code hook notifications
 //
 
+import Combine
 import Foundation
 import Network
-import Combine
 
 // MARK: - Hook Server Configuration
 
@@ -36,6 +36,31 @@ struct HookPayload: Codable, Sendable {
         case session
         case timestamp
     }
+}
+
+// MARK: - Screenshot Request/Response Types
+
+/// Request to create a new screenshot run
+struct CreateScreenshotRunRequest: Codable, Sendable {
+    let project: String
+    let name: String
+    let device: String?
+}
+
+/// Response with new run details
+struct CreateScreenshotRunResponse: Codable, Sendable {
+    let runId: String
+    let path: String
+}
+
+/// Request to mark a run as complete
+struct CompleteScreenshotRunRequest: Codable, Sendable {
+    let runId: String
+}
+
+/// Response with screenshot save location
+struct ScreenshotLocationResponse: Codable, Sendable {
+    let path: String
 }
 
 // MARK: - Hook Server State
@@ -70,8 +95,7 @@ actor HookServer {
     // MARK: - Initialization
 
     private init() {
-        self.config = HookServerConfig()
-        logDebug("HookServer initialized with default config", category: .hooks)
+        config = HookServerConfig()
     }
 
     // MARK: - Configuration
@@ -126,9 +150,9 @@ actor HookServer {
             listener?.start(queue: .global(qos: .userInitiated))
 
             // Wait for server to start
-            try await Task.sleep(nanoseconds: 100_000_000)  // 0.1 seconds
+            try await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
 
-            if case .error(let message) = state {
+            if case let .error(message) = state {
                 throw HookServerError.startFailed(message)
             }
 
@@ -165,7 +189,7 @@ actor HookServer {
     /// Restarts the server
     func restart() async throws {
         stop()
-        try await Task.sleep(nanoseconds: 500_000_000)  // 0.5 seconds
+        try await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
         try await start()
     }
 
@@ -184,9 +208,9 @@ actor HookServer {
             state = .running
             logInfo("HookServer listening on port \(config.port)", category: .hooks)
 
-        case .failed(let error):
+        case let .failed(error):
             state = .error(error.localizedDescription)
-            logError("HookServer failed: \(error)", category: .hooks)
+            // Error will be logged by the start() caller, avoid duplicate logging
 
         case .cancelled:
             state = .stopped
@@ -195,7 +219,7 @@ actor HookServer {
         case .setup:
             logDebug("HookServer setting up", category: .hooks)
 
-        case .waiting(let error):
+        case let .waiting(error):
             logWarning("HookServer waiting: \(error)", category: .hooks)
 
         @unknown default:
@@ -223,7 +247,7 @@ actor HookServer {
         case .ready:
             logDebug("Connection ready", category: .hooks)
 
-        case .failed(let error):
+        case let .failed(error):
             logError("Connection failed: \(error)", category: .hooks)
             removeConnection(connection)
 
@@ -286,8 +310,13 @@ actor HookServer {
         let method = String(parts[0])
         let path = String(parts[1])
 
+        // Parse query parameters if present
+        let pathComponents = path.split(separator: "?", maxSplits: 1)
+        let basePath = String(pathComponents[0])
+        let queryString = pathComponents.count > 1 ? String(pathComponents[1]) : nil
+
         // Handle routes
-        switch (method, path) {
+        switch (method, basePath) {
         case ("POST", "/hook/complete"):
             handleCompletionHook(requestString, connection: connection)
 
@@ -296,6 +325,15 @@ actor HookServer {
 
         case ("GET", "/"):
             sendSuccessResponse(to: connection, body: "{\"service\":\"Dispatch Hook Server\",\"version\":\"1.0\"}")
+
+        case ("GET", "/screenshots/location"):
+            handleScreenshotLocation(queryString: queryString, connection: connection)
+
+        case ("POST", "/screenshots/run"):
+            handleCreateScreenshotRun(requestString, connection: connection)
+
+        case ("POST", "/screenshots/complete"):
+            handleCompleteScreenshotRun(requestString, connection: connection)
 
         default:
             sendErrorResponse(to: connection, status: 404, message: "Not found")
@@ -338,6 +376,138 @@ actor HookServer {
             ExecutionStateMachine.shared.handleHookCompletion(sessionId: payload.session)
         }
     }
+
+    // MARK: - Screenshot Endpoints
+
+    private func handleScreenshotLocation(queryString: String?, connection: NWConnection) {
+        logInfo("Received screenshot location request", category: .simulator)
+
+        // Parse project name from query string
+        var projectName = "default"
+        if let query = queryString {
+            let params = parseQueryString(query)
+            if let name = params["project"], !name.isEmpty {
+                projectName = name
+            }
+        }
+
+        Task {
+            let config = await ScreenshotWatcherService.shared.getConfig()
+            let projectDir = config.projectDirectory(for: projectName)
+
+            // Ensure directory exists
+            do {
+                try FileManager.default.createDirectory(
+                    at: projectDir,
+                    withIntermediateDirectories: true,
+                    attributes: nil
+                )
+            } catch {
+                logError("Failed to create screenshot directory: \(error)", category: .simulator)
+                self.sendErrorResponse(to: connection, status: 500, message: "Failed to create directory")
+                return
+            }
+
+            let response = ScreenshotLocationResponse(path: projectDir.path)
+            if let jsonData = try? JSONEncoder().encode(response),
+               let jsonString = String(data: jsonData, encoding: .utf8) {
+                self.sendSuccessResponse(to: connection, body: jsonString)
+            } else {
+                self.sendErrorResponse(to: connection, status: 500, message: "Failed to encode response")
+            }
+        }
+    }
+
+    private func handleCreateScreenshotRun(_ request: String, connection: NWConnection) {
+        logInfo("Received create screenshot run request", category: .simulator)
+
+        // Extract JSON body
+        let parts = request.components(separatedBy: "\r\n\r\n")
+        guard parts.count >= 2, let jsonData = parts[1].data(using: .utf8) else {
+            sendErrorResponse(to: connection, status: 400, message: "Missing request body")
+            return
+        }
+
+        do {
+            let createRequest = try JSONDecoder().decode(CreateScreenshotRunRequest.self, from: jsonData)
+
+            Task { @MainActor in
+                if let result = await ScreenshotWatcherManager.shared.createRun(
+                    projectName: createRequest.project,
+                    runName: createRequest.name,
+                    deviceInfo: createRequest.device
+                ) {
+                    let response = CreateScreenshotRunResponse(
+                        runId: result.runId.uuidString,
+                        path: result.path
+                    )
+                    if let jsonData = try? JSONEncoder().encode(response),
+                       let jsonString = String(data: jsonData, encoding: .utf8) {
+                        await self.sendSuccessResponseAsync(to: connection, body: jsonString)
+                    } else {
+                        await self.sendErrorResponseAsync(to: connection, status: 500, message: "Failed to encode response")
+                    }
+                } else {
+                    await self.sendErrorResponseAsync(to: connection, status: 500, message: "Failed to create run")
+                }
+            }
+        } catch {
+            logError("Failed to parse create run request: \(error)", category: .simulator)
+            sendErrorResponse(to: connection, status: 400, message: "Invalid request body")
+        }
+    }
+
+    private func handleCompleteScreenshotRun(_ request: String, connection: NWConnection) {
+        logInfo("Received complete screenshot run request", category: .simulator)
+
+        // Extract JSON body
+        let parts = request.components(separatedBy: "\r\n\r\n")
+        guard parts.count >= 2, let jsonData = parts[1].data(using: .utf8) else {
+            sendErrorResponse(to: connection, status: 400, message: "Missing request body")
+            return
+        }
+
+        do {
+            let completeRequest = try JSONDecoder().decode(CompleteScreenshotRunRequest.self, from: jsonData)
+
+            // Trigger a scan to pick up any new screenshots
+            Task {
+                await ScreenshotWatcherService.shared.scanForNewRuns()
+            }
+
+            logInfo("Marked run \(completeRequest.runId) as complete", category: .simulator)
+            sendSuccessResponse(to: connection, body: "{\"completed\":true}")
+
+        } catch {
+            logError("Failed to parse complete run request: \(error)", category: .simulator)
+            sendErrorResponse(to: connection, status: 400, message: "Invalid request body")
+        }
+    }
+
+    private func parseQueryString(_ query: String) -> [String: String] {
+        var params: [String: String] = [:]
+        let pairs = query.split(separator: "&")
+        for pair in pairs {
+            let keyValue = pair.split(separator: "=", maxSplits: 1)
+            if keyValue.count == 2 {
+                let key = String(keyValue[0]).removingPercentEncoding ?? String(keyValue[0])
+                let value = String(keyValue[1]).removingPercentEncoding ?? String(keyValue[1])
+                params[key] = value
+            }
+        }
+        return params
+    }
+
+    // Async wrappers for sending responses from MainActor context
+    private func sendSuccessResponseAsync(to connection: NWConnection, body: String) async {
+        sendSuccessResponse(to: connection, body: body)
+    }
+
+    private func sendErrorResponseAsync(to connection: NWConnection, status: Int, message: String) async {
+        sendErrorResponse(to: connection, status: status, message: message)
+    }
+
+    // MARK: - Response Helpers
 
     private func sendSuccessResponse(to connection: NWConnection, body: String) {
         let response = """
@@ -389,7 +559,7 @@ enum HookServerError: Error, LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .startFailed(let message):
+        case let .startFailed(message):
             return "Failed to start hook server: \(message)"
         case .portInUse:
             return "Port is already in use"
@@ -410,9 +580,7 @@ final class HookServerManager: ObservableObject {
     @Published private(set) var lastError: String?
     @Published private(set) var port: UInt16 = 19847
 
-    private init() {
-        logDebug("HookServerManager initialized", category: .hooks)
-    }
+    private init() {}
 
     func start(port: UInt16? = nil) async {
         if let port = port {
@@ -424,11 +592,10 @@ final class HookServerManager: ObservableObject {
             try await HookServer.shared.start()
             isRunning = true
             lastError = nil
-            logInfo("Hook server started on port \(self.port)", category: .hooks)
         } catch {
             isRunning = false
             lastError = error.localizedDescription
-            logError("Failed to start hook server: \(error)", category: .hooks)
+            // Error already logged by HookServer.start()
         }
     }
 

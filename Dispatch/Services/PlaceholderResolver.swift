@@ -130,7 +130,6 @@ actor PlaceholderResolver {
     static let shared = PlaceholderResolver()
 
     private init() {
-        logDebug("PlaceholderResolver initialized", category: .placeholder)
     }
 
     // MARK: - Parsing

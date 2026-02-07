@@ -5,16 +5,16 @@
 //  Application settings model with singleton pattern
 //
 
+import Carbon.HIToolbox
+import Combine
 import Foundation
 import SwiftData
-import Combine
-import Carbon.HIToolbox
 
 // MARK: - Default Values
 
 enum AppSettingsDefaults {
-    static let globalHotkeyKeyCode: Int = Int(kVK_ANSI_D)  // 'D' key
-    static let globalHotkeyModifiers: Int = Int(cmdKey | shiftKey)  // ⌘⇧
+    static let globalHotkeyKeyCode: Int = .init(kVK_ANSI_D) // 'D' key
+    static let globalHotkeyModifiers: Int = .init(cmdKey | shiftKey) // ⌘⇧
     static let showInMenuBar: Bool = false
     static let showDockIcon: Bool = true
     static let autoDetectActiveTerminal: Bool = true
@@ -29,6 +29,8 @@ enum AppSettingsDefaults {
     static let launchAtLogin: Bool = false
     static let autoClearQueueOnQuit: Bool = false
     static let autoRefreshTerminalList: Bool = true
+    static let defaultAnnotationColor: String = "red"
+    static let maxRunsPerProject: Int = 10
 }
 
 @Model
@@ -104,6 +106,17 @@ final class AppSettings {
     /// Auto-clear queue when app quits
     var autoClearQueueOnQuit: Bool
 
+    // MARK: - Screenshot Settings
+
+    /// Custom screenshot directory path (nil = use default)
+    var screenshotDirectory: String?
+
+    /// Default annotation color for new annotations
+    var defaultAnnotationColor: String
+
+    /// Maximum runs to keep per project
+    var maxRunsPerProject: Int
+
     // MARK: - Internal
 
     /// Last modified timestamp
@@ -131,7 +144,10 @@ final class AppSettings {
         pollingIntervalSeconds: Double = AppSettingsDefaults.pollingIntervalSeconds,
         defaultProjectId: UUID? = nil,
         historyRetentionDays: Int = AppSettingsDefaults.historyRetentionDays,
-        autoClearQueueOnQuit: Bool = AppSettingsDefaults.autoClearQueueOnQuit
+        autoClearQueueOnQuit: Bool = AppSettingsDefaults.autoClearQueueOnQuit,
+        screenshotDirectory: String? = nil,
+        defaultAnnotationColor: String = AppSettingsDefaults.defaultAnnotationColor,
+        maxRunsPerProject: Int = AppSettingsDefaults.maxRunsPerProject
     ) {
         self.id = id
         self.globalHotkeyKeyCode = globalHotkeyKeyCode
@@ -153,7 +169,10 @@ final class AppSettings {
         self.defaultProjectId = defaultProjectId
         self.historyRetentionDays = historyRetentionDays
         self.autoClearQueueOnQuit = autoClearQueueOnQuit
-        self.updatedAt = Date()
+        self.screenshotDirectory = screenshotDirectory
+        self.defaultAnnotationColor = defaultAnnotationColor
+        self.maxRunsPerProject = maxRunsPerProject
+        updatedAt = Date()
 
         logDebug("Created AppSettings instance", category: .settings)
     }
@@ -163,7 +182,8 @@ final class AppSettings {
     /// Returns hotkey description for display (e.g., "⌘⇧D")
     var hotkeyDescription: String {
         guard let keyCode = globalHotkeyKeyCode,
-              let modifiers = globalHotkeyModifiers else {
+              let modifiers = globalHotkeyModifiers
+        else {
             return "Not Set"
         }
 
@@ -211,7 +231,7 @@ final class AppSettings {
 
     /// Updates hook server port
     func setHookServerPort(_ port: Int) {
-        guard port >= 1024 && port <= 65535 else {
+        guard port >= 1024, port <= 65535 else {
             logWarning("Invalid port number: \(port)", category: .settings)
             return
         }
@@ -222,7 +242,7 @@ final class AppSettings {
 
     /// Updates editor font size
     func setEditorFontSize(_ size: Int) {
-        guard size >= 12 && size <= 18 else {
+        guard size >= 12, size <= 18 else {
             logWarning("Invalid font size: \(size)", category: .settings)
             return
         }
@@ -233,7 +253,7 @@ final class AppSettings {
 
     /// Updates history retention
     func setHistoryRetention(days: Int) {
-        guard days >= 1 && days <= 365 else {
+        guard days >= 1, days <= 365 else {
             logWarning("Invalid retention period: \(days)", category: .settings)
             return
         }
@@ -263,6 +283,9 @@ final class AppSettings {
         defaultProjectId = nil
         historyRetentionDays = AppSettingsDefaults.historyRetentionDays
         autoClearQueueOnQuit = AppSettingsDefaults.autoClearQueueOnQuit
+        screenshotDirectory = nil
+        defaultAnnotationColor = AppSettingsDefaults.defaultAnnotationColor
+        maxRunsPerProject = AppSettingsDefaults.maxRunsPerProject
         updatedAt = Date()
 
         logInfo("Reset all settings to defaults", category: .settings)
@@ -304,13 +327,11 @@ final class SettingsManager: ObservableObject {
     @Published private(set) var settings: AppSettings?
     private var modelContext: ModelContext?
 
-    private init() {
-        logDebug("SettingsManager initialized", category: .settings)
-    }
+    private init() {}
 
     /// Configure with model context (call from app startup)
     func configure(with context: ModelContext) {
-        self.modelContext = context
+        modelContext = context
         loadOrCreateSettings()
     }
 

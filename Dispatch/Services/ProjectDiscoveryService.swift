@@ -61,7 +61,6 @@ actor ProjectDiscoveryService {
             home
         ]
 
-        logDebug("ProjectDiscoveryService initialized with \(searchPaths.count) search paths", category: .data)
     }
 
     // MARK: - Configuration
@@ -217,7 +216,6 @@ final class ProjectDiscoveryManager: ObservableObject {
     // MARK: - Initialization
 
     private init() {
-        logDebug("ProjectDiscoveryManager initialized", category: .data)
     }
 
     // MARK: - Discovery

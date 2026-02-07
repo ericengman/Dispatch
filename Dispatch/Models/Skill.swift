@@ -121,7 +121,6 @@ actor SkillDiscoveryService {
     }
 
     private init() {
-        logDebug("SkillDiscoveryService initialized", category: .data)
     }
 
     // MARK: - Discovery
@@ -315,7 +314,6 @@ final class SkillManager: ObservableObject {
     // MARK: - Initialization
 
     private init() {
-        logDebug("SkillManager initialized", category: .data)
     }
 
     // MARK: - Starring & Demoting
@@ -464,7 +462,8 @@ final class SkillManager: ObservableObject {
     /// - Parameters:
     ///   - skill: The skill to run
     ///   - projectPath: The project directory to open terminal in (overrides skill's project path)
-    func runInNewTerminal(_ skill: Skill, projectPath: URL? = nil) async throws {
+    ///   - pressEnter: Whether to press enter after typing the command (nil = auto-detect based on hasInputParameters)
+    func runInNewTerminal(_ skill: Skill, projectPath: URL? = nil, pressEnter: Bool? = nil) async throws {
         // Use provided project path, fall back to skill's project path, then to home directory
         let workingDir = projectPath?.path ?? skill.projectPath?.path ?? FileManager.default.homeDirectoryForCurrentUser.path
 
@@ -477,19 +476,20 @@ final class SkillManager: ObservableObject {
         try await Task.sleep(nanoseconds: 500_000_000)
 
         // Start Claude Code
-        try await TerminalService.shared.sendPrompt("claude", toWindowId: window.id)
+        try await TerminalService.shared.sendPrompt("claude --dangerously-skip-permissions", toWindowId: window.id)
 
         // Wait for Claude to start up (give it time to initialize)
         try await Task.sleep(nanoseconds: 2_000_000_000)  // 2 seconds
 
         // Type the slash command
-        // If skill has input parameters, don't press enter - let user fill in params first
-        try await TerminalService.shared.typeText(skill.slashCommand, pressEnter: !skill.hasInputParameters)
+        // Use provided pressEnter value, or fall back to auto-detect based on hasInputParameters
+        let shouldPressEnter = pressEnter ?? !skill.hasInputParameters
+        try await TerminalService.shared.typeText(skill.slashCommand, pressEnter: shouldPressEnter)
 
-        if skill.hasInputParameters {
-            logInfo("Skill '\(skill.name)' has input parameters - waiting for user input", category: .execution)
-        } else {
+        if shouldPressEnter {
             logInfo("Skill '\(skill.name)' executed", category: .execution)
+        } else {
+            logInfo("Skill '\(skill.name)' typed - waiting for user input", category: .execution)
         }
     }
 }

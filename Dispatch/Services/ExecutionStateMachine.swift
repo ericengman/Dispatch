@@ -135,7 +135,6 @@ final class ExecutionStateMachine: ObservableObject {
     static let shared = ExecutionStateMachine()
 
     private init() {
-        logDebug("ExecutionStateMachine initialized", category: .execution)
     }
 
     // MARK: - State Transitions
@@ -397,7 +396,6 @@ final class ExecutionManager: ObservableObject {
             }
         }
 
-        logDebug("ExecutionManager initialized", category: .execution)
     }
 
     // MARK: - Execute Prompt

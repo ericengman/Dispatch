@@ -5,8 +5,8 @@
 //  Main application view with navigation split view
 //
 
-import SwiftUI
 import SwiftData
+import SwiftUI
 
 // MARK: - Navigation Selection
 
@@ -22,14 +22,14 @@ enum NavigationSelection: Hashable, Identifiable, Codable {
         case .allPrompts: return "allPrompts"
         case .starred: return "starred"
         case .history: return "history"
-        case .project(let id): return "project-\(id)"
-        case .chain(let id): return "chain-\(id)"
+        case let .project(id): return "project-\(id)"
+        case let .chain(id): return "chain-\(id)"
         }
     }
 
     /// Returns the project ID if this selection is a project
     var projectId: UUID? {
-        if case .project(let id) = self {
+        if case let .project(id) = self {
             return id
         }
         return nil
@@ -64,9 +64,11 @@ struct MainView: View {
 
     @State private var selection: NavigationSelection? = NavigationSelection.loadSaved() ?? .allPrompts
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
-    @State private var showingQueue: Bool = true
+    @State private var showingQueue: Bool = false
     @State private var queueHeight: CGFloat = 150
     @State private var selectedSkill: Skill?
+    @State private var selectedClaudeFile: ClaudeFile?
+    @State private var selectedRun: SimulatorRun?
 
     // MARK: - View Models
 
@@ -76,6 +78,7 @@ struct MainView: View {
     @StateObject private var queueVM = QueueViewModel.shared
     @StateObject private var historyVM = HistoryViewModel.shared
     @StateObject private var executionState = ExecutionStateMachine.shared
+    @StateObject private var simulatorVM = SimulatorViewModel.shared
 
     // MARK: - Body
 
@@ -91,33 +94,55 @@ struct MainView: View {
                     // Skills panel (shown when a project is selected)
                     if let projectId = selection?.projectId,
                        let project = projectVM.projects.first(where: { $0.id == projectId }) {
-                        SkillsSidePanel(project: project, selectedSkill: $selectedSkill)
+                        SkillsSidePanel(
+                            project: project,
+                            selectedSkill: $selectedSkill,
+                            selectedClaudeFile: $selectedClaudeFile,
+                            selectedRun: $selectedRun
+                        )
                         Divider()
                     }
 
-                    // Main content or skill viewer
-                    if let skill = selectedSkill {
+                    // Main content, run detail, skill viewer, or claude file editor
+                    if let run = selectedRun {
+                        RunDetailView(run: run) {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                selectedRun = nil
+                            }
+                        }
+                        .id(run.id) // Force new view when run changes
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else if let claudeFile = selectedClaudeFile {
+                        ClaudeFileEditor(file: claudeFile) {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                selectedClaudeFile = nil
+                            }
+                        }
+                        .id(claudeFile.id) // Force new view when file changes
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else if let skill = selectedSkill {
                         SkillFileViewer(skill: skill) {
                             withAnimation(.easeInOut(duration: 0.2)) {
                                 selectedSkill = nil
                             }
                         }
+                        .id(skill.id) // Force new view when skill changes
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                     } else {
                         contentView
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
                 }
+                .frame(maxHeight: .infinity)
 
-                // Queue panel
-                if showingQueue {
-                    Divider()
+                // Queue panel (collapsible)
+                Divider()
 
-                    QueuePanelView()
-                        .environmentObject(queueVM)
-                        .frame(height: queueHeight)
-                        .frame(maxWidth: .infinity)
-                }
+                CollapsibleQueuePanel(
+                    isExpanded: $showingQueue,
+                    expandedHeight: queueHeight
+                )
+                .environmentObject(queueVM)
             }
         }
         .navigationSplitViewStyle(.balanced)
@@ -127,8 +152,10 @@ struct MainView: View {
         }
         .onChange(of: selection) { _, newSelection in
             newSelection?.save()
-            // Clear selected skill when navigating away
+            // Clear selections when navigating away
             selectedSkill = nil
+            selectedClaudeFile = nil
+            selectedRun = nil
         }
         .toolbar {
             toolbarContent
@@ -155,12 +182,12 @@ struct MainView: View {
                 .environmentObject(historyVM)
                 .environmentObject(queueVM)
 
-        case .project(let projectId):
+        case let .project(projectId):
             PromptListView(filter: .project(projectId))
                 .environmentObject(promptVM)
                 .environmentObject(queueVM)
 
-        case .chain(let chainId):
+        case let .chain(chainId):
             if let chain = chainVM.chains.first(where: { $0.id == chainId }) {
                 ChainEditorView(chain: chain)
                     .environmentObject(chainVM)
@@ -209,15 +236,6 @@ struct MainView: View {
                 Label("New Prompt", systemImage: "plus")
             }
             .keyboardShortcut("n", modifiers: .command)
-
-            // Toggle queue
-            Button {
-                withAnimation {
-                    showingQueue.toggle()
-                }
-            } label: {
-                Label("Toggle Queue", systemImage: showingQueue ? "tray.fill" : "tray")
-            }
         }
     }
 
@@ -229,6 +247,7 @@ struct MainView: View {
         chainVM.configure(with: modelContext)
         queueVM.configure(with: modelContext)
         historyVM.configure(with: modelContext)
+        simulatorVM.configure(with: modelContext)
         SettingsManager.shared.configure(with: modelContext)
 
         logInfo("ViewModels configured", category: .app)

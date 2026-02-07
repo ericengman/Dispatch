@@ -5,8 +5,8 @@
 //  List view for displaying and managing prompts with inline editing
 //
 
-import SwiftUI
 import SwiftData
+import SwiftUI
 
 struct PromptListView: View {
     // MARK: - Environment
@@ -21,6 +21,16 @@ struct PromptListView: View {
     // MARK: - State
 
     @State private var showingDeleteConfirmation = false
+
+    // MARK: - Computed Properties
+
+    /// The currently selected project based on sidebar filter
+    private var currentProject: Project? {
+        if case let .project(projectId) = filter {
+            return ProjectViewModel.shared.projects.first { $0.id == projectId }
+        }
+        return nil
+    }
 
     // MARK: - Body
 
@@ -43,6 +53,7 @@ struct PromptListView: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if promptVM.prompts.isEmpty {
                     emptyStateView
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     List(selection: Binding(
                         get: { promptVM.selectedPrompt?.id },
@@ -55,11 +66,13 @@ struct PromptListView: View {
                         }
                     )) {
                         ForEach(promptVM.prompts) { prompt in
-                            PromptRowView(prompt: prompt)
-                                .tag(prompt.id)
-                                .contextMenu {
-                                    promptContextMenu(for: prompt)
-                                }
+                            PromptRowView(prompt: prompt) { p in
+                                promptVM.toggleStarred(p)
+                            }
+                            .tag(prompt.id)
+                            .contextMenu {
+                                promptContextMenu(for: prompt)
+                            }
                         }
                         .onDelete { indexSet in
                             deletePrompts(at: indexSet)
@@ -72,27 +85,14 @@ struct PromptListView: View {
 
             // Right side - Inline editor
             if let prompt = promptVM.selectedPrompt {
-                PromptEditorPane(prompt: prompt)
+                PromptEditorPane(prompt: prompt, selectedProject: currentProject)
                     .environmentObject(promptVM)
                     .environmentObject(queueVM)
             } else {
-                // Empty state for detail
-                VStack(spacing: 16) {
-                    Image(systemName: "doc.text")
-                        .font(.system(size: 48))
-                        .foregroundStyle(.tertiary)
-
-                    Text("Select a prompt to view or edit")
-                        .foregroundStyle(.secondary)
-
-                    Button {
-                        createNewPrompt()
-                    } label: {
-                        Label("New Prompt", systemImage: "plus")
-                    }
-                    .buttonStyle(.bordered)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                // Quick entry view when no prompt selected
+                QuickPromptEntryView(selectedProject: currentProject)
+                    .environmentObject(promptVM)
+                    .environmentObject(queueVM)
             }
         }
         .navigationTitle(navigationTitle)
@@ -258,7 +258,7 @@ struct PromptListView: View {
     // MARK: - Actions
 
     private func createNewPrompt() {
-        if let prompt = promptVM.createPrompt() {
+        if let prompt = promptVM.createPrompt(project: currentProject) {
             promptVM.selectPrompt(prompt)
         }
     }

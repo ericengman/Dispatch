@@ -67,7 +67,6 @@ final class ChainViewModel: ObservableObject {
     static let shared = ChainViewModel()
 
     private init() {
-        logDebug("ChainViewModel initialized", category: .chain)
     }
 
     func configure(with context: ModelContext) {
