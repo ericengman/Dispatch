@@ -5,8 +5,8 @@
 //  Main settings view with tabbed navigation
 //
 
-import SwiftUI
 import SwiftData
+import SwiftUI
 
 struct SettingsView: View {
     // MARK: - State
@@ -46,6 +46,12 @@ struct SettingsView: View {
                     Label("Projects", systemImage: "folder.badge.gearshape")
                 }
                 .tag(SettingsTab.projects)
+
+            ScreenshotSettingsView()
+                .tabItem {
+                    Label("Screenshots", systemImage: "camera.viewfinder")
+                }
+                .tag(SettingsTab.screenshots)
         }
         .frame(width: 550, height: 450)
     }
@@ -59,6 +65,7 @@ enum SettingsTab: String {
     case terminal
     case hooks
     case projects
+    case screenshots
 }
 
 // MARK: - General Settings
@@ -75,7 +82,7 @@ struct GeneralSettingsView: View {
                 Toggle("Compact row height", isOn: compactRowHeightBinding)
 
                 Picker("Editor font size", selection: editorFontSizeBinding) {
-                    ForEach(12...18, id: \.self) { size in
+                    ForEach(12 ... 18, id: \.self) { size in
                         Text("\(size) pt").tag(size)
                     }
                 }
@@ -247,7 +254,7 @@ struct TerminalSettingsView: View {
 
                     Slider(
                         value: sendDelayBinding,
-                        in: 0...500,
+                        in: 0 ... 500,
                         step: 50
                     )
                 }
@@ -406,7 +413,7 @@ struct HookSettingsView: View {
         case .outdated:
             Label("Outdated", systemImage: "exclamationmark.circle")
                 .foregroundStyle(.orange)
-        case .error(let message):
+        case let .error(message):
             Label(message, systemImage: "exclamationmark.triangle")
                 .foregroundStyle(.red)
         }
@@ -536,6 +543,99 @@ struct ProjectDiscoverySettingsView: View {
         }
         .formStyle(.grouped)
         .padding()
+    }
+}
+
+// MARK: - Screenshot Settings
+
+struct ScreenshotSettingsView: View {
+    @ObservedObject private var settingsManager = SettingsManager.shared
+
+    var body: some View {
+        Form {
+            Section("Screenshot Storage") {
+                HStack {
+                    Text("Directory:")
+                    Spacer()
+                    Text(displayPath)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                        .frame(maxWidth: 250, alignment: .trailing)
+                }
+
+                Button("Choose...") {
+                    selectDirectory()
+                }
+
+                if settingsManager.settings?.screenshotDirectory != nil {
+                    Button("Reset to Default") {
+                        settingsManager.settings?.screenshotDirectory = nil
+                        settingsManager.save()
+                    }
+                }
+
+                Text("Default location: ~/Pictures/Dispatch Screenshots")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section("Run Management") {
+                Picker("Max runs per project", selection: maxRunsBinding) {
+                    Text("5 runs").tag(5)
+                    Text("10 runs").tag(10)
+                    Text("20 runs").tag(20)
+                    Text("50 runs").tag(50)
+                    Text("Unlimited").tag(0)
+                }
+
+                Text("Older screenshot runs are automatically deleted when the limit is reached. Set to Unlimited to keep all runs.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .formStyle(.grouped)
+        .padding()
+    }
+
+    // MARK: - Computed Properties
+
+    private var displayPath: String {
+        if let customPath = settingsManager.settings?.screenshotDirectory {
+            return customPath
+        }
+        return "~/Pictures/Dispatch Screenshots"
+    }
+
+    // MARK: - Bindings
+
+    private var maxRunsBinding: Binding<Int> {
+        Binding(
+            get: { settingsManager.settings?.maxRunsPerProject ?? 10 },
+            set: {
+                settingsManager.settings?.maxRunsPerProject = $0
+                settingsManager.save()
+            }
+        )
+    }
+
+    // MARK: - Methods
+
+    private func selectDirectory() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.canCreateDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.message = "Select a directory for saving screenshots"
+
+        if panel.runModal() == .OK {
+            if let url = panel.url {
+                settingsManager.settings?.screenshotDirectory = url.path
+                settingsManager.save()
+            }
+        }
     }
 }
 
