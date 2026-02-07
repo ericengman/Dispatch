@@ -39,10 +39,10 @@ Requirements for milestone v1.1 Screenshot Integration Fix. Each maps to roadmap
 
 ### Verification
 
-- [ ] **VERIFY-01**: End-to-end test: skill captures screenshots, appear in Dispatch UI
-- [ ] **VERIFY-02**: Test graceful degradation when Dispatch not running
-- [ ] **VERIFY-03**: Test screenshot routing from at least 3 different skills
-- [ ] **VERIFY-04**: Update skill documentation with new integration pattern
+- [x] **VERIFY-01**: End-to-end test: skill captures screenshots, appear in Dispatch UI
+- [x] **VERIFY-02**: Test graceful degradation when Dispatch not running
+- [x] **VERIFY-03**: Test screenshot routing from at least 3 different skills
+- [x] **VERIFY-04**: Update skill documentation with new integration pattern
 
 ### Polish (Settings & UI)
 
@@ -106,10 +106,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SKILL-04 | Phase 11 | Complete |
 | SKILL-05 | Phase 11 | Complete |
 | SKILL-06 | Phase 11 | Complete |
-| VERIFY-01 | Phase 12 | Pending |
-| VERIFY-02 | Phase 12 | Pending |
-| VERIFY-03 | Phase 12 | Pending |
-| VERIFY-04 | Phase 12 | Pending |
+| VERIFY-01 | Phase 12 | Complete |
+| VERIFY-02 | Phase 12 | Complete |
+| VERIFY-03 | Phase 12 | Complete |
+| VERIFY-04 | Phase 12 | Complete |
 | POLISH-01 | Phase 13 | Pending |
 | POLISH-02 | Phase 13 | Pending |
 | POLISH-03 | Phase 13 | Pending |
@@ -122,4 +122,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-02-03*
-*Last updated: 2026-02-04 after Phase 11 completion*
+*Last updated: 2026-02-07 after Phase 12 completion*

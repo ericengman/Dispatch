@@ -34,7 +34,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 9: Hook Integration** - Add SessionStart hook for early Dispatch detection
 - [x] **Phase 10: Dispatch App Updates** - Auto-install library and hooks via HookInstaller
 - [x] **Phase 11: Skill Migration** - Update all screenshot-taking skills to use shared library
-- [ ] **Phase 12: Verification** - End-to-end testing of screenshot flow
+- [x] **Phase 12: Verification** - End-to-end testing of screenshot flow
 - [ ] **Phase 13: Polish** - Settings UI, tooltips, error display
 
 ## Phase Details
@@ -108,9 +108,9 @@ Plans:
 **Plans:** 3 plans
 
 Plans:
-- [ ] 12-01-PLAN.md — E2E verification of screenshot routing (VERIFY-01, VERIFY-03)
-- [ ] 12-02-PLAN.md — Graceful degradation test without Dispatch (VERIFY-02)
-- [ ] 12-03-PLAN.md — Update skill and library documentation (VERIFY-04)
+- [x] 12-01-PLAN.md — E2E verification of screenshot routing (VERIFY-01, VERIFY-03)
+- [x] 12-02-PLAN.md — Graceful degradation test without Dispatch (VERIFY-02)
+- [x] 12-03-PLAN.md — Update skill and library documentation (VERIFY-04)
 
 ### Phase 13: Polish
 **Goal**: Screenshot feature has complete UI for configuration, hints, and error handling
@@ -138,5 +138,5 @@ Phases execute in numeric order: 8 -> 8.1 -> 8.2 -> 9 -> ...
 | 9. Hook Integration | v1.1 | 1/1 | Complete | 2026-02-03 |
 | 10. Dispatch App Updates | v1.1 | 1/1 | Complete | 2026-02-03 |
 | 11. Skill Migration | v1.1 | 3/3 | Complete | 2026-02-04 |
-| 12. Verification | v1.1 | 0/3 | Not started | - |
+| 12. Verification | v1.1 | 3/3 | Complete | 2026-02-07 |
 | 13. Polish | v1.1 | 0/? | Not started | - |
