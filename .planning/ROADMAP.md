@@ -105,10 +105,12 @@ Plans:
   2. Running same skill with Dispatch not running produces fallback behavior with clear message
   3. At least 3 different skills successfully route screenshots to Dispatch
   4. Skill documentation reflects new integration pattern
-**Plans**: TBD
+**Plans:** 3 plans
 
 Plans:
-- [ ] 12-01: TBD
+- [ ] 12-01-PLAN.md — E2E verification of screenshot routing (VERIFY-01, VERIFY-03)
+- [ ] 12-02-PLAN.md — Graceful degradation test without Dispatch (VERIFY-02)
+- [ ] 12-03-PLAN.md — Update skill and library documentation (VERIFY-04)
 
 ### Phase 13: Polish
 **Goal**: Screenshot feature has complete UI for configuration, hints, and error handling
@@ -136,5 +138,5 @@ Phases execute in numeric order: 8 -> 8.1 -> 8.2 -> 9 -> ...
 | 9. Hook Integration | v1.1 | 1/1 | Complete | 2026-02-03 |
 | 10. Dispatch App Updates | v1.1 | 1/1 | Complete | 2026-02-03 |
 | 11. Skill Migration | v1.1 | 3/3 | Complete | 2026-02-04 |
-| 12. Verification | v1.1 | 0/? | Not started | - |
+| 12. Verification | v1.1 | 0/3 | Not started | - |
 | 13. Polish | v1.1 | 0/? | Not started | - |
