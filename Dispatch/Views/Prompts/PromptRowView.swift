@@ -11,6 +11,7 @@ struct PromptRowView: View {
     // MARK: - Properties
 
     let prompt: Prompt
+    var onToggleStar: ((Prompt) -> Void)?
 
     // MARK: - Environment
 
@@ -20,11 +21,17 @@ struct PromptRowView: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            // Star indicator
-            Image(systemName: prompt.isStarred ? "star.fill" : "star")
-                .foregroundStyle(prompt.isStarred ? .yellow : .secondary)
-                .font(.system(size: 14))
-                .frame(width: 20)
+            // Star button
+            Button {
+                onToggleStar?(prompt)
+            } label: {
+                Image(systemName: prompt.isStarred ? "star.fill" : "star")
+                    .foregroundStyle(prompt.isStarred ? .yellow : .secondary)
+                    .font(.system(size: 14))
+                    .frame(width: 20)
+            }
+            .buttonStyle(.plain)
+            .help(prompt.isStarred ? "Remove from Starred" : "Add to Starred")
 
             // Content
             VStack(alignment: .leading, spacing: 4) {

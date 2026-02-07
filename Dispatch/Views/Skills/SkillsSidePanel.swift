@@ -2,25 +2,41 @@
 //  SkillsSidePanel.swift
 //  Dispatch
 //
-//  Compact skills panel shown alongside projects
+//  Panel with three independent collapsible sections:
+//  1. Screenshot Runs - horizontal scroll of recent test runs
+//  2. Memory - CLAUDE.md files
+//  3. Skills - system and project skills
 //
 
+import SwiftData
 import SwiftUI
 
 struct SkillsSidePanel: View {
     // MARK: - Environment
 
+    @Environment(\.modelContext) private var modelContext
     @ObservedObject private var skillManager = SkillManager.shared
+    @ObservedObject private var claudeFileManager = ClaudeFileManager.shared
 
     // MARK: - Properties
 
     let project: Project?
     @Binding var selectedSkill: Skill?
+    @Binding var selectedClaudeFile: ClaudeFile?
+    @Binding var selectedRun: SimulatorRun?
 
     // MARK: - State
 
-    @State private var isRefreshing = false
-    @State private var expandedSections: Set<String> = ["system", "project"]
+    // Expanded sections (loaded from UserDefaults on init)
+    @State private var expandedSections: Set<String> = Self.loadExpandedSections()
+
+    // Screenshot runs state
+    @State private var runs: [SimulatorRun] = []
+    @State private var runsFileWatcher: DispatchSourceFileSystemObject?
+    @State private var isRefreshingRuns = false
+
+    // Skills state
+    @State private var isRefreshingSkills = false
 
     // Terminal state (shared across all skill cards)
     @State private var matchingTerminals: [TerminalWindow] = []
@@ -42,62 +58,41 @@ struct SkillsSidePanel: View {
     // MARK: - Body
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Header
-            headerView
+        ScrollView {
+            VStack(spacing: 0) {
+                // Section 1: Screenshot Runs
+                screenshotRunsSection
 
-            Divider()
+                // Section 2: Memory
+                memorySection
 
-            // Skills grid
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    // System Skills
-                    if !skillManager.systemSkills.isEmpty {
-                        skillSection(
-                            id: "system",
-                            title: "System",
-                            icon: "globe",
-                            skills: skillManager.systemSkills
-                        )
-                    }
-
-                    // Project Skills
-                    if let project = project, project.isLinkedToFileSystem {
-                        if !skillManager.projectSkills.isEmpty {
-                            skillSection(
-                                id: "project",
-                                title: project.name,
-                                icon: "folder",
-                                skills: skillManager.projectSkills
-                            )
-                        } else {
-                            emptyProjectSection(project: project)
-                        }
-                    }
-
-                    // Empty state
-                    if skillManager.systemSkills.isEmpty && skillManager.projectSkills.isEmpty && !skillManager.isLoading {
-                        emptyStateView
-                    }
-                }
-                .padding(12)
+                // Section 3: Skills
+                skillsSection
             }
         }
-        .frame(width: 280)
+        .frame(width: 320)
         .background(Color(nsColor: .windowBackgroundColor))
         .onAppear {
             loadSkills()
             loadTerminals()
+            loadClaudeFiles()
+            fetchRuns()
+            startWatchingRunsDirectory()
+        }
+        .onDisappear {
+            stopWatchingRunsDirectory()
         }
         .onChange(of: project) { _, newProject in
             Task {
                 if let path = newProject?.pathURL {
                     await skillManager.loadProjectSkills(for: path)
+                    await claudeFileManager.loadFiles(for: path)
                 } else {
                     await skillManager.loadProjectSkills(for: nil)
+                    await claudeFileManager.loadFiles(for: nil)
                 }
-                // Reload terminals when project changes
                 await loadTerminalsAsync()
+                fetchRuns()
             }
         }
         .alert("Terminal Permission Required", isPresented: $showingAutomationPermissionAlert) {
@@ -122,130 +117,370 @@ struct SkillsSidePanel: View {
         }
     }
 
-    // MARK: - Header
+    // MARK: - Section 1: Screenshot Runs
 
-    private var headerView: some View {
+    private var screenshotRunsSection: some View {
+        VStack(spacing: 0) {
+            // Header bar
+            SectionHeaderBar(
+                title: "Screenshot Runs",
+                icon: "camera.viewfinder",
+                iconColor: .blue,
+                count: runs.count,
+                isExpanded: expandedSections.contains("runs"),
+                isRefreshing: isRefreshingRuns,
+                onToggle: { toggleSection("runs") },
+                onRefresh: {
+                    isRefreshingRuns = true
+                    fetchRuns()
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        isRefreshingRuns = false
+                    }
+                }
+            )
+
+            // Content
+            if expandedSections.contains("runs") {
+                if runs.isEmpty {
+                    emptyRunsView
+                        .padding(12)
+                } else {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        LazyHStack(spacing: 8) {
+                            ForEach(runs) { run in
+                                UnifiedCard(
+                                    title: run.displayName,
+                                    subtitle: "\(run.screenshotCount) screenshots",
+                                    icon: "photo.stack",
+                                    iconColor: .blue,
+                                    accessory: run.relativeCreatedTime
+                                )
+                                .frame(width: 140)
+                                .onTapGesture {
+                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                        selectedRun = run
+                                    }
+                                }
+                                .contextMenu {
+                                    Button {
+                                        withAnimation(.easeInOut(duration: 0.2)) {
+                                            selectedRun = run
+                                        }
+                                    } label: {
+                                        Label("View Details", systemImage: "eye")
+                                    }
+                                    Button {
+                                        AnnotationWindowController.shared.open(run: run)
+                                    } label: {
+                                        Label("Open in Window", systemImage: "rectangle.on.rectangle")
+                                    }
+                                    Divider()
+                                    Button(role: .destructive) {
+                                        deleteRun(run)
+                                    } label: {
+                                        Label("Delete", systemImage: "trash")
+                                    }
+                                }
+                            }
+                        }
+                        .padding(12)
+                    }
+                    .frame(height: 94)
+                }
+
+                Divider()
+            }
+        }
+    }
+
+    private var emptyRunsView: some View {
         HStack {
-            Label("Skills", systemImage: "sparkles")
-                .font(.headline)
-
             Spacer()
-
-            Button {
-                Task {
-                    isRefreshing = true
-                    await skillManager.refresh()
-                    isRefreshing = false
-                }
-            } label: {
-                Image(systemName: "arrow.clockwise")
+            VStack(spacing: 4) {
+                Image(systemName: "camera.viewfinder")
+                    .font(.title3)
+                    .foregroundStyle(.quaternary)
+                Text("No runs yet")
                     .font(.caption)
-                    .rotationEffect(.degrees(isRefreshing ? 360 : 0))
-                    .animation(isRefreshing ? .linear(duration: 1).repeatForever(autoreverses: false) : .default, value: isRefreshing)
+                    .foregroundStyle(.tertiary)
             }
-            .buttonStyle(.plain)
-            .disabled(isRefreshing)
+            Spacer()
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .background(.bar)
+        .frame(height: 60)
     }
 
-    // MARK: - Skill Section
+    // MARK: - Section 2: Memory
 
-    private func skillSection(id: String, title: String, icon: String, skills: [Skill]) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            // Section header (collapsible)
-            Button {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    if expandedSections.contains(id) {
-                        expandedSections.remove(id)
-                    } else {
-                        expandedSections.insert(id)
+    private var memorySection: some View {
+        let files = claudeFileManager.allFiles.filter { $0.exists }
+
+        return VStack(spacing: 0) {
+            // Header bar
+            SectionHeaderBar(
+                title: "Memory",
+                icon: "doc.text.fill",
+                iconColor: .purple,
+                count: files.count,
+                isExpanded: expandedSections.contains("memory"),
+                isRefreshing: false,
+                onToggle: { toggleSection("memory") },
+                onRefresh: {
+                    Task {
+                        await claudeFileManager.loadFiles(for: project?.pathURL)
                     }
                 }
-            } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: expandedSections.contains(id) ? "chevron.down" : "chevron.right")
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                        .frame(width: 10)
+            )
 
-                    Image(systemName: icon)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+            // Content
+            if expandedSections.contains("memory") {
+                if files.isEmpty {
+                    emptyMemoryView
+                        .padding(12)
+                } else {
+                    LazyVGrid(columns: columns, spacing: 8) {
+                        if let systemFile = claudeFileManager.systemFile {
+                            UnifiedCard(
+                                title: "System",
+                                subtitle: nil,
+                                icon: "globe",
+                                iconColor: .secondary,
+                                accessory: nil,
+                                showCheckmark: systemFile.exists
+                            )
+                            .onTapGesture {
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    selectedClaudeFile = systemFile
+                                }
+                            }
+                            .onTapGesture(count: 2) {
+                                systemFile.openInEditor()
+                            }
+                        }
 
-                    Text(title)
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(.primary)
+                        if let projectFile = claudeFileManager.projectFile {
+                            UnifiedCard(
+                                title: "Project",
+                                subtitle: nil,
+                                icon: "folder",
+                                iconColor: .secondary,
+                                accessory: nil,
+                                showCheckmark: projectFile.exists
+                            )
+                            .onTapGesture {
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    selectedClaudeFile = projectFile
+                                }
+                            }
+                            .onTapGesture(count: 2) {
+                                projectFile.openInEditor()
+                            }
+                        }
+                    }
+                    .padding(12)
+                }
 
-                    Text("(\(skills.count))")
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
+                Divider()
+            }
+        }
+    }
 
-                    Spacer()
+    private var emptyMemoryView: some View {
+        HStack {
+            Spacer()
+            VStack(spacing: 4) {
+                Image(systemName: "doc.text")
+                    .font(.title3)
+                    .foregroundStyle(.quaternary)
+                Text("No CLAUDE.md files")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
+            Spacer()
+        }
+        .frame(height: 60)
+    }
+
+    // MARK: - Section 3: Skills
+
+    private var skillsSection: some View {
+        let allSkills = skillManager.systemSkills + skillManager.projectSkills
+
+        return VStack(spacing: 0) {
+            // Header bar
+            SectionHeaderBar(
+                title: "Skills",
+                icon: "sparkles",
+                iconColor: .orange,
+                count: allSkills.count,
+                isExpanded: expandedSections.contains("skills"),
+                isRefreshing: isRefreshingSkills,
+                onToggle: { toggleSection("skills") },
+                onRefresh: {
+                    Task {
+                        isRefreshingSkills = true
+                        await skillManager.refresh()
+                        isRefreshingSkills = false
+                    }
+                }
+            )
+
+            // Content
+            if expandedSections.contains("skills") {
+                if allSkills.isEmpty && !skillManager.isLoading {
+                    emptySkillsView
+                        .padding(12)
+                } else {
+                    LazyVGrid(columns: columns, spacing: 8) {
+                        ForEach(allSkills) { skill in
+                            SkillCardCompact(
+                                skill: skill,
+                                project: project,
+                                matchingTerminals: matchingTerminals,
+                                selectedSkill: $selectedSkill,
+                                onAutomationPermissionDenied: { showingAutomationPermissionAlert = true },
+                                onAccessibilityPermissionDenied: { showingAccessibilityPermissionAlert = true }
+                            )
+                        }
+                    }
+                    .padding(12)
                 }
             }
-            .buttonStyle(.plain)
+        }
+    }
 
-            // Skills grid (2 columns)
+    private var emptySkillsView: some View {
+        HStack {
+            Spacer()
+            VStack(spacing: 4) {
+                Image(systemName: "sparkles")
+                    .font(.title3)
+                    .foregroundStyle(.quaternary)
+                Text("No skills found")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                Text("Add .md files to ~/.claude/skills/")
+                    .font(.caption2)
+                    .foregroundStyle(.quaternary)
+            }
+            Spacer()
+        }
+        .frame(height: 80)
+    }
+
+    // MARK: - Section Toggle
+
+    private func toggleSection(_ id: String) {
+        withAnimation(.easeInOut(duration: 0.2)) {
             if expandedSections.contains(id) {
-                LazyVGrid(columns: columns, spacing: 8) {
-                    ForEach(skills) { skill in
-                        SkillCardCompact(
-                            skill: skill,
-                            project: project,
-                            matchingTerminals: matchingTerminals,
-                            selectedSkill: $selectedSkill,
-                            onAutomationPermissionDenied: { showingAutomationPermissionAlert = true },
-                            onAccessibilityPermissionDenied: { showingAccessibilityPermissionAlert = true }
-                        )
-                    }
-                }
+                expandedSections.remove(id)
+            } else {
+                expandedSections.insert(id)
+            }
+            Self.saveExpandedSections(expandedSections)
+        }
+    }
+
+    // MARK: - Persistence Helpers
+
+    private static let expandedSectionsKey = "skillsPanel.expandedSections"
+
+    private static func loadExpandedSections() -> Set<String> {
+        guard let data = UserDefaults.standard.data(forKey: expandedSectionsKey),
+              let sections = try? JSONDecoder().decode(Set<String>.self, from: data)
+        else {
+            return ["runs", "memory", "skills"]
+        }
+        return sections
+    }
+
+    private static func saveExpandedSections(_ sections: Set<String>) {
+        if let data = try? JSONEncoder().encode(sections) {
+            UserDefaults.standard.set(data, forKey: expandedSectionsKey)
+        }
+    }
+
+    // MARK: - Screenshot Runs Data
+
+    private func fetchRuns() {
+        var descriptor = FetchDescriptor<SimulatorRun>()
+        descriptor.sortBy = [SortDescriptor(\.createdAt, order: .reverse)]
+
+        if let project = project {
+            let projectId = project.id
+            descriptor.predicate = #Predicate<SimulatorRun> { run in
+                run.project?.id == projectId
             }
         }
+
+        descriptor.fetchLimit = 10
+
+        runs = (try? modelContext.fetch(descriptor)) ?? []
+        logDebug("Fetched \(runs.count) runs for side panel", category: .simulator)
     }
 
-    // MARK: - Empty States
+    private func deleteRun(_ run: SimulatorRun) {
+        for screenshot in run.screenshots {
+            screenshot.deleteFile()
+        }
 
-    private func emptyProjectSection(project: Project) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 6) {
-                Image(systemName: "folder")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+        if let projectName = run.project?.name {
+            Task {
+                try? await ScreenshotWatcherService.shared.deleteRunDirectory(
+                    runId: run.id,
+                    projectName: projectName
+                )
+            }
+        }
 
-                Text(project.name)
-                    .font(.subheadline.weight(.medium))
+        modelContext.delete(run)
+        try? modelContext.save()
+
+        fetchRuns()
+        logInfo("Deleted run: \(run.displayName)", category: .simulator)
+    }
+
+    // MARK: - File Watching for Runs
+
+    private func startWatchingRunsDirectory() {
+        Task {
+            let config = await ScreenshotWatcherService.shared.getConfig()
+            let baseDir = config.baseDirectory
+
+            try? FileManager.default.createDirectory(at: baseDir, withIntermediateDirectories: true)
+
+            let fd = open(baseDir.path, O_EVTONLY)
+            guard fd >= 0 else {
+                logWarning("Could not open runs directory for watching", category: .simulator)
+                return
             }
 
-            Text("No skills in project")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-                .padding(.leading, 16)
+            let source = DispatchSource.makeFileSystemObjectSource(
+                fileDescriptor: fd,
+                eventMask: [.write, .rename, .delete],
+                queue: .main
+            )
+
+            source.setEventHandler { [self] in
+                logDebug("Runs directory changed, refreshing", category: .simulator)
+                fetchRuns()
+            }
+
+            source.setCancelHandler {
+                close(fd)
+            }
+
+            source.resume()
+            runsFileWatcher = source
+            logDebug("Started watching runs directory: \(baseDir.path)", category: .simulator)
         }
     }
 
-    private var emptyStateView: some View {
-        VStack(spacing: 8) {
-            Image(systemName: "sparkles")
-                .font(.title2)
-                .foregroundStyle(.tertiary)
-
-            Text("No Skills")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            Text("Add .md files to\n~/.claude/skills/")
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 20)
+    private func stopWatchingRunsDirectory() {
+        runsFileWatcher?.cancel()
+        runsFileWatcher = nil
     }
 
-    // MARK: - Actions
+    // MARK: - Skills Data
 
     private func loadSkills() {
         Task {
@@ -253,6 +488,12 @@ struct SkillsSidePanel: View {
             if let path = project?.pathURL {
                 await skillManager.loadProjectSkills(for: path)
             }
+        }
+    }
+
+    private func loadClaudeFiles() {
+        Task {
+            await claudeFileManager.loadFiles(for: project?.pathURL)
         }
     }
 
@@ -268,22 +509,17 @@ struct SkillsSidePanel: View {
             return
         }
 
-        logDebug("Loading terminals for project: '\(projectName)'", category: .terminal)
         isLoadingTerminals = true
 
         do {
             let allTerminals = try await TerminalService.shared.getWindows(forceRefresh: true)
-            logDebug("Found \(allTerminals.count) total terminal windows", category: .terminal)
 
-            // Filter to terminals matching the project
             let matching = allTerminals.filter { terminal in
                 let name = terminal.name.lowercased()
                 let tabTitle = terminal.tabTitle?.lowercased() ?? ""
                 let projectLower = projectName.lowercased()
                 return name.contains(projectLower) || tabTitle.contains(projectLower)
             }
-
-            logDebug("Found \(matching.count) terminals matching project '\(projectName)'", category: .terminal)
 
             await MainActor.run {
                 matchingTerminals = matching
@@ -313,15 +549,144 @@ struct SkillsSidePanel: View {
     }
 }
 
+// MARK: - Section Header Bar
+
+struct SectionHeaderBar: View {
+    let title: String
+    let icon: String
+    let iconColor: Color
+    let count: Int
+    let isExpanded: Bool
+    let isRefreshing: Bool
+    let onToggle: () -> Void
+    let onRefresh: () -> Void
+
+    var body: some View {
+        HStack {
+            // Collapse chevron + icon + title + count (tappable area)
+            Button(action: onToggle) {
+                HStack(spacing: 8) {
+                    Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .frame(width: 12)
+
+                    Label {
+                        HStack(spacing: 4) {
+                            Text(title)
+                            Text("(\(count))")
+                                .foregroundStyle(.tertiary)
+                        }
+                    } icon: {
+                        Image(systemName: icon)
+                            .foregroundStyle(iconColor)
+                    }
+                    .font(.headline)
+                }
+            }
+            .buttonStyle(.plain)
+
+            Spacer()
+
+            // Refresh button
+            Button(action: onRefresh) {
+                Image(systemName: "arrow.clockwise")
+                    .font(.caption)
+                    .rotationEffect(.degrees(isRefreshing ? 360 : 0))
+                    .animation(isRefreshing ? .linear(duration: 1).repeatForever(autoreverses: false) : .default, value: isRefreshing)
+            }
+            .buttonStyle(.plain)
+            .disabled(isRefreshing)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(.bar)
+    }
+}
+
+// MARK: - Unified Card
+
+struct UnifiedCard: View {
+    let title: String
+    let subtitle: String?
+    let icon: String
+    let iconColor: Color
+    let accessory: String?
+    var showCheckmark: Bool = false
+
+    @State private var isHovering = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .top) {
+                Text(title)
+                    .font(.subheadline.weight(.medium))
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+                    .foregroundStyle(.primary)
+
+                Spacer()
+
+                Image(systemName: icon)
+                    .font(.caption)
+                    .foregroundStyle(iconColor.opacity(0.7))
+            }
+
+            Spacer()
+
+            HStack {
+                if showCheckmark {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.caption2)
+                        .foregroundStyle(.green.opacity(0.7))
+                } else if let subtitle = subtitle {
+                    Text(subtitle)
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                        .lineLimit(1)
+                }
+
+                Spacer()
+
+                if let accessory = accessory {
+                    Text(accessory)
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
+            }
+        }
+        .padding(10)
+        .frame(minHeight: 70)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color(nsColor: .controlBackgroundColor))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .strokeBorder(
+                    isHovering ? Color.accentColor.opacity(0.5) : Color(nsColor: .separatorColor),
+                    lineWidth: isHovering ? 1.5 : 1
+                )
+        )
+        .scaleEffect(isHovering ? 1.02 : 1.0)
+        .animation(.easeInOut(duration: 0.15), value: isHovering)
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.15)) {
+                isHovering = hovering
+            }
+        }
+    }
+}
+
 // MARK: - Compact Skill Card
 
 struct SkillCardCompact: View {
     let skill: Skill
-    let project: Project?  // Currently selected project (for terminal operations)
-    let matchingTerminals: [TerminalWindow]  // Terminals matching current project (from parent)
+    let project: Project?
+    let matchingTerminals: [TerminalWindow]
     @Binding var selectedSkill: Skill?
-    var onAutomationPermissionDenied: () -> Void  // Callback when automation permission is denied
-    var onAccessibilityPermissionDenied: () -> Void  // Callback when accessibility permission is denied
+    var onAutomationPermissionDenied: () -> Void
+    var onAccessibilityPermissionDenied: () -> Void
 
     @ObservedObject private var skillManager = SkillManager.shared
     @State private var isHovering = false
@@ -330,14 +695,12 @@ struct SkillCardCompact: View {
         skillManager.isStarred(skill)
     }
 
-    /// The project path to use for terminal operations
     private var projectPath: URL? {
         project?.pathURL
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            // Header with star
             HStack(alignment: .top) {
                 Text(skill.name)
                     .font(.subheadline.weight(.medium))
@@ -347,7 +710,6 @@ struct SkillCardCompact: View {
 
                 Spacer()
 
-                // Star button
                 Button {
                     withAnimation(.easeInOut(duration: 0.2)) {
                         skillManager.toggleStarred(skill)
@@ -363,88 +725,17 @@ struct SkillCardCompact: View {
 
             Spacer()
 
-            // Action buttons (shown on hover)
             if isHovering {
-                HStack(spacing: 8) {
-                    // Show dispatch button only if there are matching terminals
-                    if matchingTerminals.count == 1 {
-                        // Single matching terminal - direct dispatch button
-                        Button {
-                            dispatchToTerminal(windowId: matchingTerminals.first?.id, pressEnter: true)
-                        } label: {
-                            Image(systemName: "paperplane.fill")
-                                .font(.caption)
-                                .foregroundStyle(.blue)
-                        }
-                        .buttonStyle(.plain)
-                        .help("Run in \(terminalDisplayName(matchingTerminals.first!))")
-                    } else if matchingTerminals.count > 1 {
-                        // Multiple matching terminals - show picker
-                        Menu {
-                            ForEach(matchingTerminals) { terminal in
-                                Button {
-                                    dispatchToTerminal(windowId: terminal.id, pressEnter: true)
-                                } label: {
-                                    Label(terminalDisplayName(terminal), systemImage: terminal.isActive ? "terminal.fill" : "terminal")
-                                }
-                            }
-                        } label: {
-                            Image(systemName: "paperplane.fill")
-                                .font(.caption)
-                                .foregroundStyle(.blue)
-                        }
-                        .menuStyle(.borderlessButton)
-                        .fixedSize()
-                        .help("Run in terminal")
+                CompactDispatchButton(
+                    skillId: skill.id.uuidString,
+                    terminals: matchingTerminals,
+                    onDispatch: { terminal, pressEnter in
+                        dispatchToTerminal(windowId: terminal.id, pressEnter: pressEnter)
+                    },
+                    onNewSession: { pressEnter in
+                        launchNewTerminal(pressEnter: pressEnter)
                     }
-                    // If no matching terminals, don't show dispatch button at all
-
-                    // New terminal button (green) - always shown
-                    Button {
-                        launchNewTerminal()
-                    } label: {
-                        Image(systemName: "plus.rectangle.fill")
-                            .font(.caption)
-                            .foregroundStyle(.green)
-                    }
-                    .buttonStyle(.plain)
-                    .help("New Claude session")
-
-                    Spacer()
-
-                    // Params button (orange) - only for skills with parameters
-                    // Types the command but doesn't press enter, letting user fill in params
-                    if skill.hasInputParameters && !matchingTerminals.isEmpty {
-                        if matchingTerminals.count == 1 {
-                            Button {
-                                dispatchToTerminal(windowId: matchingTerminals.first?.id, pressEnter: false)
-                            } label: {
-                                Image(systemName: "pencil.line")
-                                    .font(.caption)
-                                    .foregroundStyle(.orange)
-                            }
-                            .buttonStyle(.plain)
-                            .help("Type command (edit params first)")
-                        } else {
-                            Menu {
-                                ForEach(matchingTerminals) { terminal in
-                                    Button {
-                                        dispatchToTerminal(windowId: terminal.id, pressEnter: false)
-                                    } label: {
-                                        Label(terminalDisplayName(terminal), systemImage: terminal.isActive ? "terminal.fill" : "terminal")
-                                    }
-                                }
-                            } label: {
-                                Image(systemName: "pencil.line")
-                                    .font(.caption)
-                                    .foregroundStyle(.orange)
-                            }
-                            .menuStyle(.borderlessButton)
-                            .fixedSize()
-                            .help("Type command (edit params first)")
-                        }
-                    }
-                }
+                )
             }
         }
         .padding(12)
@@ -469,11 +760,9 @@ struct SkillCardCompact: View {
         }
         .contentShape(Rectangle())
         .onTapGesture(count: 2) {
-            // Double tap: open file in editor
             skillManager.openSkillFile(skill)
         }
         .onTapGesture(count: 1) {
-            // Single tap: show in viewer
             withAnimation(.easeInOut(duration: 0.2)) {
                 selectedSkill = skill
             }
@@ -481,91 +770,54 @@ struct SkillCardCompact: View {
         .help("Tap to preview, double-tap to open file")
     }
 
-    // MARK: - Actions
-
     private func dispatchToTerminal(windowId: String?, pressEnter: Bool) {
         Task {
             do {
-                logDebug("Dispatching skill '\(skill.name)' (command: \(skill.slashCommand)) to terminal (windowId: \(windowId ?? "active"), pressEnter: \(pressEnter))", category: .execution)
+                logDebug("Dispatching skill '\(skill.name)' to terminal", category: .execution)
                 try await SkillManager.shared.runInExistingTerminal(skill, windowId: windowId, pressEnter: pressEnter)
                 logInfo("Skill '\(skill.name)' dispatched successfully", category: .execution)
             } catch TerminalServiceError.accessibilityPermissionDenied {
-                logError("Accessibility permission denied when dispatching skill '\(skill.name)'", category: .execution)
-                await MainActor.run {
-                    onAccessibilityPermissionDenied()
-                }
+                logError("Accessibility permission denied", category: .execution)
+                await MainActor.run { onAccessibilityPermissionDenied() }
             } catch TerminalServiceError.permissionDenied {
-                logError("Automation permission denied when dispatching skill '\(skill.name)'", category: .execution)
-                await MainActor.run {
-                    onAutomationPermissionDenied()
-                }
+                logError("Automation permission denied", category: .execution)
+                await MainActor.run { onAutomationPermissionDenied() }
             } catch {
-                logError("Failed to dispatch skill '\(skill.name)': \(error)", category: .execution)
+                logError("Failed to dispatch skill: \(error)", category: .execution)
             }
         }
     }
 
-    private func launchNewTerminal() {
+    private func launchNewTerminal(pressEnter: Bool = true) {
         Task {
             do {
-                logDebug("Launching new terminal for skill '\(skill.name)' at project: \(project?.name ?? "none")", category: .execution)
-                try await SkillManager.shared.runInNewTerminal(skill, projectPath: projectPath)
+                logDebug("Launching new terminal for skill '\(skill.name)'", category: .execution)
+                try await SkillManager.shared.runInNewTerminal(skill, projectPath: projectPath, pressEnter: pressEnter)
                 logInfo("New terminal launched for skill '\(skill.name)'", category: .execution)
             } catch TerminalServiceError.accessibilityPermissionDenied {
-                logError("Accessibility permission denied when launching terminal for skill '\(skill.name)'", category: .execution)
-                await MainActor.run {
-                    onAccessibilityPermissionDenied()
-                }
+                logError("Accessibility permission denied", category: .execution)
+                await MainActor.run { onAccessibilityPermissionDenied() }
             } catch TerminalServiceError.permissionDenied {
-                logError("Automation permission denied when launching terminal for skill '\(skill.name)'", category: .execution)
-                await MainActor.run {
-                    onAutomationPermissionDenied()
-                }
+                logError("Automation permission denied", category: .execution)
+                await MainActor.run { onAutomationPermissionDenied() }
             } catch {
-                logError("Failed to launch terminal for skill '\(skill.name)': \(error)", category: .execution)
+                logError("Failed to launch terminal: \(error)", category: .execution)
             }
         }
-    }
-
-    // MARK: - Helpers
-
-    private func terminalDisplayName(_ terminal: TerminalWindow) -> String {
-        // Parse the terminal name/title to show something meaningful
-        var displayName = terminal.tabTitle ?? terminal.name
-
-        // Try to extract just the directory name if it's a path
-        if displayName.contains("/") {
-            if let lastComponent = displayName.components(separatedBy: "/").last, !lastComponent.isEmpty {
-                displayName = lastComponent
-            }
-        }
-
-        // Remove common prefixes like "user@hostname: "
-        if let colonIndex = displayName.lastIndex(of: ":") {
-            let afterColon = displayName[displayName.index(after: colonIndex)...].trimmingCharacters(in: .whitespaces)
-            if !afterColon.isEmpty {
-                displayName = afterColon
-            }
-        }
-
-        // Add active indicator
-        if terminal.isActive {
-            displayName = "● \(displayName)"
-        }
-
-        // Truncate if too long
-        if displayName.count > 30 {
-            displayName = String(displayName.prefix(27)) + "..."
-        }
-
-        return displayName
     }
 }
 
 // MARK: - Preview
 
 #Preview {
-    @Previewable @State var selectedSkill: Skill? = nil
-    SkillsSidePanel(project: nil, selectedSkill: $selectedSkill)
-        .frame(height: 400)
+    @Previewable @State var selectedSkill: Skill?
+    @Previewable @State var selectedClaudeFile: ClaudeFile?
+    @Previewable @State var selectedRun: SimulatorRun?
+    SkillsSidePanel(
+        project: nil,
+        selectedSkill: $selectedSkill,
+        selectedClaudeFile: $selectedClaudeFile,
+        selectedRun: $selectedRun
+    )
+    .frame(height: 600)
 }

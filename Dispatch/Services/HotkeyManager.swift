@@ -33,7 +33,6 @@ final class HotkeyManager: ObservableObject {
 
     private init() {
         self.hotkeyId = EventHotKeyID(signature: OSType(0x44495350), id: 1)  // "DISP"
-        logDebug("HotkeyManager initialized", category: .hotkey)
     }
 
     // Note: deinit removed - this is a singleton that lives for the app's lifetime

@@ -5,8 +5,8 @@
 //  Service for Terminal.app integration via AppleScript
 //
 
-import Foundation
 import AppKit
+import Foundation
 
 // MARK: - Terminal Window Info
 
@@ -43,9 +43,9 @@ enum TerminalServiceError: Error, LocalizedError {
             return "Terminal.app is not running"
         case .noWindowsOpen:
             return "No Terminal windows are open"
-        case .windowNotFound(let id):
+        case let .windowNotFound(id):
             return "Terminal window with ID '\(id)' not found"
-        case .scriptExecutionFailed(let message):
+        case let .scriptExecutionFailed(message):
             return "AppleScript execution failed: \(message)"
         case .permissionDenied:
             return "Automation permission denied for Terminal.app"
@@ -69,11 +69,9 @@ actor TerminalService {
 
     private var cachedWindows: [TerminalWindow] = []
     private var lastWindowFetchTime: Date?
-    private let windowCacheDuration: TimeInterval = 2.0  // Cache windows for 2 seconds
+    private let windowCacheDuration: TimeInterval = 2.0 // Cache windows for 2 seconds
 
-    private init() {
-        logDebug("TerminalService initialized", category: .terminal)
-    }
+    private init() {}
 
     // MARK: - Public Methods
 
@@ -163,7 +161,7 @@ actor TerminalService {
         }
 
         // Wait for Terminal to start
-        try await Task.sleep(nanoseconds: 500_000_000)  // 0.5 seconds
+        try await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
 
         if !isTerminalRunning() {
             throw TerminalServiceError.terminalNotRunning
@@ -186,9 +184,6 @@ actor TerminalService {
         guard isTerminalRunning() else {
             throw TerminalServiceError.terminalNotRunning
         }
-
-        let perf = PerformanceLogger("getWindows", category: .terminal)
-        defer { perf.end() }
 
         let script = """
         tell application "Terminal"
@@ -218,8 +213,6 @@ actor TerminalService {
         """
 
         let result = try await executeAppleScript(script)
-        logDebug("Raw getWindows result: \(result.prefix(200))...", category: .terminal)
-
         var windows: [TerminalWindow] = []
 
         // Parse result - list items separated by ;;;
@@ -240,8 +233,6 @@ actor TerminalService {
 
         cachedWindows = windows
         lastWindowFetchTime = Date()
-
-        logDebug("Fetched \(windows.count) Terminal windows", category: .terminal)
         return windows
     }
 
@@ -426,7 +417,7 @@ actor TerminalService {
         logInfo("Opening new Terminal window at: \(path)", category: .terminal)
 
         let escapedPath = path.replacingOccurrences(of: "\\", with: "\\\\")
-                             .replacingOccurrences(of: "\"", with: "\\\"")
+            .replacingOccurrences(of: "\"", with: "\\\"")
 
         let script = """
         tell application "Terminal"
@@ -478,55 +469,79 @@ actor TerminalService {
         logDebug("Terminal activated", category: .terminal)
     }
 
-    /// Types text into Terminal without pressing enter
-    /// Uses System Events to simulate keystrokes
+    /// Types text into Terminal using clipboard paste (most reliable for multiline text)
+    /// Uses System Events to paste from clipboard, then optionally press Enter
     func typeText(_ text: String, pressEnter: Bool = false) async throws {
         guard isTerminalRunning() else {
             throw TerminalServiceError.terminalNotRunning
         }
 
-        let escapedText = text.replacingOccurrences(of: "\\", with: "\\\\")
-                              .replacingOccurrences(of: "\"", with: "\\\"")
+        // Save current clipboard contents
+        let pasteboard = NSPasteboard.general
+        let previousContents = pasteboard.string(forType: .string)
 
-        var script = """
+        // Put our text on the clipboard
+        pasteboard.clearContents()
+        pasteboard.setString(text, forType: .string)
+
+        // Small delay to ensure clipboard is ready
+        try await Task.sleep(nanoseconds: 50_000_000) // 50ms
+
+        // Activate Terminal and paste using Cmd+V
+        let pasteScript = """
         tell application "Terminal"
             activate
         end tell
+        delay 0.1
         tell application "System Events"
             tell process "Terminal"
-                keystroke "\(escapedText)"
-        """
-
-        if pressEnter {
-            // Use key code 36 for Return key (more reliable than keystroke return)
-            script += """
-
-                key code 36
-        """
-        }
-
-        script += """
-
+                keystroke "v" using command down
             end tell
         end tell
         """
 
-        logDebug("Typing text (\(text.count) chars, pressEnter: \(pressEnter)): '\(text)'", category: .terminal)
-        logDebug("AppleScript:\n\(script)", category: .terminal)
-
         do {
-            _ = try await executeAppleScript(script)
-            logInfo("Text typed successfully", category: .terminal)
+            _ = try await executeAppleScript(pasteScript)
+
+            // If we need to press Enter, do it with a delay to ensure paste completed
+            if pressEnter {
+                try await Task.sleep(nanoseconds: 150_000_000) // 150ms delay
+
+                let enterScript = """
+                tell application "System Events"
+                    tell process "Terminal"
+                        key code 36
+                    end tell
+                end tell
+                """
+                _ = try await executeAppleScript(enterScript)
+            }
+
+            logInfo("Text pasted successfully (\(text.count) chars, pressEnter: \(pressEnter))", category: .terminal)
         } catch {
-            logError("Failed to type text: \(error)", category: .terminal)
+            logError("Failed to paste text: \(error)", category: .terminal)
+            // Restore clipboard before throwing
+            if let previous = previousContents {
+                pasteboard.clearContents()
+                pasteboard.setString(previous, forType: .string)
+            }
             throw error
+        }
+
+        // Restore previous clipboard contents after a delay
+        Task {
+            try? await Task.sleep(nanoseconds: 500_000_000) // 500ms
+            if let previous = previousContents {
+                pasteboard.clearContents()
+                pasteboard.setString(previous, forType: .string)
+            }
         }
     }
 
-    // MARK: - Private Methods
+    // MARK: - AppleScript Execution
 
     /// Executes an AppleScript and returns the result
-    private func executeAppleScript(_ source: String) async throws -> String {
+    func executeAppleScript(_ source: String) async throws -> String {
         try await withCheckedThrowingContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
                 var error: NSDictionary?
@@ -623,6 +638,209 @@ actor TerminalService {
     }
 }
 
+// MARK: - Terminal Dispatch Service
+
+extension TerminalService {
+    /// Finds terminal windows that match a project name
+    /// Matches against window name and tab title (case insensitive)
+    func findTerminalsForProject(named projectName: String) async throws -> [TerminalWindow] {
+        guard !projectName.isEmpty else { return [] }
+
+        let allTerminals = try await getWindows(forceRefresh: true)
+        let projectLower = projectName.lowercased()
+
+        let matching = allTerminals.filter { terminal in
+            let name = terminal.name.lowercased()
+            let tabTitle = terminal.tabTitle?.lowercased() ?? ""
+            return name.contains(projectLower) || tabTitle.contains(projectLower)
+        }
+
+        logDebug("Found \(matching.count) terminals matching project '\(projectName)'", category: .terminal)
+        return matching
+    }
+
+    /// Unified dispatch method - sends content to a terminal matching the project
+    /// If no matching terminal exists, creates a new one, starts Claude Code, and sends the content
+    ///
+    /// - Parameters:
+    ///   - content: The prompt content to send
+    ///   - projectPath: The file system path of the project
+    ///   - projectName: The display name of the project (used for terminal matching)
+    ///   - pressEnter: Whether to press enter after typing (default: true)
+    /// - Returns: The terminal window that was used
+    @discardableResult
+    func dispatchPrompt(
+        content: String,
+        projectPath: String?,
+        projectName: String?,
+        pressEnter: Bool = true
+    ) async throws -> TerminalWindow {
+        guard !content.isEmpty else {
+            throw TerminalServiceError.invalidPromptContent
+        }
+
+        logInfo("Dispatching prompt to project: '\(projectName ?? "none")' at path: '\(projectPath ?? "none")'", category: .terminal)
+
+        // Try to find a matching terminal if we have a project name
+        var targetTerminal: TerminalWindow?
+
+        if let projectName = projectName, !projectName.isEmpty {
+            let matchingTerminals = try await findTerminalsForProject(named: projectName)
+
+            if let firstMatch = matchingTerminals.first {
+                logInfo("Found matching terminal: \(firstMatch.displayName)", category: .terminal)
+                targetTerminal = firstMatch
+            }
+        }
+
+        if let terminal = targetTerminal {
+            // Dispatch to existing terminal
+            // First activate the specific window
+            let script = """
+            tell application "Terminal"
+                activate
+                set frontmost of window id \(terminal.id) to true
+            end tell
+            """
+            _ = try? await executeAppleScript(script)
+
+            // Small delay for window focus
+            try await Task.sleep(nanoseconds: 100_000_000)
+
+            // Type the content
+            try await typeText(content, pressEnter: pressEnter)
+
+            logInfo("Prompt dispatched to existing terminal: \(terminal.displayName)", category: .terminal)
+            return terminal
+
+        } else {
+            // No matching terminal - create new one
+            logInfo("No matching terminal found, creating new one", category: .terminal)
+
+            // Determine working directory
+            let workingDir = projectPath ?? FileManager.default.homeDirectoryForCurrentUser.path
+
+            // Open new terminal at project path
+            let newWindow = try await openNewWindow(at: workingDir)
+
+            // Wait for terminal to initialize
+            try await Task.sleep(nanoseconds: 500_000_000) // 0.5s
+
+            // Start Claude Code using typeText (sendPrompt would create a new tab)
+            try await typeText("claude --dangerously-skip-permissions", pressEnter: true)
+
+            // Wait for Claude to start up
+            try await Task.sleep(nanoseconds: 2_000_000_000) // 2s
+
+            // Type the content
+            try await typeText(content, pressEnter: pressEnter)
+
+            logInfo("Prompt dispatched to new terminal: \(newWindow.displayName)", category: .terminal)
+            return newWindow
+        }
+    }
+}
+
+// MARK: - Terminal Window Display Names
+
+extension TerminalWindow {
+    /// Parses the Claude Code session description from the terminal window title
+    /// Terminal titles typically look like: "ProjectName — ✳ Session Description — sourcekit-lsp ◂ claude ..."
+    /// Returns the session description or a cleaned up version of the window name
+    var claudeSessionName: String {
+        let title = tabTitle?.isEmpty == false ? tabTitle! : name
+
+        // Try em-dash format first (Claude Code uses: "Project — ✳ Description — sourcekit-lsp ◂ ...")
+        if let starRange = title.range(of: " — ✳ ") ?? title.range(of: " — ✳") {
+            let afterStar = title[starRange.upperBound...]
+
+            // Look for next em-dash separator
+            if let nextDash = afterStar.range(of: " — ") {
+                let sessionPart = afterStar[..<nextDash.lowerBound]
+                let cleaned = sessionPart.trimmingCharacters(in: .whitespaces)
+                if !cleaned.isEmpty && cleaned.count < 60 {
+                    return cleaned
+                }
+            } else {
+                // No ending separator, use the rest (but stop at common suffixes)
+                var remaining = String(afterStar)
+                if let dashIndex = remaining.range(of: " ◂ ") {
+                    remaining = String(remaining[..<dashIndex.lowerBound])
+                }
+                let cleaned = remaining.trimmingCharacters(in: .whitespaces)
+                if !cleaned.isEmpty && cleaned.count < 60 {
+                    return cleaned
+                }
+            }
+        }
+
+        // Try double-hyphen format as fallback ("Project -- * Description -- ...")
+        if let starRange = title.range(of: "-- *") ?? title.range(of: "-- ") {
+            let afterStar = title[starRange.upperBound...]
+            if let nextDash = afterStar.range(of: " --") {
+                let sessionPart = afterStar[..<nextDash.lowerBound]
+                let cleaned = sessionPart.trimmingCharacters(in: .whitespaces)
+                if !cleaned.isEmpty && cleaned.count < 60 {
+                    return cleaned
+                }
+            } else {
+                let cleaned = afterStar.trimmingCharacters(in: .whitespaces)
+                if !cleaned.isEmpty && cleaned.count < 60 {
+                    return cleaned
+                }
+            }
+        }
+
+        // Try to extract from between em-dashes ("ProjectName — Description — more")
+        if let firstDash = title.range(of: " — ") {
+            let afterFirst = title[firstDash.upperBound...]
+            if let secondDash = afterFirst.range(of: " — ") {
+                let sessionPart = afterFirst[..<secondDash.lowerBound]
+                let cleaned = sessionPart.trimmingCharacters(in: .whitespaces)
+                    .replacingOccurrences(of: "✳ ", with: "")
+                    .replacingOccurrences(of: "✳", with: "")
+                if !cleaned.isEmpty && cleaned.count < 60 {
+                    return cleaned
+                }
+            }
+        }
+
+        // Fallback: clean up the title
+        var displayName = title
+
+        // Remove common prefixes like "user@hostname: "
+        if let colonIndex = displayName.lastIndex(of: ":") {
+            let afterColon = displayName[displayName.index(after: colonIndex)...].trimmingCharacters(in: .whitespaces)
+            if !afterColon.isEmpty {
+                displayName = afterColon
+            }
+        }
+
+        // Extract last path component if it looks like a path
+        if displayName.contains("/") {
+            if let lastComponent = displayName.components(separatedBy: "/").last, !lastComponent.isEmpty {
+                displayName = lastComponent
+            }
+        }
+
+        // Truncate if too long
+        if displayName.count > 40 {
+            displayName = String(displayName.prefix(37)) + "..."
+        }
+
+        return displayName
+    }
+
+    /// Display name with active indicator
+    var displayNameWithStatus: String {
+        var name = claudeSessionName
+        if isActive {
+            name = "● " + name
+        }
+        return name
+    }
+}
+
 // MARK: - Terminal Service Convenience Extensions
 
 extension TerminalService {
@@ -659,5 +877,47 @@ extension TerminalService {
         }
 
         return false
+    }
+
+    /// Pastes from clipboard to Terminal using Cmd+V
+    /// Assumes clipboard already contains the content to paste
+    func pasteFromClipboard() async throws {
+        guard isTerminalRunning() else {
+            throw TerminalServiceError.terminalNotRunning
+        }
+
+        logDebug("Pasting from clipboard to Terminal", category: .terminal)
+
+        let pasteScript = """
+        tell application "Terminal"
+            activate
+        end tell
+        delay 0.1
+        tell application "System Events"
+            tell process "Terminal"
+                keystroke "v" using command down
+            end tell
+        end tell
+        """
+
+        _ = try await executeAppleScript(pasteScript)
+        logInfo("Pasted from clipboard to Terminal", category: .terminal)
+    }
+
+    /// Types text into the active Terminal window without using clipboard
+    /// More reliable for simple text dispatch after image paste
+    func sendTextToActiveWindow(_ text: String, pressEnter: Bool = true) async throws {
+        guard !text.isEmpty else {
+            throw TerminalServiceError.invalidPromptContent
+        }
+
+        guard isTerminalRunning() else {
+            throw TerminalServiceError.terminalNotRunning
+        }
+
+        logDebug("Sending text to active Terminal window (\(text.count) chars)", category: .terminal)
+
+        // Use typeText which handles clipboard properly
+        try await typeText(text, pressEnter: pressEnter)
     }
 }

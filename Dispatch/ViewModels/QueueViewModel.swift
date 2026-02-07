@@ -33,7 +33,6 @@ final class QueueViewModel: ObservableObject {
 
     private init() {
         setupExecutionObserver()
-        logDebug("QueueViewModel initialized", category: .queue)
     }
 
     func configure(with context: ModelContext) {

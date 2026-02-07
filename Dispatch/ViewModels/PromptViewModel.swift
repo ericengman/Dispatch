@@ -60,7 +60,6 @@ final class PromptViewModel: ObservableObject {
 
     init() {
         setupSearchDebounce()
-        logDebug("PromptViewModel initialized", category: .ui)
     }
 
     func configure(with context: ModelContext) {
@@ -79,9 +78,6 @@ final class PromptViewModel: ObservableObject {
         isLoading = true
 
         Task {
-            let perf = PerformanceLogger("fetchPrompts", category: .data)
-            defer { perf.end() }
-
             do {
                 var descriptor = FetchDescriptor<Prompt>()
 
@@ -105,7 +101,6 @@ final class PromptViewModel: ObservableObject {
                 await MainActor.run {
                     self.prompts = results
                     self.isLoading = false
-                    logDebug("Fetched \(results.count) prompts", category: .data)
                 }
 
             } catch {
@@ -258,9 +253,11 @@ final class PromptViewModel: ObservableObject {
     // MARK: - Selection
 
     func selectPrompt(_ prompt: Prompt?) {
-        selectedPrompt = prompt
-        if let prompt = prompt {
-            logDebug("Selected prompt: '\(prompt.displayTitle)'", category: .ui)
+        Task { @MainActor in
+            selectedPrompt = prompt
+            if let prompt = prompt {
+                logDebug("Selected prompt: '\(prompt.displayTitle)'", category: .ui)
+            }
         }
     }
 
@@ -320,11 +317,21 @@ final class PromptViewModel: ObservableObject {
             content = result.resolvedText
         }
 
-        // Execute
-        try await ExecutionManager.shared.execute(
+        guard !content.isEmpty else {
+            throw PromptError.emptyContent
+        }
+
+        // Get project info for terminal matching
+        let projectPath = prompt.project?.path
+        let projectName = prompt.project?.name
+
+        // Use unified dispatch service
+        // This will find a matching terminal for the project, or create a new one
+        let terminal = try await TerminalService.shared.dispatchPrompt(
             content: content,
-            title: prompt.displayTitle,
-            targetWindowId: windowId
+            projectPath: projectPath,
+            projectName: projectName,
+            pressEnter: true
         )
 
         // Record usage
@@ -332,7 +339,9 @@ final class PromptViewModel: ObservableObject {
         saveContext()
 
         // Create history entry
-        createHistoryEntry(for: prompt, windowId: windowId)
+        createHistoryEntry(for: prompt, windowId: terminal.id, windowName: terminal.displayName)
+
+        logInfo("Prompt sent successfully: '\(prompt.displayTitle)' to terminal: \(terminal.displayName)", category: .execution)
     }
 
     private func createHistoryEntry(for prompt: Prompt, windowId: String?, windowName: String? = nil) {

@@ -5,9 +5,9 @@
 //  Inline editor pane for creating and editing prompts
 //
 
-import SwiftUI
-import SwiftData
 import Combine
+import SwiftData
+import SwiftUI
 
 // MARK: - Prompt Editor Pane
 
@@ -20,10 +20,13 @@ struct PromptEditorPane: View {
     // MARK: - Properties
 
     @Bindable var prompt: Prompt
+    var selectedProject: Project?
 
     // MARK: - State
 
     @State private var showingPlaceholderMenu = false
+    @State private var matchingTerminals: [TerminalWindow] = []
+    @State private var isLoadingTerminals = false
     @FocusState private var isContentFocused: Bool
 
     // MARK: - Body
@@ -50,6 +53,12 @@ struct PromptEditorPane: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(nsColor: .textBackgroundColor))
+        .onAppear {
+            loadMatchingTerminals()
+        }
+        .onChange(of: prompt.project) { _, _ in
+            loadMatchingTerminals()
+        }
     }
 
     // MARK: - Header View
@@ -89,56 +98,36 @@ struct PromptEditorPane: View {
     // MARK: - Content Editor
 
     private var contentEditor: some View {
-        TextEditor(text: $prompt.content)
-            .font(.system(.body, design: .monospaced))
-            .scrollContentBackground(.hidden)
-            .focused($isContentFocused)
-            .overlay(alignment: .topLeading) {
-                // Placeholder text
-                if prompt.content.isEmpty {
-                    Text("Enter your prompt here...\n\nUse {{placeholder}} syntax for dynamic values.")
-                        .font(.system(.body, design: .monospaced))
-                        .foregroundStyle(.tertiary)
-                        .padding(.top, 8)
-                        .padding(.leading, 6)
-                        .allowsHitTesting(false)
-                }
-            }
-            .onChange(of: prompt.content) { _, _ in
-                prompt.updatedAt = Date()
-            }
-            .padding(12)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        PlaceholderTextEditor(
+            text: $prompt.content,
+            placeholder: "Enter your prompt here...\n\nUse {{placeholder}} syntax for dynamic values."
+        )
+        .focused($isContentFocused)
+        .onChange(of: prompt.content) { _, _ in
+            prompt.updatedAt = Date()
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     // MARK: - Options Bar
 
     private var optionsBar: some View {
         HStack(spacing: 16) {
-            // Project picker
-            HStack(spacing: 6) {
-                Image(systemName: "folder")
-                    .foregroundStyle(.secondary)
-
-                Picker("", selection: $prompt.project) {
-                    Text("No Project").tag(nil as Project?)
-                    ForEach(ProjectViewModel.shared.projects) { project in
-                        HStack {
-                            Circle()
-                                .fill(project.color)
-                                .frame(width: 8, height: 8)
-                            Text(project.name)
-                        }
-                        .tag(project as Project?)
-                    }
+            // Project indicator (read-only, based on sidebar selection)
+            if let project = prompt.project {
+                HStack(spacing: 6) {
+                    Circle()
+                        .fill(project.color)
+                        .frame(width: 8, height: 8)
+                    Text(project.name)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
-                .labelsHidden()
-                .pickerStyle(.menu)
-                .fixedSize()
-            }
 
-            Divider()
-                .frame(height: 16)
+                Divider()
+                    .frame(height: 16)
+            }
 
             // Insert placeholder button
             Menu {
@@ -215,22 +204,30 @@ struct PromptEditorPane: View {
             .buttonStyle(.bordered)
             .controlSize(.small)
 
-            // Send button
-            Button {
-                Task {
-                    try? await promptVM.sendPrompt(prompt)
-                }
-            } label: {
-                Label("Send", systemImage: "paperplane.fill")
-            }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.small)
-            .disabled(prompt.content.isEmpty)
-            .keyboardShortcut(.return, modifiers: .command)
+            // Send button - shows dropdown when multiple terminals match
+            sendButton
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
         .background(.bar)
+    }
+
+    @ViewBuilder
+    private var sendButton: some View {
+        DispatchButton(
+            terminals: matchingTerminals,
+            isDisabled: prompt.content.isEmpty,
+            onDispatch: { terminal in
+                if let terminal = terminal {
+                    sendToTerminal(terminal)
+                } else {
+                    sendToNewTerminal()
+                }
+            },
+            onNewSession: {
+                sendToNewTerminal()
+            }
+        )
     }
 
     // MARK: - Actions
@@ -238,6 +235,327 @@ struct PromptEditorPane: View {
     private func insertPlaceholder(_ placeholder: BuiltInPlaceholder) {
         prompt.content += "{{\(placeholder.name)}}"
         prompt.updatedAt = Date()
+    }
+
+    private func loadMatchingTerminals() {
+        guard let projectName = prompt.project?.name ?? selectedProject?.name else {
+            matchingTerminals = []
+            return
+        }
+
+        isLoadingTerminals = true
+        Task {
+            do {
+                let terminals = try await TerminalService.shared.findTerminalsForProject(named: projectName)
+                await MainActor.run {
+                    matchingTerminals = terminals
+                    isLoadingTerminals = false
+                }
+            } catch {
+                await MainActor.run {
+                    matchingTerminals = []
+                    isLoadingTerminals = false
+                }
+            }
+        }
+    }
+
+    private func sendToTerminal(_: TerminalWindow) {
+        Task {
+            do {
+                // Resolve placeholders first
+                var content = prompt.content
+                if prompt.hasPlaceholders {
+                    let result = await PlaceholderResolver.shared.autoResolve(text: content)
+                    content = result.resolvedText
+                }
+
+                // Use typeText which will activate Terminal and paste
+                // This is needed for clipboard paste to work
+                try await TerminalService.shared.typeText(content, pressEnter: true)
+
+                // Record usage
+                prompt.recordUsage()
+
+                // Auto-open a new prompt for the next entry
+                await MainActor.run {
+                    if let newPrompt = promptVM.createPrompt(project: selectedProject) {
+                        promptVM.selectPrompt(newPrompt)
+                    }
+                }
+            } catch {
+                // Handle error silently for now
+            }
+        }
+    }
+
+    private func sendToNewTerminal() {
+        Task {
+            do {
+                let projectPath = prompt.project?.path ?? selectedProject?.path
+                let workingDir = projectPath ?? FileManager.default.homeDirectoryForCurrentUser.path
+
+                // Open new terminal at project path
+                _ = try await TerminalService.shared.openNewWindow(at: workingDir)
+
+                // Wait for terminal to initialize
+                try await Task.sleep(nanoseconds: 500_000_000)
+
+                // Start Claude Code using typeText (sendPrompt would create a new tab)
+                try await TerminalService.shared.typeText("claude --dangerously-skip-permissions", pressEnter: true)
+
+                // Wait for Claude to start up
+                try await Task.sleep(nanoseconds: 2_000_000_000)
+
+                // Resolve placeholders
+                var content = prompt.content
+                if prompt.hasPlaceholders {
+                    let result = await PlaceholderResolver.shared.autoResolve(text: content)
+                    content = result.resolvedText
+                }
+
+                // Type the content
+                try await TerminalService.shared.typeText(content, pressEnter: true)
+
+                // Record usage
+                prompt.recordUsage()
+
+                // Reload terminals
+                loadMatchingTerminals()
+
+                // Auto-open a new prompt for the next entry
+                await MainActor.run {
+                    if let newPrompt = promptVM.createPrompt(project: selectedProject) {
+                        promptVM.selectPrompt(newPrompt)
+                    }
+                }
+            } catch {
+                // Handle error silently for now
+            }
+        }
+    }
+}
+
+// MARK: - Quick Prompt Entry View
+
+/// A simplified view for quick prompt entry when no prompt is selected
+/// Provides an always-visible text field for rapid prompt composition
+struct QuickPromptEntryView: View {
+    // MARK: - Environment
+
+    @EnvironmentObject private var promptVM: PromptViewModel
+    @EnvironmentObject private var queueVM: QueueViewModel
+
+    // MARK: - Properties
+
+    var selectedProject: Project?
+
+    // MARK: - State
+
+    @State private var promptContent: String = ""
+    @State private var matchingTerminals: [TerminalWindow] = []
+    @State private var isLoadingTerminals = false
+    @FocusState private var isContentFocused: Bool
+
+    // MARK: - Body
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header
+            HStack {
+                Text("Quick Prompt")
+                    .font(.title3.weight(.medium))
+                Spacer()
+                if let project = selectedProject {
+                    HStack(spacing: 6) {
+                        Circle()
+                            .fill(project.color)
+                            .frame(width: 8, height: 8)
+                        Text(project.name)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(.bar)
+
+            Divider()
+
+            // Content editor - the always-visible text field
+            PlaceholderTextEditor(
+                text: $promptContent,
+                placeholder: "Type your prompt here and press Shift+Enter to dispatch..."
+            )
+            .focused($isContentFocused)
+            .padding(12)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            Divider()
+
+            // Action bar
+            HStack(spacing: 12) {
+                // Character count
+                Text("\(promptContent.count) chars")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+
+                Spacer()
+
+                // Add to queue button
+                Button {
+                    saveAndAddToQueue()
+                } label: {
+                    Label("Add to Queue", systemImage: "plus.circle")
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .disabled(promptContent.isEmpty)
+
+                // Dispatch button
+                DispatchButton(
+                    terminals: matchingTerminals,
+                    isDisabled: promptContent.isEmpty,
+                    onDispatch: { terminal in
+                        if let terminal = terminal {
+                            dispatchToTerminal(terminal)
+                        } else {
+                            dispatchToNewTerminal()
+                        }
+                    },
+                    onNewSession: {
+                        dispatchToNewTerminal()
+                    }
+                )
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(.bar)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(nsColor: .textBackgroundColor))
+        .onAppear {
+            isContentFocused = true
+            loadMatchingTerminals()
+        }
+    }
+
+    // MARK: - Actions
+
+    private func loadMatchingTerminals() {
+        guard let projectName = selectedProject?.name else {
+            matchingTerminals = []
+            return
+        }
+
+        isLoadingTerminals = true
+        Task {
+            do {
+                let terminals = try await TerminalService.shared.findTerminalsForProject(named: projectName)
+                await MainActor.run {
+                    matchingTerminals = terminals
+                    isLoadingTerminals = false
+                }
+            } catch {
+                await MainActor.run {
+                    matchingTerminals = []
+                    isLoadingTerminals = false
+                }
+            }
+        }
+    }
+
+    private func saveAndAddToQueue() {
+        guard !promptContent.isEmpty else { return }
+
+        // Create and save a new prompt
+        if let newPrompt = promptVM.createPrompt(project: selectedProject) {
+            newPrompt.content = promptContent
+            queueVM.addToQueue(prompt: newPrompt)
+
+            // Clear the text field for next entry
+            promptContent = ""
+        }
+    }
+
+    private func dispatchToTerminal(_: TerminalWindow) {
+        guard !promptContent.isEmpty else { return }
+
+        Task {
+            do {
+                // Resolve placeholders if any
+                var content = promptContent
+                if PlaceholderPattern.hasPlaceholders(in: content) {
+                    let result = await PlaceholderResolver.shared.autoResolve(text: content)
+                    content = result.resolvedText
+                }
+
+                // Type the content
+                try await TerminalService.shared.typeText(content, pressEnter: true)
+
+                // Create a prompt to save in history
+                await MainActor.run {
+                    if let newPrompt = promptVM.createPrompt(project: selectedProject) {
+                        newPrompt.content = promptContent
+                        newPrompt.recordUsage()
+                        promptVM.selectPrompt(newPrompt)
+                    }
+                    // Clear the quick entry
+                    promptContent = ""
+                }
+            } catch {
+                // Handle error silently for now
+            }
+        }
+    }
+
+    private func dispatchToNewTerminal() {
+        guard !promptContent.isEmpty else { return }
+
+        Task {
+            do {
+                let workingDir = selectedProject?.path ?? FileManager.default.homeDirectoryForCurrentUser.path
+
+                // Open new terminal at project path
+                _ = try await TerminalService.shared.openNewWindow(at: workingDir)
+
+                // Wait for terminal to initialize
+                try await Task.sleep(nanoseconds: 500_000_000)
+
+                // Start Claude Code
+                try await TerminalService.shared.typeText("claude --dangerously-skip-permissions", pressEnter: true)
+
+                // Wait for Claude to start up
+                try await Task.sleep(nanoseconds: 2_000_000_000)
+
+                // Resolve placeholders if any
+                var content = promptContent
+                if PlaceholderPattern.hasPlaceholders(in: content) {
+                    let result = await PlaceholderResolver.shared.autoResolve(text: content)
+                    content = result.resolvedText
+                }
+
+                // Type the content
+                try await TerminalService.shared.typeText(content, pressEnter: true)
+
+                // Create a prompt to save and select it
+                await MainActor.run {
+                    if let newPrompt = promptVM.createPrompt(project: selectedProject) {
+                        newPrompt.content = promptContent
+                        newPrompt.recordUsage()
+                        promptVM.selectPrompt(newPrompt)
+                    }
+                    // Clear the quick entry
+                    promptContent = ""
+
+                    // Reload terminals
+                    loadMatchingTerminals()
+                }
+            } catch {
+                // Handle error silently for now
+            }
+        }
     }
 }
 
@@ -249,8 +567,114 @@ struct PromptEditorPane: View {
     let prompt = Prompt(title: "Test Prompt", content: "Hello {{name}}")
     container.mainContext.insert(prompt)
 
-    return PromptEditorPane(prompt: prompt)
+    return PromptEditorPane(prompt: prompt, selectedProject: nil)
         .environmentObject(PromptViewModel())
         .environmentObject(QueueViewModel.shared)
         .frame(width: 500, height: 400)
+}
+
+// MARK: - Placeholder Text Editor
+
+/// A TextEditor wrapper that properly displays placeholder text aligned with the cursor
+struct PlaceholderTextEditor: NSViewRepresentable {
+    @Binding var text: String
+    let placeholder: String
+
+    func makeNSView(context: Context) -> NSScrollView {
+        let scrollView = NSTextView.scrollableTextView()
+        guard let textView = scrollView.documentView as? NSTextView else {
+            return scrollView
+        }
+
+        textView.delegate = context.coordinator
+        textView.isRichText = false
+        textView.font = NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
+        textView.backgroundColor = .clear
+        textView.drawsBackground = false
+        textView.isAutomaticQuoteSubstitutionEnabled = false
+        textView.isAutomaticDashSubstitutionEnabled = false
+        textView.isAutomaticTextReplacementEnabled = false
+        textView.isAutomaticSpellingCorrectionEnabled = false
+        textView.allowsUndo = true
+
+        // Configure scroll view
+        scrollView.hasVerticalScroller = true
+        scrollView.hasHorizontalScroller = false
+        scrollView.autohidesScrollers = true
+        scrollView.borderType = .noBorder
+        scrollView.drawsBackground = false
+
+        // Store placeholder for later use
+        context.coordinator.placeholder = placeholder
+        context.coordinator.textView = textView
+
+        return scrollView
+    }
+
+    func updateNSView(_ scrollView: NSScrollView, context: Context) {
+        guard let textView = scrollView.documentView as? NSTextView else { return }
+
+        // Only update if text changed externally
+        if textView.string != text {
+            let selectedRanges = textView.selectedRanges
+            textView.string = text
+            textView.selectedRanges = selectedRanges
+        }
+
+        context.coordinator.updatePlaceholder()
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(text: $text)
+    }
+
+    class Coordinator: NSObject, NSTextViewDelegate {
+        @Binding var text: String
+        var placeholder: String = ""
+        weak var textView: NSTextView?
+        private var placeholderView: NSTextField?
+
+        init(text: Binding<String>) {
+            _text = text
+        }
+
+        func textDidChange(_ notification: Notification) {
+            guard let textView = notification.object as? NSTextView else { return }
+            text = textView.string
+            updatePlaceholder()
+        }
+
+        func updatePlaceholder() {
+            guard let textView = textView else { return }
+
+            if text.isEmpty {
+                if placeholderView == nil {
+                    let label = NSTextField(labelWithString: placeholder)
+                    label.font = NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
+                    label.textColor = .tertiaryLabelColor
+                    label.backgroundColor = .clear
+                    label.isBezeled = false
+                    label.isEditable = false
+                    label.isSelectable = false
+                    label.lineBreakMode = .byWordWrapping
+                    label.maximumNumberOfLines = 0
+
+                    // Position at the text container origin
+                    let containerOrigin = textView.textContainerOrigin
+                    let inset = textView.textContainerInset
+                    label.frame.origin = NSPoint(
+                        x: containerOrigin.x + inset.width,
+                        y: containerOrigin.y + inset.height
+                    )
+                    label.sizeToFit()
+
+                    textView.addSubview(label)
+                    placeholderView = label
+                }
+                placeholderView?.isHidden = false
+            } else {
+                placeholderView?.isHidden = true
+            }
+        }
+    }
 }

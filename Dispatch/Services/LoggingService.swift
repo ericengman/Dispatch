@@ -12,11 +12,11 @@ import os.log
 
 /// Severity levels for log messages
 enum LogLevel: Int, Comparable, Sendable {
-    case debug = 0      // Detailed debugging information
-    case info = 1       // General informational messages
-    case warning = 2    // Potential issues that don't prevent operation
-    case error = 3      // Errors that affect functionality but app continues
-    case critical = 4   // Critical failures that may require immediate attention
+    case debug = 0 // Detailed debugging information
+    case info = 1 // General informational messages
+    case warning = 2 // Potential issues that don't prevent operation
+    case error = 3 // Errors that affect functionality but app continues
+    case critical = 4 // Critical failures that may require immediate attention
 
     var symbol: String {
         switch self {
@@ -57,19 +57,20 @@ enum LogLevel: Int, Comparable, Sendable {
 
 /// Categories for organizing log messages by subsystem
 enum LogCategory: String, CaseIterable, Sendable {
-    case app = "APP"                    // App lifecycle, general
-    case data = "DATA"                  // SwiftData operations, persistence
-    case terminal = "TERMINAL"          // Terminal integration, AppleScript
-    case queue = "QUEUE"                // Queue operations
-    case chain = "CHAIN"                // Chain execution
-    case hooks = "HOOKS"                // Hook server, completion detection
-    case hotkey = "HOTKEY"              // Global hotkey
-    case placeholder = "PLACEHOLDER"    // Placeholder resolution
-    case ui = "UI"                      // View updates, user interactions
-    case settings = "SETTINGS"          // Settings changes
-    case history = "HISTORY"            // History operations
-    case execution = "EXECUTION"        // Execution state machine
-    case network = "NETWORK"            // Network operations (hook server)
+    case app = "APP" // App lifecycle, general
+    case data = "DATA" // SwiftData operations, persistence
+    case terminal = "TERMINAL" // Terminal integration, AppleScript
+    case queue = "QUEUE" // Queue operations
+    case chain = "CHAIN" // Chain execution
+    case hooks = "HOOKS" // Hook server, completion detection
+    case hotkey = "HOTKEY" // Global hotkey
+    case placeholder = "PLACEHOLDER" // Placeholder resolution
+    case ui = "UI" // View updates, user interactions
+    case settings = "SETTINGS" // Settings changes
+    case history = "HISTORY" // History operations
+    case execution = "EXECUTION" // Execution state machine
+    case network = "NETWORK" // Network operations (hook server)
+    case simulator = "SIMULATOR" // Simulator screenshot operations
 
     var osLog: OSLog {
         OSLog(subsystem: "com.Eric.Dispatch", category: rawValue)
@@ -176,16 +177,16 @@ final class FileLogDestination: LogDestination, @unchecked Sendable {
             return nil
         }
 
-        self.fileURL = logDirectory.appendingPathComponent(fileName)
-        self.maxFileSize = UInt64(maxSizeMB * 1024 * 1024)
+        fileURL = logDirectory.appendingPathComponent(fileName)
+        maxFileSize = UInt64(maxSizeMB * 1024 * 1024)
 
         if !FileManager.default.fileExists(atPath: fileURL.path) {
             FileManager.default.createFile(atPath: fileURL.path, contents: nil)
         }
 
         do {
-            self.fileHandle = try FileHandle(forWritingTo: fileURL)
-            self.fileHandle?.seekToEndOfFile()
+            fileHandle = try FileHandle(forWritingTo: fileURL)
+            fileHandle?.seekToEndOfFile()
         } catch {
             print("Failed to open log file: \(error)")
             return nil
@@ -244,9 +245,9 @@ actor LoggingService {
 
         // Add file logging in debug builds
         #if DEBUG
-        if let fileDestination = FileLogDestination() {
-            destinations.append(fileDestination)
-        }
+            if let fileDestination = FileLogDestination() {
+                destinations.append(fileDestination)
+            }
         #endif
     }
 
@@ -439,7 +440,7 @@ final class PerformanceLogger: @unchecked Sendable {
     ) {
         self.name = name
         self.category = category
-        self.startTime = CFAbsoluteTimeGetCurrent()
+        startTime = CFAbsoluteTimeGetCurrent()
         self.file = file
         self.function = function
         self.line = line
