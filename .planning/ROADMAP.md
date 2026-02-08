@@ -128,11 +128,11 @@ Plans:
   3. User can view 2+ sessions simultaneously via split pane layout
   4. Clicking a session makes it the focused/active target for prompt dispatch
   5. User can enlarge a session to full panel size (focus mode)
-**Plans**: TBD
+**Plans:** 2 plans
 
 Plans:
-- [ ] 18-01: Multi-session management and session list UI
-- [ ] 18-02: Split pane view and focus/enlarge mode
+- [ ] 18-01-PLAN.md — Session management infrastructure (TerminalSession model, TerminalSessionManager, bridge registry)
+- [ ] 18-02-PLAN.md — Multi-session UI (SessionTabBar, SessionPaneView, MultiSessionTerminalView, MainView integration)
 
 ### Phase 19: Session Persistence
 **Goal**: Terminal sessions survive app restarts with context preserved
