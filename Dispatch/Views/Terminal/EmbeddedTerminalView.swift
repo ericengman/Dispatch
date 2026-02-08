@@ -121,6 +121,29 @@ struct EmbeddedTerminalView: NSViewRepresentable {
             return true
         }
 
+        /// Dispatch a prompt to Claude Code running in this terminal
+        /// - Parameter prompt: The prompt text to send
+        /// - Returns: true if prompt was sent, false if terminal unavailable
+        func dispatchPrompt(_ prompt: String) -> Bool {
+            guard let terminal = terminalView else {
+                logDebug("Cannot dispatch: no terminal view", category: .terminal)
+                return false
+            }
+
+            // Prompts need newline to submit to Claude Code
+            let fullPrompt = prompt.hasSuffix("\n") ? prompt : prompt + "\n"
+
+            logInfo("Dispatching prompt (\(fullPrompt.count) chars)", category: .terminal)
+            terminal.send(txt: fullPrompt)
+
+            return true
+        }
+
+        /// Check if terminal is ready to receive a prompt
+        var isReadyForDispatch: Bool {
+            terminalView != nil
+        }
+
         /// Check if terminal is available for commands
         var isTerminalActive: Bool {
             terminalView != nil
