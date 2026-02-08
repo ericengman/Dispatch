@@ -95,11 +95,11 @@ Plans:
   2. Quitting and relaunching Dispatch cleans up any orphaned processes from previous session
   3. Closing a terminal session terminates both shell and any child processes (Claude Code)
   4. Process termination uses graceful shutdown (SIGTERM first, SIGKILL if needed)
-**Plans**: TBD
+**Plans:** 2 plans
 
 Plans:
-- [ ] 16-01: Create TerminalProcessRegistry with PID tracking and persistence
-- [ ] 16-02: Implement graceful termination and orphan cleanup
+- [ ] 16-01-PLAN.md — Create TerminalProcessRegistry with PID tracking and persistence
+- [ ] 16-02-PLAN.md — Implement graceful termination and orphan cleanup
 
 ### Phase 17: Claude Code Integration
 **Goal**: Claude Code runs in embedded terminal with prompt dispatch and completion detection
