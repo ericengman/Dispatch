@@ -18,6 +18,9 @@ enum TerminalLaunchMode {
 struct EmbeddedTerminalView: NSViewRepresentable {
     typealias NSViewType = LocalProcessTerminalView
 
+    // Optional session ID for multi-session support (nil = legacy single-session mode)
+    var sessionId: UUID?
+
     // Launch mode determines what process to spawn
     var launchMode: TerminalLaunchMode = .shell
 
@@ -25,7 +28,11 @@ struct EmbeddedTerminalView: NSViewRepresentable {
     var onProcessExit: ((Int32?) -> Void)?
 
     func makeNSView(context: Context) -> LocalProcessTerminalView {
-        logDebug("Creating embedded terminal view", category: .terminal)
+        if let sessionId = sessionId {
+            logDebug("Creating embedded terminal view for session: \(sessionId)", category: .terminal)
+        } else {
+            logDebug("Creating embedded terminal view (legacy mode)", category: .terminal)
+        }
 
         let terminal = LocalProcessTerminalView(frame: .zero)
         terminal.processDelegate = context.coordinator
@@ -34,7 +41,13 @@ struct EmbeddedTerminalView: NSViewRepresentable {
         context.coordinator.terminalView = terminal
 
         // Register with bridge for ExecutionManager access
-        EmbeddedTerminalBridge.shared.register(coordinator: context.coordinator, terminal: terminal)
+        if let sessionId = sessionId {
+            // Multi-session mode: register with specific session ID
+            EmbeddedTerminalBridge.shared.register(sessionId: sessionId, coordinator: context.coordinator, terminal: terminal)
+        } else {
+            // Legacy mode: use single-session API
+            EmbeddedTerminalBridge.shared.register(coordinator: context.coordinator, terminal: terminal)
+        }
 
         // Launch appropriate process based on mode
         switch launchMode {
@@ -71,24 +84,34 @@ struct EmbeddedTerminalView: NSViewRepresentable {
     }
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(onProcessExit: onProcessExit)
+        Coordinator(sessionId: sessionId, onProcessExit: onProcessExit)
     }
 
     class Coordinator: NSObject, LocalProcessTerminalViewDelegate {
+        let sessionId: UUID? // Optional session ID for multi-session support
         var onProcessExit: ((Int32?) -> Void)?
         var terminalView: LocalProcessTerminalView? // Strong reference for cleanup
 
-        init(onProcessExit: ((Int32?) -> Void)?) {
+        init(sessionId: UUID?, onProcessExit: ((Int32?) -> Void)?) {
+            self.sessionId = sessionId
             self.onProcessExit = onProcessExit
             super.init()
         }
 
         deinit {
-            logDebug("Coordinator deinit - terminating process group", category: .terminal)
+            if let sessionId = sessionId {
+                logDebug("Coordinator deinit for session \(sessionId) - terminating process group", category: .terminal)
+            } else {
+                logDebug("Coordinator deinit (legacy mode) - terminating process group", category: .terminal)
+            }
 
             // Unregister from bridge before cleanup (safe to assume main actor in SwiftUI)
             MainActor.assumeIsolated {
-                EmbeddedTerminalBridge.shared.unregister()
+                if let sessionId = sessionId {
+                    EmbeddedTerminalBridge.shared.unregister(sessionId: sessionId)
+                } else {
+                    EmbeddedTerminalBridge.shared.unregister()
+                }
             }
 
             guard let terminal = terminalView else { return }
