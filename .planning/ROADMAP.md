@@ -4,6 +4,7 @@
 
 - [x] **v1.0 MVP** - Phases 1-7 (shipped)
 - [x] **v1.1 Screenshot Integration Fix** - Phases 8-13 (complete)
+- [ ] **v2.0 In-App Claude Code** - Phases 14-22 (in progress)
 
 ## Phases
 
@@ -20,15 +21,10 @@ v1.0 phases were part of brownfield development. See `Docs/TODO_SimulatorScreens
 
 </details>
 
-### v1.1 Screenshot Integration Fix (Complete)
+<details>
+<summary>v1.1 Screenshot Integration Fix (Phases 8-13) - COMPLETE</summary>
 
-**Milestone Goal:** Fix screenshot path routing so skills save to Dispatch-monitored location, enabling end-to-end screenshot review workflow.
-
-**Phase Numbering:**
-- Integer phases (8, 9, 10...): Planned milestone work
-- Decimal phases (8.1, 8.2): Urgent insertions (marked with INSERTED)
-
-Decimal phases appear between their surrounding integers in numeric order.
+**Milestone Goal:** Fix screenshot path routing so skills save to Dispatch-monitored location.
 
 - [x] **Phase 8: Foundation** - Create shared bash library for Dispatch integration
 - [x] **Phase 9: Hook Integration** - Add SessionStart hook for early Dispatch detection
@@ -37,100 +33,169 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 12: Verification** - End-to-end testing of screenshot flow
 - [x] **Phase 13: Polish** - Settings UI, tooltips, error display
 
+**Completed:** 2026-02-07
+
+</details>
+
+### v2.0 In-App Claude Code (In Progress)
+
+**Milestone Goal:** Replace Terminal.app dependency with embedded terminal sessions, enabling full Claude Code management within Dispatch.
+
+**Phase Numbering:**
+- Integer phases (14, 15, 16...): Planned milestone work
+- Decimal phases (14.1, 14.2): Urgent insertions (marked with INSERTED)
+
+Decimal phases appear between their surrounding integers in numeric order.
+
+- [ ] **Phase 14: SwiftTerm Integration** - Add terminal emulation dependency and basic view
+- [ ] **Phase 15: Safe Terminal Wrapper** - Implement thread-safe data reception to prevent crashes
+- [ ] **Phase 16: Process Lifecycle** - Track, persist, and clean up terminal processes
+- [ ] **Phase 17: Claude Code Integration** - Spawn Claude Code, dispatch prompts, detect completion
+- [ ] **Phase 18: Multi-Session UI** - Support multiple simultaneous terminal sessions with split panes
+- [ ] **Phase 19: Session Persistence** - Save and resume sessions across app restarts
+- [ ] **Phase 20: Service Integration** - Wire embedded terminals to queue and chain execution
+- [ ] **Phase 21: Status Display** - Parse JSONL for rich status and context window visualization
+- [ ] **Phase 22: Migration & Cleanup** - Remove Terminal.app dependency and AppleScript code
+
 ## Phase Details
 
-### Phase 8: Foundation
-**Goal**: Shared bash library exists at `~/.claude/lib/dispatch.sh` with all integration functions
-**Depends on**: Nothing (first phase of v1.1)
-**Requirements**: FNDTN-01, FNDTN-02, FNDTN-03, FNDTN-04, FNDTN-05, FNDTN-06
+### Phase 14: SwiftTerm Integration
+**Goal**: SwiftTerm package integrated and basic terminal view renders a bash shell
+**Depends on**: Nothing (first phase of v2.0)
+**Requirements**: TERM-01, TERM-02
 **Success Criteria** (what must be TRUE):
-  1. Library file exists at `~/.claude/lib/dispatch.sh` and is sourceable from bash
-  2. Calling `dispatch_init` returns a valid screenshot directory path from Dispatch API
-  3. Calling `dispatch_finalize` marks the run complete and triggers Dispatch filesystem scan
-  4. When Dispatch is not running, library outputs clear fallback message and returns temp path
-  5. Project name is derived from git root, not current working directory
-**Plans:** 1 plan
+  1. SwiftTerm package is added to Xcode project and builds successfully
+  2. EmbeddedTerminalView displays in the Dispatch window with proper sizing
+  3. User can type commands in the embedded terminal and see output
+  4. Terminal supports ANSI colors and standard terminal escape sequences
+**Plans**: TBD
 
 Plans:
-- [x] 08-01-PLAN.md — Create dispatch.sh shared library with init/finalize functions
+- [ ] 14-01: Add SwiftTerm package and create EmbeddedTerminalView
 
-### Phase 9: Hook Integration
-**Goal**: SessionStart hook detects Dispatch availability at session start and sets environment variables
-**Depends on**: Phase 8 (library must exist for hook to use)
-**Requirements**: HOOK-01, HOOK-02, HOOK-03
+### Phase 15: Safe Terminal Wrapper
+**Goal**: Terminal data reception is thread-safe and survives view lifecycle changes
+**Depends on**: Phase 14
+**Requirements**: TERM-03
 **Success Criteria** (what must be TRUE):
-  1. SessionStart hook exists at `~/.claude/hooks/session-start.sh`
-  2. Hook sets environment variables via `CLAUDE_ENV_FILE` accessible throughout session
-  3. Session-start output shows Dispatch health check result (available or not)
-**Plans:** 1 plan
+  1. Rapidly closing and reopening terminal views does not crash the app
+  2. Terminal continues receiving data during view updates/redraws
+  3. No EXC_BAD_ACCESS crashes during process termination
+**Plans**: TBD
 
 Plans:
-- [x] 09-01-PLAN.md — Create session-start.sh hook with Dispatch health check and CLAUDE_ENV_FILE integration
+- [ ] 15-01: Implement SafeLocalProcessTerminalView with NSLock protection
 
-### Phase 10: Dispatch App Updates
-**Goal**: Dispatch app auto-installs shared library and hooks when launched
-**Depends on**: Phase 8, Phase 9 (library and hook must be finalized before auto-install)
-**Requirements**: APP-01, APP-02, APP-03
+### Phase 16: Process Lifecycle
+**Goal**: Terminal processes are tracked, persisted, and cleaned up reliably
+**Depends on**: Phase 15
+**Requirements**: PROC-01, PROC-02, PROC-03, PROC-04, PROC-05
 **Success Criteria** (what must be TRUE):
-  1. Launching Dispatch creates/updates `~/.claude/lib/dispatch.sh` automatically
-  2. Launching Dispatch creates/updates SessionStart hook automatically
-  3. Dispatch version upgrade updates library with new version
-**Plans:** 1 plan
+  1. TerminalProcessRegistry tracks all spawned process PIDs
+  2. Quitting and relaunching Dispatch cleans up any orphaned processes from previous session
+  3. Closing a terminal session terminates both shell and any child processes (Claude Code)
+  4. Process termination uses graceful shutdown (SIGTERM first, SIGKILL if needed)
+**Plans**: TBD
 
 Plans:
-- [x] 10-01-PLAN.md — Bundle and auto-install library and hooks via HookInstaller on app launch
+- [ ] 16-01: Create TerminalProcessRegistry with PID tracking and persistence
+- [ ] 16-02: Implement graceful termination and orphan cleanup
 
-### Phase 11: Skill Migration
-**Goal**: All screenshot-taking skills source the shared library instead of inline integration code
-**Depends on**: Phase 10 (library must be installed before skills can source it)
-**Requirements**: SKILL-01, SKILL-02, SKILL-03, SKILL-04, SKILL-05, SKILL-06
+### Phase 17: Claude Code Integration
+**Goal**: Claude Code runs in embedded terminal with prompt dispatch and completion detection
+**Depends on**: Phase 16
+**Requirements**: TERM-04, TERM-05, TERM-06
 **Success Criteria** (what must be TRUE):
-  1. Audit identifies all skills that take screenshots
-  2. `test-feature`, `explore-app`, and `test-dynamic-type` skills source shared library
-  3. All other screenshot-taking skills source shared library
-  4. No duplicated Dispatch integration code remains in any skill
-**Plans:** 3 plans
+  1. Claude Code process launches in terminal with proper environment (PATH, TERM, COLORTERM)
+  2. Dispatching a prompt writes it to the PTY and Claude Code receives it
+  3. Completion is detected via output pattern matching (as backup to HookServer)
+  4. Terminal shows Claude Code's colored output correctly
+**Plans**: TBD
 
 Plans:
-- [x] 11-01-PLAN.md — Migrate single-run skills (test-feature, explore-app, qa-feature) to shared library
-- [x] 11-02-PLAN.md — Migrate multi-run skill (test-dynamic-type) to shared library
-- [x] 11-03-PLAN.md — Verify migration complete, no inline code remains
+- [ ] 17-01: Spawn Claude Code with environment configuration
+- [ ] 17-02: Implement prompt dispatch via PTY and completion detection
 
-### Phase 12: Verification
-**Goal**: End-to-end screenshot flow verified working across multiple skills
-**Depends on**: Phase 11 (skills must be migrated before verification)
-**Requirements**: VERIFY-01, VERIFY-02, VERIFY-03, VERIFY-04
+### Phase 18: Multi-Session UI
+**Goal**: Users can manage multiple simultaneous Claude Code sessions
+**Depends on**: Phase 17
+**Requirements**: SESS-01, SESS-02, SESS-03, SESS-04, SESS-05, SESS-06
 **Success Criteria** (what must be TRUE):
-  1. Running a skill that captures screenshots results in screenshots appearing in Dispatch UI
-  2. Running same skill with Dispatch not running produces fallback behavior with clear message
-  3. At least 3 different skills successfully route screenshots to Dispatch
-  4. Skill documentation reflects new integration pattern
-**Plans:** 3 plans
+  1. User can create multiple terminal sessions (new session button/shortcut)
+  2. Sessions display in a tab bar or side panel for easy switching
+  3. User can view 2+ sessions simultaneously via split pane layout
+  4. Clicking a session makes it the focused/active target for prompt dispatch
+  5. User can enlarge a session to full panel size (focus mode)
+**Plans**: TBD
 
 Plans:
-- [x] 12-01-PLAN.md — E2E verification of screenshot routing (VERIFY-01, VERIFY-03)
-- [x] 12-02-PLAN.md — Graceful degradation test without Dispatch (VERIFY-02)
-- [x] 12-03-PLAN.md — Update skill and library documentation (VERIFY-04)
+- [ ] 18-01: Multi-session management and session list UI
+- [ ] 18-02: Split pane view and focus/enlarge mode
 
-### Phase 13: Polish
-**Goal**: Screenshot feature has complete UI for configuration, hints, and error handling
-**Depends on**: Phase 12 (core flow must work before polish)
-**Requirements**: POLISH-01, POLISH-02, POLISH-03, POLISH-04
+### Phase 19: Session Persistence
+**Goal**: Terminal sessions survive app restarts with context preserved
+**Depends on**: Phase 18
+**Requirements**: PERS-01, PERS-02, PERS-03, PERS-04, PERS-05
 **Success Criteria** (what must be TRUE):
-  1. Settings UI section exists for configuring screenshot directory and max runs
-  2. Annotation tools show tooltip hints on hover
-  3. Failed dispatch shows user-visible error message (not just log)
-  4. Dispatch UI shows integration status indicator (library installed, hook active)
-**Plans:** 2 plans
+  1. Session metadata (project, working directory, last activity) persists in SwiftData
+  2. Sessions are associated with Projects (project-session relationship)
+  3. Reopening Dispatch offers to resume previous sessions
+  4. Resuming a session uses `claude -r <sessionId>` to continue conversation
+  5. Expired/stale sessions create fresh sessions gracefully
+**Plans**: TBD
 
 Plans:
-- [x] 13-01-PLAN.md — Add Screenshots settings tab with directory and max runs configuration
-- [x] 13-02-PLAN.md — Add annotation tooltips, dispatch error alerts, and integration status indicator
+- [ ] 19-01: Create TerminalSession SwiftData model with project relationship
+- [ ] 19-02: Implement session resume using claude -r flag
+
+### Phase 20: Service Integration
+**Goal**: Embedded terminals work with existing queue and chain execution
+**Depends on**: Phase 19
+**Requirements**: INTG-01, INTG-02, INTG-03, INTG-04, INTG-05
+**Success Criteria** (what must be TRUE):
+  1. EmbeddedTerminalService implements same dispatch interface as TerminalService
+  2. Queue "Run Next" and "Run All" dispatch prompts to embedded terminal
+  3. Chain execution dispatches sequence with configured delays
+  4. ExecutionStateMachine transitions correctly for embedded terminal execution
+  5. HookServer completion detection works alongside output pattern matching
+**Plans**: TBD
+
+Plans:
+- [ ] 20-01: Create EmbeddedTerminalService with dispatch interface
+- [ ] 20-02: Wire queue and chain execution to embedded terminals
+
+### Phase 21: Status Display
+**Goal**: Rich status display from Claude Code JSONL data
+**Depends on**: Phase 20
+**Requirements**: TERM-07, TERM-08
+**Success Criteria** (what must be TRUE):
+  1. Session status shows current state (thinking, executing, idle)
+  2. Context window usage displays as visual indicator
+  3. Status updates in near real-time as Claude Code progresses
+**Plans**: TBD
+
+Plans:
+- [ ] 21-01: Parse JSONL session files and display status/context usage
+
+### Phase 22: Migration & Cleanup
+**Goal**: Terminal.app dependency fully removed, clean codebase
+**Depends on**: Phase 21
+**Requirements**: MIGR-01, MIGR-02, MIGR-03, MIGR-04
+**Success Criteria** (what must be TRUE):
+  1. TerminalService AppleScript methods are removed or deprecated
+  2. MainView shows embedded terminal panel instead of external window controls
+  3. Terminal.app Automation permission is no longer required
+  4. QueueItem and Chain execution use embedded sessions exclusively
+**Plans**: TBD
+
+Plans:
+- [ ] 22-01: Replace TerminalService with EmbeddedTerminalService
+- [ ] 22-02: Update UI and remove AppleScript dependencies
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 8 -> 8.1 -> 8.2 -> 9 -> ...
+Phases execute in numeric order: 14 -> 14.1 -> 14.2 -> 15 -> ...
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -141,3 +206,12 @@ Phases execute in numeric order: 8 -> 8.1 -> 8.2 -> 9 -> ...
 | 11. Skill Migration | v1.1 | 3/3 | Complete | 2026-02-04 |
 | 12. Verification | v1.1 | 3/3 | Complete | 2026-02-07 |
 | 13. Polish | v1.1 | 2/2 | Complete | 2026-02-07 |
+| 14. SwiftTerm Integration | v2.0 | 0/1 | Not started | - |
+| 15. Safe Terminal Wrapper | v2.0 | 0/1 | Not started | - |
+| 16. Process Lifecycle | v2.0 | 0/2 | Not started | - |
+| 17. Claude Code Integration | v2.0 | 0/2 | Not started | - |
+| 18. Multi-Session UI | v2.0 | 0/2 | Not started | - |
+| 19. Session Persistence | v2.0 | 0/2 | Not started | - |
+| 20. Service Integration | v2.0 | 0/2 | Not started | - |
+| 21. Status Display | v2.0 | 0/1 | Not started | - |
+| 22. Migration & Cleanup | v2.0 | 0/2 | Not started | - |

@@ -38,4 +38,19 @@
 
 **Goal:** Replace Terminal.app with embedded terminal sessions
 
+**Phases:** 14-22
+
+**Planned:**
+- Phase 14: SwiftTerm Integration (TERM-01, TERM-02)
+- Phase 15: Safe Terminal Wrapper (TERM-03)
+- Phase 16: Process Lifecycle (PROC-01 through PROC-05)
+- Phase 17: Claude Code Integration (TERM-04, TERM-05, TERM-06)
+- Phase 18: Multi-Session UI (SESS-01 through SESS-06)
+- Phase 19: Session Persistence (PERS-01 through PERS-05)
+- Phase 20: Service Integration (INTG-01 through INTG-05)
+- Phase 21: Status Display (TERM-07, TERM-08)
+- Phase 22: Migration & Cleanup (MIGR-01 through MIGR-04)
+
+**Requirements:** 33 total (all mapped)
+
 **Started:** 2026-02-07

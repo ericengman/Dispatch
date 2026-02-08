@@ -94,45 +94,45 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| TERM-01 | TBD | Pending |
-| TERM-02 | TBD | Pending |
-| TERM-03 | TBD | Pending |
-| TERM-04 | TBD | Pending |
-| TERM-05 | TBD | Pending |
-| TERM-06 | TBD | Pending |
-| TERM-07 | TBD | Pending |
-| TERM-08 | TBD | Pending |
-| PROC-01 | TBD | Pending |
-| PROC-02 | TBD | Pending |
-| PROC-03 | TBD | Pending |
-| PROC-04 | TBD | Pending |
-| PROC-05 | TBD | Pending |
-| SESS-01 | TBD | Pending |
-| SESS-02 | TBD | Pending |
-| SESS-03 | TBD | Pending |
-| SESS-04 | TBD | Pending |
-| SESS-05 | TBD | Pending |
-| SESS-06 | TBD | Pending |
-| PERS-01 | TBD | Pending |
-| PERS-02 | TBD | Pending |
-| PERS-03 | TBD | Pending |
-| PERS-04 | TBD | Pending |
-| PERS-05 | TBD | Pending |
-| INTG-01 | TBD | Pending |
-| INTG-02 | TBD | Pending |
-| INTG-03 | TBD | Pending |
-| INTG-04 | TBD | Pending |
-| INTG-05 | TBD | Pending |
-| MIGR-01 | TBD | Pending |
-| MIGR-02 | TBD | Pending |
-| MIGR-03 | TBD | Pending |
-| MIGR-04 | TBD | Pending |
+| TERM-01 | Phase 14 | Pending |
+| TERM-02 | Phase 14 | Pending |
+| TERM-03 | Phase 15 | Pending |
+| TERM-04 | Phase 17 | Pending |
+| TERM-05 | Phase 17 | Pending |
+| TERM-06 | Phase 17 | Pending |
+| TERM-07 | Phase 21 | Pending |
+| TERM-08 | Phase 21 | Pending |
+| PROC-01 | Phase 16 | Pending |
+| PROC-02 | Phase 16 | Pending |
+| PROC-03 | Phase 16 | Pending |
+| PROC-04 | Phase 16 | Pending |
+| PROC-05 | Phase 16 | Pending |
+| SESS-01 | Phase 18 | Pending |
+| SESS-02 | Phase 18 | Pending |
+| SESS-03 | Phase 18 | Pending |
+| SESS-04 | Phase 18 | Pending |
+| SESS-05 | Phase 18 | Pending |
+| SESS-06 | Phase 18 | Pending |
+| PERS-01 | Phase 19 | Pending |
+| PERS-02 | Phase 19 | Pending |
+| PERS-03 | Phase 19 | Pending |
+| PERS-04 | Phase 19 | Pending |
+| PERS-05 | Phase 19 | Pending |
+| INTG-01 | Phase 20 | Pending |
+| INTG-02 | Phase 20 | Pending |
+| INTG-03 | Phase 20 | Pending |
+| INTG-04 | Phase 20 | Pending |
+| INTG-05 | Phase 20 | Pending |
+| MIGR-01 | Phase 22 | Pending |
+| MIGR-02 | Phase 22 | Pending |
+| MIGR-03 | Phase 22 | Pending |
+| MIGR-04 | Phase 22 | Pending |
 
 **Coverage:**
 - v2.0 requirements: 33 total
-- Mapped to phases: 0 (pending roadmap creation)
-- Unmapped: 33
+- Mapped to phases: 33/33
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-07*
-*Last updated: 2026-02-07 after initial definition*
+*Last updated: 2026-02-07 after roadmap creation*
