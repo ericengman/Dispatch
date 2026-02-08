@@ -30,6 +30,9 @@ final class Project {
     @Relationship(deleteRule: .nullify, inverse: \PromptChain.project)
     var chains: [PromptChain] = []
 
+    @Relationship(deleteRule: .nullify, inverse: \TerminalSession.project)
+    var sessions: [TerminalSession] = []
+
     // MARK: - Initialization
 
     init(
@@ -64,6 +67,10 @@ final class Project {
         chains.count
     }
 
+    var sessionCount: Int {
+        sessions.count
+    }
+
     /// URL representation of the path
     var pathURL: URL? {
         guard let path = path else { return nil }
@@ -78,7 +85,7 @@ final class Project {
     // MARK: - Methods
 
     func updateColor(_ newColor: ProjectColor) {
-        self.colorHex = newColor.hex
+        colorHex = newColor.hex
         logDebug("Updated project '\(name)' color to \(newColor.hex)", category: .data)
     }
 }
