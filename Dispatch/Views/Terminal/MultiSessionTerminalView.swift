@@ -217,39 +217,101 @@ private struct PersistedSessionPicker: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        VStack(spacing: 16) {
-            Text("Resume Previous Session")
-                .font(.headline)
+        VStack(spacing: 0) {
+            // Header
+            HStack {
+                Text("Resume Previous Session")
+                    .font(.headline)
+                Spacer()
+                Button("Cancel") {
+                    onDismiss()
+                    dismiss()
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+            }
+            .padding()
+
+            Divider()
 
             if sessions.isEmpty {
-                Text("No sessions to resume")
-                    .foregroundStyle(.secondary)
+                ContentUnavailableView(
+                    "No Previous Sessions",
+                    systemImage: "clock.arrow.circlepath",
+                    description: Text("No sessions found to resume")
+                )
+                .frame(minHeight: 200)
             } else {
-                ForEach(sessions.prefix(5)) { session in
-                    Button(session.name) {
-                        onResume(session)
-                        dismiss()
+                ScrollView {
+                    LazyVStack(spacing: 8) {
+                        ForEach(sessions) { session in
+                            PersistedSessionRow(session: session) {
+                                onResume(session)
+                                dismiss()
+                            }
+                        }
                     }
+                    .padding()
                 }
+                .frame(maxHeight: 300)
             }
 
             Divider()
 
             HStack {
-                Button("Cancel") {
-                    onDismiss()
-                    dismiss()
-                }
                 Spacer()
-                Button("Start Fresh") {
+                Button("Start Fresh Session") {
                     onStartFresh()
                     dismiss()
                 }
                 .buttonStyle(.borderedProminent)
             }
+            .padding()
         }
-        .padding()
-        .frame(width: 350)
+        .frame(width: 450)
+    }
+}
+
+private struct PersistedSessionRow: View {
+    let session: TerminalSession
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(session.name)
+                        .font(.body)
+                        .foregroundStyle(.primary)
+
+                    HStack(spacing: 8) {
+                        if session.isResumable {
+                            Label("Resumable", systemImage: "arrow.clockwise")
+                                .font(.caption)
+                                .foregroundStyle(.green)
+                        }
+
+                        Text(session.relativeLastActivity)
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+
+                Spacer()
+
+                Image(systemName: "arrow.right.circle")
+                    .foregroundStyle(.secondary)
+                    .imageScale(.large)
+            }
+            .padding(10)
+            .background(Color(nsColor: .controlBackgroundColor))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
     }
 }
 
