@@ -96,8 +96,8 @@ struct MainView: View {
                         contentWrapper
                             .frame(minWidth: 400)
 
-                        // Terminal panel
-                        EmbeddedTerminalView(launchMode: .claudeCode(workingDirectory: nil, skipPermissions: true))
+                        // Multi-session terminal panel
+                        MultiSessionTerminalView()
                             .frame(minWidth: 400)
                     }
                     .frame(maxHeight: .infinity)
@@ -257,6 +257,17 @@ struct MainView: View {
                 Label("Terminal", systemImage: showTerminal ? "terminal.fill" : "terminal")
             }
             .keyboardShortcut("t", modifiers: [.command, .shift])
+
+            // New session shortcut (only when terminal visible)
+            if showTerminal {
+                Button {
+                    _ = TerminalSessionManager.shared.createSession()
+                } label: {
+                    Label("New Session", systemImage: "plus.rectangle")
+                }
+                .keyboardShortcut("t", modifiers: .command)
+                .disabled(!TerminalSessionManager.shared.canCreateSession)
+            }
 
             // New prompt button
             Button {
