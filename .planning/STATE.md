@@ -9,19 +9,19 @@ See: .planning/PROJECT.md (updated 2026-02-07)
 
 ## Current Position
 
-Phase: 16 of 22 (Process Lifecycle)
-Plan: 2 of 2 in current phase
-Status: Phase complete
-Last activity: 2026-02-07 — Completed 16-02-PLAN.md
+Phase: 17 of 22 (Claude Code Integration)
+Plan: 1 of 3 in current phase
+Status: In progress
+Last activity: 2026-02-08 — Completed 17-01-PLAN.md
 
-Progress: [#################░░░] 89% (17/19 phases complete across milestones)
+Progress: [#################░░░] 90% (17/19 phases complete across milestones)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 16 (12 v1.1, 4 v2.0)
+- Total plans completed: 17 (12 v1.1, 5 v2.0)
 - Average duration: 3.1m
-- Total execution time: 50m
+- Total execution time: 53m
 
 **By Phase:**
 
@@ -36,10 +36,11 @@ Progress: [#################░░░] 89% (17/19 phases complete across milesto
 | 14 | 1 | 5m | 5m |
 | 15 | 1 | 1m | 1m |
 | 16 | 2 | 4m | 2m |
+| 17 | 1 | 3m | 3m |
 
 **Recent Trend:**
-- Last 5 plans: 14-01 (5m), 15-01 (1m), 16-01 (1m), 16-02 (3m)
-- Trend: Service extensions fast (1-3m), UI integrations slower (5m)
+- Last 5 plans: 15-01 (1m), 16-01 (1m), 16-02 (3m), 17-01 (3m)
+- Trend: Service extensions consistently fast (1-3m)
 
 *Updated after each plan completion*
 
@@ -64,6 +65,11 @@ Recent decisions affecting current work:
 - [16-02]: Two-stage termination with 3s timeout (2s for deinit) prevents zombies while allowing graceful shutdown
 - [16-02]: killpg sends signal to entire process group (shell + Claude Code children)
 - [16-02]: kill(pid, 0) syscall for lightweight process existence check
+- [17-01]: ClaudeCodeLauncher singleton for consistent process configuration
+- [17-01]: TerminalLaunchMode enum in EmbeddedTerminalView for shell/Claude Code selection
+- [17-01]: PATH prepending (~/.claude/local/bin, /usr/local/bin, /opt/homebrew/bin) for CLI discovery
+- [17-01]: Terminal.getEnvironmentVariables() baseline ensures TERM=xterm-256color and COLORTERM=truecolor
+- [17-01]: --dangerously-skip-permissions default true for embedded usage
 
 ### Pending Todos
 
@@ -80,6 +86,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-08 04:35
-Stopped at: Completed Phase 16 (Process Lifecycle)
+Last session: 2026-02-08 05:20
+Stopped at: Completed 17-01-PLAN.md (Claude Code Launcher)
 Resume file: None
