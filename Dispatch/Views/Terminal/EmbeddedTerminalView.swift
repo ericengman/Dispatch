@@ -33,6 +33,9 @@ struct EmbeddedTerminalView: NSViewRepresentable {
         // Store reference in coordinator for cleanup
         context.coordinator.terminalView = terminal
 
+        // Register with bridge for ExecutionManager access
+        EmbeddedTerminalBridge.shared.register(coordinator: context.coordinator, terminal: terminal)
+
         // Launch appropriate process based on mode
         switch launchMode {
         case .shell:
@@ -82,6 +85,11 @@ struct EmbeddedTerminalView: NSViewRepresentable {
 
         deinit {
             logDebug("Coordinator deinit - terminating process group", category: .terminal)
+
+            // Unregister from bridge before cleanup (safe to assume main actor in SwiftUI)
+            MainActor.assumeIsolated {
+                EmbeddedTerminalBridge.shared.unregister()
+            }
 
             guard let terminal = terminalView else { return }
             let pid = terminal.process.shellPid
