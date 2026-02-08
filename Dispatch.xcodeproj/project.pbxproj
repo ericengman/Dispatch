@@ -112,6 +112,7 @@
 			);
 			name = Dispatch;
 			packageProductDependencies = (
+				074C3D8A2F0F8000006EF7C4 /* SwiftTerm */,
 			);
 			productName = Dispatch;
 			productReference = 074C3D5C2F0F7F87006EF7C4 /* Dispatch.app */;
@@ -195,6 +196,9 @@
 			);
 			mainGroup = 074C3D532F0F7F87006EF7C4;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				074C3D882F0F8000006EF7C4 /* XCRemoteSwiftPackageReference "SwiftTerm" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 074C3D5D2F0F7F87006EF7C4 /* Products */;
 			projectDirPath = "";
@@ -579,6 +583,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		074C3D882F0F8000006EF7C4 /* XCRemoteSwiftPackageReference "SwiftTerm" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/migueldeicaza/SwiftTerm";
+			requirement = {
+				kind = upToNextMinorVersion;
+				minimumVersion = 1.10.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		074C3D8A2F0F8000006EF7C4 /* SwiftTerm */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 074C3D882F0F8000006EF7C4 /* XCRemoteSwiftPackageReference "SwiftTerm" */;
+			productName = SwiftTerm;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 074C3D542F0F7F87006EF7C4 /* Project object */;
 }
