@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-07)
 ## Current Position
 
 Phase: 19 of 22 (Session Persistence)
-Plan: 1 of 3 in current phase
+Plan: 2 of 3 in current phase
 Status: In progress
-Last activity: 2026-02-08 — Completed 19-01-PLAN.md
+Last activity: 2026-02-08 — Completed 19-02-PLAN.md
 
-Progress: [##################░░] 97% (22/23 phases complete across milestones)
+Progress: [##################░░] 97% (23/24 phases complete across milestones)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 23 (12 v1.1, 11 v2.0)
+- Total plans completed: 24 (12 v1.1, 12 v2.0)
 - Average duration: 3.0m
-- Total execution time: 69.6m
+- Total execution time: 72.9m
 
 **By Phase:**
 
@@ -38,11 +38,11 @@ Progress: [##################░░] 97% (22/23 phases complete across milestone
 | 16 | 2 | 4m | 2m |
 | 17 | 4 | 10m | 2.5m |
 | 18 | 2 | 5m | 2.5m |
-| 19 | 1 | 4.6m | 4.6m |
+| 19 | 2 | 7.9m | 4.0m |
 
 **Recent Trend:**
-- Last 5 plans: 17-04 (2m), 18-01 (3m), 18-02 (2m), 19-01 (4.6m)
-- Trend: Session persistence foundation slightly longer, still under 5m
+- Last 5 plans: 18-01 (3m), 18-02 (2m), 19-01 (4.6m), 19-02 (3.3m)
+- Trend: Session persistence work consistently 3-5m per plan
 
 *Updated after each plan completion*
 
@@ -93,6 +93,10 @@ Recent decisions affecting current work:
 - [19-01]: Runtime refs (coordinator, terminal) stored in manager dictionaries, not @Model
 - [19-01]: deleteRule: .nullify for Project → TerminalSession relationship
 - [19-01]: lastActivity updated on session creation (Date())
+- [19-02]: 7-day session retention window balances recency and cleanup
+- [19-02]: Stale session detection via terminal output patterns (3s delay for init)
+- [19-02]: Clear claudeSessionId on stale detection, let user close/reopen for fresh
+- [19-02]: Activity timestamp updated on prompt dispatch for accurate recency
 
 ### Pending Todos
 
@@ -101,6 +105,7 @@ None yet.
 ### Blockers/Concerns
 
 - [Phase 19]: Claude Code's `-r` session resume behavior needs verification
+- [Phase 19]: If Claude Code changes error messages for invalid sessions, detection patterns may need adjustment
 
 ### Known Gaps (Future Work)
 
@@ -109,6 +114,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-08 21:27
-Stopped at: Completed 19-01-PLAN.md
+Last session: 2026-02-08 21:33
+Stopped at: Completed 19-02-PLAN.md
 Resume file: None
