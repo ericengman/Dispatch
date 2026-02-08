@@ -69,6 +69,7 @@ struct MainView: View {
     @State private var selectedSkill: Skill?
     @State private var selectedClaudeFile: ClaudeFile?
     @State private var selectedRun: SimulatorRun?
+    @State private var showTerminal: Bool = false
 
     // MARK: - View Models
 
@@ -89,51 +90,21 @@ struct MainView: View {
                 .environmentObject(chainVM)
         } detail: {
             VStack(spacing: 0) {
-                // Main content area with optional skills panel
-                HStack(spacing: 0) {
-                    // Skills panel (shown when a project is selected)
-                    if let projectId = selection?.projectId,
-                       let project = projectVM.projects.first(where: { $0.id == projectId }) {
-                        SkillsSidePanel(
-                            project: project,
-                            selectedSkill: $selectedSkill,
-                            selectedClaudeFile: $selectedClaudeFile,
-                            selectedRun: $selectedRun
-                        )
-                        Divider()
-                    }
+                // Main content area with optional skills panel and terminal
+                if showTerminal {
+                    HSplitView {
+                        contentWrapper
+                            .frame(minWidth: 400)
 
-                    // Main content, run detail, skill viewer, or claude file editor
-                    if let run = selectedRun {
-                        RunDetailView(run: run) {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                selectedRun = nil
-                            }
-                        }
-                        .id(run.id) // Force new view when run changes
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    } else if let claudeFile = selectedClaudeFile {
-                        ClaudeFileEditor(file: claudeFile) {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                selectedClaudeFile = nil
-                            }
-                        }
-                        .id(claudeFile.id) // Force new view when file changes
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    } else if let skill = selectedSkill {
-                        SkillFileViewer(skill: skill) {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                selectedSkill = nil
-                            }
-                        }
-                        .id(skill.id) // Force new view when skill changes
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    } else {
-                        contentView
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        // Terminal panel
+                        EmbeddedTerminalView()
+                            .frame(minWidth: 400)
                     }
+                    .frame(maxHeight: .infinity)
+                } else {
+                    contentWrapper
+                        .frame(maxHeight: .infinity)
                 }
-                .frame(maxHeight: .infinity)
 
                 // Queue panel (collapsible)
                 Divider()
@@ -159,6 +130,55 @@ struct MainView: View {
         }
         .toolbar {
             toolbarContent
+        }
+    }
+
+    // MARK: - Content Wrapper (with skills panel)
+
+    @ViewBuilder
+    private var contentWrapper: some View {
+        HStack(spacing: 0) {
+            // Skills panel (shown when a project is selected)
+            if let projectId = selection?.projectId,
+               let project = projectVM.projects.first(where: { $0.id == projectId }) {
+                SkillsSidePanel(
+                    project: project,
+                    selectedSkill: $selectedSkill,
+                    selectedClaudeFile: $selectedClaudeFile,
+                    selectedRun: $selectedRun
+                )
+                Divider()
+            }
+
+            // Main content, run detail, skill viewer, or claude file editor
+            if let run = selectedRun {
+                RunDetailView(run: run) {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        selectedRun = nil
+                    }
+                }
+                .id(run.id) // Force new view when run changes
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if let claudeFile = selectedClaudeFile {
+                ClaudeFileEditor(file: claudeFile) {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        selectedClaudeFile = nil
+                    }
+                }
+                .id(claudeFile.id) // Force new view when file changes
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if let skill = selectedSkill {
+                SkillFileViewer(skill: skill) {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        selectedSkill = nil
+                    }
+                }
+                .id(skill.id) // Force new view when skill changes
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                contentView
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
         }
     }
 
@@ -228,6 +248,15 @@ struct MainView: View {
                 .padding(.vertical, 4)
                 .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 6))
             }
+
+            // Terminal toggle button
+            Button {
+                showTerminal.toggle()
+                logInfo("Terminal toggled: \(showTerminal)", category: .terminal)
+            } label: {
+                Label("Terminal", systemImage: showTerminal ? "terminal.fill" : "terminal")
+            }
+            .keyboardShortcut("t", modifiers: [.command, .shift])
 
             // New prompt button
             Button {
