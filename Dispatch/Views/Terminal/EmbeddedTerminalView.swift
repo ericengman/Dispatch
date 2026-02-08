@@ -27,6 +27,9 @@ struct EmbeddedTerminalView: NSViewRepresentable {
 
         terminal.startProcess(executable: shell)
 
+        // Store reference in coordinator for cleanup
+        context.coordinator.terminalView = terminal
+
         return terminal
     }
 
@@ -41,10 +44,17 @@ struct EmbeddedTerminalView: NSViewRepresentable {
 
     class Coordinator: NSObject, LocalProcessTerminalViewDelegate {
         var onProcessExit: ((Int32?) -> Void)?
+        var terminalView: LocalProcessTerminalView? // Strong reference for cleanup
 
         init(onProcessExit: ((Int32?) -> Void)?) {
             self.onProcessExit = onProcessExit
             super.init()
+        }
+
+        deinit {
+            logDebug("Coordinator deinit - terminating process", category: .terminal)
+            terminalView?.terminate()
+            terminalView = nil
         }
 
         func processTerminated(source _: TerminalView, exitCode: Int32?) {
