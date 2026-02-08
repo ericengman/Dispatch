@@ -9,19 +9,19 @@ See: .planning/PROJECT.md (updated 2026-02-07)
 
 ## Current Position
 
-Phase: 17 of 22 (Claude Code Integration)
-Plan: 4 of 4 in current phase
-Status: Phase complete
-Last activity: 2026-02-08 — Completed 17-04-PLAN.md
+Phase: 18 of 22 (Multi-Session UI)
+Plan: 1 of 3 in current phase
+Status: In progress
+Last activity: 2026-02-08 — Completed 18-01-PLAN.md
 
-Progress: [##################░░] 95% (19/20 phases complete across milestones)
+Progress: [##################░░] 96% (20/21 phases complete across milestones)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 20 (12 v1.1, 8 v2.0)
+- Total plans completed: 21 (12 v1.1, 9 v2.0)
 - Average duration: 3.0m
-- Total execution time: 60m
+- Total execution time: 63m
 
 **By Phase:**
 
@@ -37,10 +37,11 @@ Progress: [##################░░] 95% (19/20 phases complete across milestone
 | 15 | 1 | 1m | 1m |
 | 16 | 2 | 4m | 2m |
 | 17 | 4 | 10m | 2.5m |
+| 18 | 1 | 3m | 3m |
 
 **Recent Trend:**
-- Last 5 plans: 17-01 (3m), 17-02 (3m), 17-03 (2m), 17-04 (2m)
-- Trend: Terminal integration consistently fast (2-3m per plan)
+- Last 5 plans: 17-02 (3m), 17-03 (2m), 17-04 (2m), 18-01 (3m)
+- Trend: Session management infrastructure maintained velocity
 
 *Updated after each plan completion*
 
@@ -77,6 +78,11 @@ Recent decisions affecting current work:
 - [17-03]: Added ~/.local/bin to claude CLI search paths (npm global install location)
 - [17-04]: Bridge pattern for ExecutionManager to embedded terminal coordinator
 - [17-04]: Embedded terminal takes priority, Terminal.app as fallback
+- [18-01]: @Observable over ObservableObject for modern SwiftUI integration
+- [18-01]: maxSessions = 4 limit enforced by TerminalSessionManager (SESS-06)
+- [18-01]: UUID identity for sessions enables registry lookups and logging
+- [18-01]: Registry pattern with UUID-keyed dictionaries for multi-session support
+- [18-01]: Full backward compatibility with legacy single-session API
 
 ### Pending Todos
 
@@ -93,6 +99,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-08 11:15
-Stopped at: Phase 17 complete — verification passed (4/4 must-haves)
+Last session: 2026-02-08 12:34
+Stopped at: Completed 18-01-PLAN.md (Session Management Infrastructure)
 Resume file: None
