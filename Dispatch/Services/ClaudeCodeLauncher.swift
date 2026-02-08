@@ -13,6 +13,13 @@ import SwiftTerm
 class ClaudeCodeLauncher {
     static let shared = ClaudeCodeLauncher()
 
+    /// Claude Code prompt patterns indicating idle state
+    private static let completionPatterns = [
+        "╭─", // Top-left corner of Claude prompt box
+        "╰─", // Bottom-left corner
+        "> " // Alternative simpler prompt
+    ]
+
     private init() {}
 
     /// Find the claude CLI executable
@@ -111,5 +118,35 @@ class ClaudeCodeLauncher {
         } else {
             logError("Failed to get PID for Claude Code process", category: .terminal)
         }
+    }
+
+    /// Check if Claude Code appears to be idle by examining terminal content
+    /// - Parameter terminal: The terminal to check
+    /// - Returns: true if Claude Code prompt pattern detected near end of buffer
+    func isClaudeCodeIdle(in terminal: LocalProcessTerminalView) -> Bool {
+        let terminalInstance = terminal.getTerminal()
+
+        // Get recent terminal content (last ~200 chars)
+        let data = terminalInstance.getBufferAsData()
+
+        guard let fullText = String(data: data, encoding: .utf8) else {
+            logDebug("Failed to decode terminal buffer as UTF-8", category: .terminal)
+            return false
+        }
+
+        let recentContent = String(fullText.suffix(200))
+
+        // Check for patterns near end of recent content
+        for pattern in Self.completionPatterns {
+            if let range = recentContent.range(of: pattern, options: .backwards) {
+                let distance = recentContent.distance(from: range.lowerBound, to: recentContent.endIndex)
+                if distance < 80 {
+                    logDebug("Claude Code idle detected (pattern: \(pattern))", category: .terminal)
+                    return true
+                }
+            }
+        }
+
+        return false
     }
 }
