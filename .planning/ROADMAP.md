@@ -110,11 +110,11 @@ Plans:
   2. Dispatching a prompt writes it to the PTY and Claude Code receives it
   3. Completion is detected via output pattern matching (as backup to HookServer)
   4. Terminal shows Claude Code's colored output correctly
-**Plans**: TBD
+**Plans:** 2 plans
 
 Plans:
-- [ ] 17-01: Spawn Claude Code with environment configuration
-- [ ] 17-02: Implement prompt dispatch via PTY and completion detection
+- [ ] 17-01-PLAN.md — Create ClaudeCodeLauncher service with environment configuration
+- [ ] 17-02-PLAN.md — Implement prompt dispatch via PTY and completion detection
 
 ### Phase 18: Multi-Session UI
 **Goal**: Users can manage multiple simultaneous Claude Code sessions
