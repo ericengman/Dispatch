@@ -20,11 +20,11 @@ Requirements for In-App Claude Code milestone. Each maps to roadmap phases.
 
 ### Process Lifecycle
 
-- [ ] **PROC-01**: Implement TerminalProcessRegistry to track active PIDs across sessions
-- [ ] **PROC-02**: Persist PIDs to UserDefaults for crash recovery
-- [ ] **PROC-03**: Clean up orphaned Claude Code processes on app launch
-- [ ] **PROC-04**: Implement two-stage graceful termination (SIGTERM, wait, SIGKILL)
-- [ ] **PROC-05**: Use process group termination (killpg) to kill child processes
+- [x] **PROC-01**: Implement TerminalProcessRegistry to track active PIDs across sessions
+- [x] **PROC-02**: Persist PIDs to UserDefaults for crash recovery
+- [x] **PROC-03**: Clean up orphaned Claude Code processes on app launch
+- [x] **PROC-04**: Implement two-stage graceful termination (SIGTERM, wait, SIGKILL)
+- [x] **PROC-05**: Use process group termination (killpg) to kill child processes
 
 ### Multi-Session
 
@@ -102,11 +102,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TERM-06 | Phase 17 | Pending |
 | TERM-07 | Phase 21 | Pending |
 | TERM-08 | Phase 21 | Pending |
-| PROC-01 | Phase 16 | Pending |
-| PROC-02 | Phase 16 | Pending |
-| PROC-03 | Phase 16 | Pending |
-| PROC-04 | Phase 16 | Pending |
-| PROC-05 | Phase 16 | Pending |
+| PROC-01 | Phase 16 | Complete |
+| PROC-02 | Phase 16 | Complete |
+| PROC-03 | Phase 16 | Complete |
+| PROC-04 | Phase 16 | Complete |
+| PROC-05 | Phase 16 | Complete |
 | SESS-01 | Phase 18 | Pending |
 | SESS-02 | Phase 18 | Pending |
 | SESS-03 | Phase 18 | Pending |
@@ -135,4 +135,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-02-07*
-*Last updated: 2026-02-07 after roadmap creation*
+*Last updated: 2026-02-08 after Phase 16 completion*

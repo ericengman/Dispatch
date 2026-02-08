@@ -49,7 +49,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 14: SwiftTerm Integration** - Add terminal emulation dependency and basic view
 - [x] **Phase 15: Safe Terminal Wrapper** - Implement thread-safe data reception to prevent crashes
-- [ ] **Phase 16: Process Lifecycle** - Track, persist, and clean up terminal processes
+- [x] **Phase 16: Process Lifecycle** - Track, persist, and clean up terminal processes
 - [ ] **Phase 17: Claude Code Integration** - Spawn Claude Code, dispatch prompts, detect completion
 - [ ] **Phase 18: Multi-Session UI** - Support multiple simultaneous terminal sessions with split panes
 - [ ] **Phase 19: Session Persistence** - Save and resume sessions across app restarts
@@ -98,8 +98,8 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 16-01-PLAN.md — Create TerminalProcessRegistry with PID tracking and persistence
-- [ ] 16-02-PLAN.md — Implement graceful termination and orphan cleanup
+- [x] 16-01-PLAN.md — Create TerminalProcessRegistry with PID tracking and persistence
+- [x] 16-02-PLAN.md — Implement graceful termination and orphan cleanup
 
 ### Phase 17: Claude Code Integration
 **Goal**: Claude Code runs in embedded terminal with prompt dispatch and completion detection
@@ -208,7 +208,7 @@ Phases execute in numeric order: 14 -> 14.1 -> 14.2 -> 15 -> ...
 | 13. Polish | v1.1 | 2/2 | Complete | 2026-02-07 |
 | 14. SwiftTerm Integration | v2.0 | 1/1 | Complete | 2026-02-07 |
 | 15. Safe Terminal Wrapper | v2.0 | 1/1 | Complete | 2026-02-07 |
-| 16. Process Lifecycle | v2.0 | 0/2 | Not started | - |
+| 16. Process Lifecycle | v2.0 | 2/2 | Complete | 2026-02-08 |
 | 17. Claude Code Integration | v2.0 | 0/2 | Not started | - |
 | 18. Multi-Session UI | v2.0 | 0/2 | Not started | - |
 | 19. Session Persistence | v2.0 | 0/2 | Not started | - |
