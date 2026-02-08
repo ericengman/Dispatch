@@ -16,39 +16,125 @@ import SwiftTerm
 final class EmbeddedTerminalBridge: ObservableObject {
     static let shared = EmbeddedTerminalBridge()
 
+    // MARK: - Multi-Session Registry
+
+    /// Session-aware coordinator registry (keyed by session UUID)
+    private var sessionCoordinators: [UUID: EmbeddedTerminalView.Coordinator] = [:]
+
+    /// Session-aware terminal registry (keyed by session UUID)
+    private var sessionTerminals: [UUID: LocalProcessTerminalView] = [:]
+
+    // MARK: - Legacy Single-Session Support
+
     /// Currently registered coordinator (nil if no terminal open)
+    /// Maintained for backward compatibility with MainView
     @Published private(set) var activeCoordinator: EmbeddedTerminalView.Coordinator?
 
     /// Terminal view for completion monitoring
+    /// Maintained for backward compatibility with MainView
     @Published private(set) var activeTerminal: LocalProcessTerminalView?
 
     private init() {}
 
-    /// Register the active terminal coordinator
+    // MARK: - Multi-Session Registration
+
+    /// Register a terminal coordinator for a specific session
+    /// - Parameters:
+    ///   - sessionId: The session UUID
+    ///   - coordinator: The coordinator instance
+    ///   - terminal: The terminal view instance
+    func register(sessionId: UUID, coordinator: EmbeddedTerminalView.Coordinator, terminal: LocalProcessTerminalView) {
+        sessionCoordinators[sessionId] = coordinator
+        sessionTerminals[sessionId] = terminal
+        logInfo("Embedded terminal registered for session: \(sessionId)", category: .terminal)
+    }
+
+    /// Unregister a terminal coordinator for a specific session
+    /// - Parameter sessionId: The session UUID
+    func unregister(sessionId: UUID) {
+        sessionCoordinators.removeValue(forKey: sessionId)
+        sessionTerminals.removeValue(forKey: sessionId)
+        logInfo("Embedded terminal unregistered for session: \(sessionId)", category: .terminal)
+    }
+
+    /// Check if a specific session is available for dispatch
+    /// - Parameter sessionId: The session UUID
+    /// - Returns: true if session is ready for dispatch
+    func isAvailable(sessionId: UUID) -> Bool {
+        sessionCoordinators[sessionId]?.isReadyForDispatch ?? false
+    }
+
+    /// Get terminal for a specific session (for completion monitoring)
+    /// - Parameter sessionId: The session UUID
+    /// - Returns: Terminal view if available
+    func getTerminal(for sessionId: UUID) -> LocalProcessTerminalView? {
+        sessionTerminals[sessionId]
+    }
+
+    /// Dispatch a prompt to a specific session
+    /// - Parameters:
+    ///   - prompt: The prompt text to send
+    ///   - sessionId: The session UUID to dispatch to
+    /// - Returns: true if dispatched, false if session unavailable
+    func dispatchPrompt(_ prompt: String, to sessionId: UUID) -> Bool {
+        guard let coordinator = sessionCoordinators[sessionId] else {
+            logDebug("Cannot dispatch: session \(sessionId) not found", category: .terminal)
+            return false
+        }
+
+        logDebug("Dispatching to session: \(sessionId)", category: .terminal)
+        return coordinator.dispatchPrompt(prompt)
+    }
+
+    // MARK: - Legacy Single-Session API (Backward Compatibility)
+
+    /// Register the active terminal coordinator (legacy API)
+    /// Delegates to session-aware API using TerminalSessionManager.activeSessionId
     /// Called by Coordinator.init or when terminal becomes active
     func register(coordinator: EmbeddedTerminalView.Coordinator, terminal: LocalProcessTerminalView) {
+        // Update legacy properties
         activeCoordinator = coordinator
         activeTerminal = terminal
-        logInfo("Embedded terminal registered for dispatch", category: .terminal)
+
+        // If there's an active session, register there too
+        if let sessionId = TerminalSessionManager.shared.activeSessionId {
+            register(sessionId: sessionId, coordinator: coordinator, terminal: terminal)
+        }
+
+        logInfo("Embedded terminal registered for dispatch (legacy mode)", category: .terminal)
     }
 
-    /// Unregister when terminal closes
+    /// Unregister when terminal closes (legacy API)
     /// Called by Coordinator.deinit
     func unregister() {
+        // Clear legacy properties
         activeCoordinator = nil
         activeTerminal = nil
-        logInfo("Embedded terminal unregistered", category: .terminal)
+
+        // If there's an active session, unregister it too
+        if let sessionId = TerminalSessionManager.shared.activeSessionId {
+            unregister(sessionId: sessionId)
+        }
+
+        logInfo("Embedded terminal unregistered (legacy mode)", category: .terminal)
     }
 
-    /// Check if embedded terminal is available for dispatch
+    /// Check if embedded terminal is available for dispatch (legacy API)
     var isAvailable: Bool {
         activeCoordinator?.isReadyForDispatch ?? false
     }
 
-    /// Dispatch a prompt to the embedded terminal
+    /// Dispatch a prompt to the embedded terminal (legacy API)
+    /// Dispatches to activeSessionId if available, otherwise uses legacy activeCoordinator
     /// - Parameter prompt: The prompt text to send
     /// - Returns: true if dispatched, false if no terminal available
     func dispatchPrompt(_ prompt: String) -> Bool {
+        // Try session-aware dispatch first
+        if let sessionId = TerminalSessionManager.shared.activeSessionId {
+            return dispatchPrompt(prompt, to: sessionId)
+        }
+
+        // Fallback to legacy behavior
         guard let coordinator = activeCoordinator else {
             logDebug("Cannot dispatch: no active coordinator", category: .terminal)
             return false
