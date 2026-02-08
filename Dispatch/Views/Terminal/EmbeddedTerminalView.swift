@@ -9,8 +9,17 @@
 import SwiftTerm
 import SwiftUI
 
+/// Launch mode for embedded terminal
+enum TerminalLaunchMode {
+    case shell // Launch user's default shell
+    case claudeCode(workingDirectory: String?, skipPermissions: Bool) // Launch Claude Code directly
+}
+
 struct EmbeddedTerminalView: NSViewRepresentable {
     typealias NSViewType = LocalProcessTerminalView
+
+    // Launch mode determines what process to spawn
+    var launchMode: TerminalLaunchMode = .shell
 
     // Optional callback for process exit
     var onProcessExit: ((Int32?) -> Void)?
@@ -21,20 +30,33 @@ struct EmbeddedTerminalView: NSViewRepresentable {
         let terminal = LocalProcessTerminalView(frame: .zero)
         terminal.processDelegate = context.coordinator
 
-        // Use user's default shell
-        let shell = ProcessInfo.processInfo.environment["SHELL"] ?? "/bin/bash"
-        logInfo("Starting shell: \(shell)", category: .terminal)
-
-        terminal.startProcess(executable: shell)
-
         // Store reference in coordinator for cleanup
         context.coordinator.terminalView = terminal
 
-        // Register PID for crash recovery
-        let pid = terminal.process.shellPid
-        if pid > 0 {
-            TerminalProcessRegistry.shared.register(pid: pid)
-            logInfo("Terminal process started with PID \(pid)", category: .terminal)
+        // Launch appropriate process based on mode
+        switch launchMode {
+        case .shell:
+            // Use user's default shell
+            let shell = ProcessInfo.processInfo.environment["SHELL"] ?? "/bin/bash"
+            logInfo("Starting shell: \(shell)", category: .terminal)
+
+            terminal.startProcess(executable: shell)
+
+            // Register PID for crash recovery (shell mode only - Claude mode handled by launcher)
+            let pid = terminal.process.shellPid
+            if pid > 0 {
+                TerminalProcessRegistry.shared.register(pid: pid)
+                logInfo("Terminal process started with PID \(pid)", category: .terminal)
+            }
+
+        case let .claudeCode(workingDirectory, skipPermissions):
+            logInfo("Launching Claude Code mode", category: .terminal)
+            // ClaudeCodeLauncher handles PID registration
+            ClaudeCodeLauncher.shared.launchClaudeCode(
+                in: terminal,
+                workingDirectory: workingDirectory,
+                skipPermissions: skipPermissions
+            )
         }
 
         return terminal
