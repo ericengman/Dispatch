@@ -1,72 +1,79 @@
-# Requirements: Dispatch v1.1
+# Requirements: Dispatch v2.0
 
-**Defined:** 2026-02-03
-**Core Value:** Users can dispatch prompts (including annotated simulator screenshots) to Claude Code with zero friction
+**Defined:** 2026-02-07
+**Core Value:** Users can dispatch prompts to Claude Code with zero friction via embedded terminal sessions
 
-## v1.1 Requirements
+## v2.0 Requirements
 
-Requirements for milestone v1.1 Screenshot Integration Fix. Each maps to roadmap phases.
+Requirements for In-App Claude Code milestone. Each maps to roadmap phases.
 
-### Foundation (Shared Library)
+### Terminal Core
 
-- [x] **FNDTN-01**: Create shared bash library at `~/.claude/lib/dispatch.sh` with Dispatch integration functions
-- [x] **FNDTN-02**: Library provides `dispatch_init` function to check Dispatch availability and create screenshot run
-- [x] **FNDTN-03**: Library provides `dispatch_finalize` function to mark run complete with proper delay
-- [x] **FNDTN-04**: Library uses temp files (`/tmp/dispatch-*.txt`) for state persistence between bash calls
-- [x] **FNDTN-05**: Library provides graceful fallback path when Dispatch not running with clear output message
-- [x] **FNDTN-06**: Library derives project name from git root, not current directory
+- [ ] **TERM-01**: Add SwiftTerm package dependency (v1.10.0+) for terminal emulation
+- [ ] **TERM-02**: Create EmbeddedTerminalView (NSViewRepresentable) wrapping SwiftTerm's TerminalView
+- [ ] **TERM-03**: Implement SafeLocalProcessTerminalView with NSLock-protected data reception to prevent deallocation crashes
+- [ ] **TERM-04**: Spawn Claude Code process with proper environment (PATH, TERM, COLORTERM, LANG)
+- [ ] **TERM-05**: Dispatch prompts to terminal via PTY write (replace AppleScript-based sending)
+- [ ] **TERM-06**: Detect Claude Code completion via output pattern matching (complement to HookServer)
+- [ ] **TERM-07**: Parse Claude Code JSONL session files for status display (thinking, executing, idle)
+- [ ] **TERM-08**: Display context window usage visualization from JSONL data
 
-### Hook Integration
+### Process Lifecycle
 
-- [x] **HOOK-01**: Create SessionStart hook at `~/.claude/hooks/session-start.sh` for early Dispatch detection
-- [x] **HOOK-02**: SessionStart hook sets environment variables via `CLAUDE_ENV_FILE` for session-wide access
-- [x] **HOOK-03**: Hook performs health check against Dispatch API at session start
+- [ ] **PROC-01**: Implement TerminalProcessRegistry to track active PIDs across sessions
+- [ ] **PROC-02**: Persist PIDs to UserDefaults for crash recovery
+- [ ] **PROC-03**: Clean up orphaned Claude Code processes on app launch
+- [ ] **PROC-04**: Implement two-stage graceful termination (SIGTERM, wait, SIGKILL)
+- [ ] **PROC-05**: Use process group termination (killpg) to kill child processes
 
-### Dispatch App Updates
+### Multi-Session
 
-- [x] **APP-01**: HookInstaller auto-installs shared library to `~/.claude/lib/dispatch.sh`
-- [x] **APP-02**: HookInstaller updates library on Dispatch version upgrade
-- [x] **APP-03**: HookInstaller installs SessionStart hook for Dispatch detection
+- [ ] **SESS-01**: Support multiple simultaneous terminal sessions
+- [ ] **SESS-02**: Display sessions in tabs or panel list
+- [ ] **SESS-03**: Implement split pane view for multiple visible sessions
+- [ ] **SESS-04**: Track and manage session selection/focus state
+- [ ] **SESS-05**: Provide full-screen/enlarge mode for focused session
+- [ ] **SESS-06**: Limit maximum concurrent sessions to prevent resource exhaustion
 
-### Skill Migration
+### Persistence
 
-- [x] **SKILL-01**: Audit all skills in `~/.claude/skills/` to identify which take screenshots
-- [x] **SKILL-02**: Update `test-feature` skill to source shared library instead of inline integration
-- [x] **SKILL-03**: Update `explore-app` skill to source shared library
-- [x] **SKILL-04**: Update `test-dynamic-type` skill to source shared library
-- [x] **SKILL-05**: Update all other screenshot-taking skills to source shared library
-- [x] **SKILL-06**: Remove duplicated Dispatch integration code from all migrated skills
+- [ ] **PERS-01**: Create TerminalSession SwiftData model for session state
+- [ ] **PERS-02**: Associate sessions with Project model (project-session relationship)
+- [ ] **PERS-03**: Persist session metadata (working directory, project, last activity)
+- [ ] **PERS-04**: Resume sessions on app restart using `claude -r <sessionId>`
+- [ ] **PERS-05**: Handle stale session resume gracefully (create new if expired)
 
-### Verification
+### Integration
 
-- [x] **VERIFY-01**: End-to-end test: skill captures screenshots, appear in Dispatch UI
-- [x] **VERIFY-02**: Test graceful degradation when Dispatch not running
-- [x] **VERIFY-03**: Test screenshot routing from at least 3 different skills
-- [x] **VERIFY-04**: Update skill documentation with new integration pattern
+- [ ] **INTG-01**: Create EmbeddedTerminalService implementing dispatch interface
+- [ ] **INTG-02**: Wire queue execution (run next, run all) to embedded terminals
+- [ ] **INTG-03**: Wire chain execution to embedded terminals with delay handling
+- [ ] **INTG-04**: Integrate with ExecutionStateMachine for state transitions
+- [ ] **INTG-05**: Maintain HookServer completion detection alongside output pattern
 
-### Polish (Settings & UI)
+### Migration
 
-- [x] **POLISH-01**: Add Settings UI section for screenshot configuration (directory, max runs)
-- [x] **POLISH-02**: Add tooltip hints for annotation tools in Annotation Window
-- [x] **POLISH-03**: Display user-visible error when dispatch fails (not just log)
-- [x] **POLISH-04**: Show integration status indicator in Dispatch UI (library installed, hook active)
+- [ ] **MIGR-01**: Replace TerminalService AppleScript methods with EmbeddedTerminalService
+- [ ] **MIGR-02**: Update MainView to show embedded terminal panel instead of external window controls
+- [ ] **MIGR-03**: Remove Terminal.app automation permission requirements
+- [ ] **MIGR-04**: Update QueueItem/Chain execution to target embedded sessions
 
 ## Future Requirements
 
-Deferred to v1.2 or later.
+Deferred to v2.1 or later.
 
-### Enhanced API
+### Enhanced Features
 
-- **API-01**: Screenshot labels via API — POST `/screenshots/{id}/label` during capture
-- **API-02**: Bulk screenshot registration — POST `/screenshots/bulk` to reduce race conditions
-- **API-03**: Run status query — GET `/screenshots/run/{id}` for verification
+- **ENH-01**: Scrollback persistence (serialize terminal buffer to disk)
+- **ENH-02**: Session search across all terminals
+- **ENH-03**: Copy session output to clipboard
+- **ENH-04**: Export session transcript
 
 ### Deferred Polish
 
-- **POLISH-05**: Drag to reorder images in send queue
-- **POLISH-06**: Auto-focus prompt text field when annotation window opens
-- **POLISH-07**: PromptHistory entries include image references
-- **POLISH-08**: Auto-resize large images before dispatch
+- **POLISH-01**: Drag to reorder sessions
+- **POLISH-02**: Custom terminal themes/colors
+- **POLISH-03**: Keyboard shortcuts for session navigation
 
 ## Out of Scope
 
@@ -74,13 +81,12 @@ Explicitly excluded. Documented to prevent scope creep.
 
 | Feature | Reason |
 |---------|--------|
-| Automatic screenshot capture | Too noisy; skills know when to capture |
-| Screenshot diff/comparison | Complex ML, many false positives; separate tool |
-| Direct file upload to API | Path-based approach simpler and more reliable |
-| Bidirectional skill communication | Breaks skill execution flow |
-| In-app screenshot editing | macOS Preview handles this; focus on organization |
-| WebSocket notifications | Overkill for current scale |
-| Video recording | High complexity, out of scope |
+| Git worktree management | Dispatch is prompt management, not git workflow |
+| Multi-provider support | Dispatch is Claude Code-specific |
+| Repository picker UI | Use existing Project model |
+| Approval notification service | Dispatch uses `--dangerously-skip-permissions` |
+| Dual-mode toggle (Terminal.app fallback) | Full replacement is cleaner, no hybrid mode |
+| Mac App Store distribution | Sandbox incompatible with forkpty() |
 
 ## Traceability
 
@@ -88,38 +94,45 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| FNDTN-01 | Phase 8 | Complete |
-| FNDTN-02 | Phase 8 | Complete |
-| FNDTN-03 | Phase 8 | Complete |
-| FNDTN-04 | Phase 8 | Complete |
-| FNDTN-05 | Phase 8 | Complete |
-| FNDTN-06 | Phase 8 | Complete |
-| HOOK-01 | Phase 9 | Complete |
-| HOOK-02 | Phase 9 | Complete |
-| HOOK-03 | Phase 9 | Complete |
-| APP-01 | Phase 10 | Complete |
-| APP-02 | Phase 10 | Complete |
-| APP-03 | Phase 10 | Complete |
-| SKILL-01 | Phase 11 | Complete |
-| SKILL-02 | Phase 11 | Complete |
-| SKILL-03 | Phase 11 | Complete |
-| SKILL-04 | Phase 11 | Complete |
-| SKILL-05 | Phase 11 | Complete |
-| SKILL-06 | Phase 11 | Complete |
-| VERIFY-01 | Phase 12 | Complete |
-| VERIFY-02 | Phase 12 | Complete |
-| VERIFY-03 | Phase 12 | Complete |
-| VERIFY-04 | Phase 12 | Complete |
-| POLISH-01 | Phase 13 | Complete |
-| POLISH-02 | Phase 13 | Complete |
-| POLISH-03 | Phase 13 | Complete |
-| POLISH-04 | Phase 13 | Complete |
+| TERM-01 | TBD | Pending |
+| TERM-02 | TBD | Pending |
+| TERM-03 | TBD | Pending |
+| TERM-04 | TBD | Pending |
+| TERM-05 | TBD | Pending |
+| TERM-06 | TBD | Pending |
+| TERM-07 | TBD | Pending |
+| TERM-08 | TBD | Pending |
+| PROC-01 | TBD | Pending |
+| PROC-02 | TBD | Pending |
+| PROC-03 | TBD | Pending |
+| PROC-04 | TBD | Pending |
+| PROC-05 | TBD | Pending |
+| SESS-01 | TBD | Pending |
+| SESS-02 | TBD | Pending |
+| SESS-03 | TBD | Pending |
+| SESS-04 | TBD | Pending |
+| SESS-05 | TBD | Pending |
+| SESS-06 | TBD | Pending |
+| PERS-01 | TBD | Pending |
+| PERS-02 | TBD | Pending |
+| PERS-03 | TBD | Pending |
+| PERS-04 | TBD | Pending |
+| PERS-05 | TBD | Pending |
+| INTG-01 | TBD | Pending |
+| INTG-02 | TBD | Pending |
+| INTG-03 | TBD | Pending |
+| INTG-04 | TBD | Pending |
+| INTG-05 | TBD | Pending |
+| MIGR-01 | TBD | Pending |
+| MIGR-02 | TBD | Pending |
+| MIGR-03 | TBD | Pending |
+| MIGR-04 | TBD | Pending |
 
 **Coverage:**
-- v1.1 requirements: 26 total
-- Mapped to phases: 26
-- Unmapped: 0
+- v2.0 requirements: 33 total
+- Mapped to phases: 0 (pending roadmap creation)
+- Unmapped: 33
 
 ---
-*Requirements defined: 2026-02-03*
-*Last updated: 2026-02-07 after Phase 13 completion (v1.1 milestone complete)*
+*Requirements defined: 2026-02-07*
+*Last updated: 2026-02-07 after initial definition*
