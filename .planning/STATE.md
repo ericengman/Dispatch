@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-07)
 ## Current Position
 
 Phase: 17 of 22 (Claude Code Integration)
-Plan: 1 of 3 in current phase
+Plan: 2 of 3 in current phase
 Status: In progress
-Last activity: 2026-02-08 — Completed 17-01-PLAN.md
+Last activity: 2026-02-08 — Completed 17-02-PLAN.md
 
-Progress: [#################░░░] 90% (17/19 phases complete across milestones)
+Progress: [#################░░░] 90% (18/19 phases complete across milestones)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 17 (12 v1.1, 5 v2.0)
+- Total plans completed: 18 (12 v1.1, 6 v2.0)
 - Average duration: 3.1m
-- Total execution time: 53m
+- Total execution time: 56m
 
 **By Phase:**
 
@@ -36,11 +36,11 @@ Progress: [#################░░░] 90% (17/19 phases complete across milesto
 | 14 | 1 | 5m | 5m |
 | 15 | 1 | 1m | 1m |
 | 16 | 2 | 4m | 2m |
-| 17 | 1 | 3m | 3m |
+| 17 | 2 | 6m | 3m |
 
 **Recent Trend:**
-- Last 5 plans: 15-01 (1m), 16-01 (1m), 16-02 (3m), 17-01 (3m)
-- Trend: Service extensions consistently fast (1-3m)
+- Last 5 plans: 16-01 (1m), 16-02 (3m), 17-01 (3m), 17-02 (3m)
+- Trend: Terminal integration consistently 3m per plan
 
 *Updated after each plan completion*
 
@@ -70,6 +70,10 @@ Recent decisions affecting current work:
 - [17-01]: PATH prepending (~/.claude/local/bin, /usr/local/bin, /opt/homebrew/bin) for CLI discovery
 - [17-01]: Terminal.getEnvironmentVariables() baseline ensures TERM=xterm-256color and COLORTERM=truecolor
 - [17-01]: --dangerously-skip-permissions default true for embedded usage
+- [17-02]: dispatchPrompt separate from sendIfRunning for different use cases
+- [17-02]: getBufferAsData for terminal content access (not buffer.lines)
+- [17-02]: Dual monitoring (HookServer + pattern) for robust completion detection
+- [17-02]: 1.5s polling interval balances responsiveness and CPU usage
 
 ### Pending Todos
 
@@ -86,6 +90,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-08 05:20
-Stopped at: Completed 17-01-PLAN.md (Claude Code Launcher)
+Last session: 2026-02-08 05:26
+Stopped at: Completed 17-02-PLAN.md (Prompt Dispatch)
 Resume file: None
