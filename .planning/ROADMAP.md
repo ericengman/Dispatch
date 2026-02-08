@@ -52,7 +52,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 16: Process Lifecycle** - Track, persist, and clean up terminal processes
 - [x] **Phase 17: Claude Code Integration** - Spawn Claude Code, dispatch prompts, detect completion
 - [x] **Phase 18: Multi-Session UI** - Support multiple simultaneous terminal sessions with split panes
-- [ ] **Phase 19: Session Persistence** - Save and resume sessions across app restarts
+- [x] **Phase 19: Session Persistence** - Save and resume sessions across app restarts
 - [ ] **Phase 20: Service Integration** - Wire embedded terminals to queue and chain execution
 - [ ] **Phase 21: Status Display** - Parse JSONL for rich status and context window visualization
 - [ ] **Phase 22: Migration & Cleanup** - Remove Terminal.app dependency and AppleScript code
@@ -147,8 +147,8 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 19-01-PLAN.md — Convert TerminalSession to @Model with Project relationship
-- [ ] 19-02-PLAN.md — Wire persistence (load on launch, resume picker, stale handling)
+- [x] 19-01-PLAN.md — Convert TerminalSession to @Model with Project relationship
+- [x] 19-02-PLAN.md — Wire persistence (load on launch, resume picker, stale handling)
 
 ### Phase 20: Service Integration
 **Goal**: Embedded terminals work with existing queue and chain execution
@@ -213,7 +213,7 @@ Phases execute in numeric order: 14 -> 14.1 -> 14.2 -> 15 -> ...
 | 16. Process Lifecycle | v2.0 | 2/2 | Complete | 2026-02-08 |
 | 17. Claude Code Integration | v2.0 | 4/4 | Complete | 2026-02-08 |
 | 18. Multi-Session UI | v2.0 | 2/2 | Complete | 2026-02-08 |
-| 19. Session Persistence | v2.0 | 0/2 | Not started | - |
+| 19. Session Persistence | v2.0 | 2/2 | Complete | 2026-02-08 |
 | 20. Service Integration | v2.0 | 0/2 | Not started | - |
 | 21. Status Display | v2.0 | 0/1 | Not started | - |
 | 22. Migration & Cleanup | v2.0 | 0/2 | Not started | - |
