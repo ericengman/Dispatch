@@ -16,9 +16,9 @@ final class TerminalSession: Identifiable {
     // Terminal reference for monitoring
     weak var terminal: LocalProcessTerminalView?
 
-    init(name: String? = nil) {
+    init(name: String) {
         id = UUID()
-        self.name = name ?? "Session \(UUID().uuidString.prefix(8))"
+        self.name = name
         createdAt = Date()
     }
 

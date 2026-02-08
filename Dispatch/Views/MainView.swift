@@ -69,7 +69,12 @@ struct MainView: View {
     @State private var selectedSkill: Skill?
     @State private var selectedClaudeFile: ClaudeFile?
     @State private var selectedRun: SimulatorRun?
-    @State private var showTerminal: Bool = false
+    @State private var showTerminal: Bool = true // Default to showing terminal
+
+    /// True when a file viewer (skill, claude file, or run) is active
+    private var isFileViewerActive: Bool {
+        selectedSkill != nil || selectedClaudeFile != nil || selectedRun != nil
+    }
 
     // MARK: - View Models
 
@@ -91,7 +96,8 @@ struct MainView: View {
         } detail: {
             VStack(spacing: 0) {
                 // Main content area with optional skills panel and terminal
-                if showTerminal {
+                // Terminal is hidden when file viewer is active
+                if showTerminal && !isFileViewerActive {
                     HSplitView {
                         contentWrapper
                             .frame(minWidth: 400)

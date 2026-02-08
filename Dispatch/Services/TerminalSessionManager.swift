@@ -12,6 +12,7 @@ final class TerminalSessionManager {
     var activeSessionId: UUID?
     var layoutMode: LayoutMode = .single
     let maxSessions: Int = 4 // SESS-06: limit to prevent resource exhaustion
+    private var nextSessionNumber: Int = 1
 
     enum LayoutMode: String, CaseIterable {
         case single // Focus mode (one session fullscreen)
@@ -36,7 +37,9 @@ final class TerminalSessionManager {
             return nil
         }
 
-        let session = TerminalSession(name: name)
+        let sessionName = name ?? "Session \(nextSessionNumber)"
+        nextSessionNumber += 1
+        let session = TerminalSession(name: sessionName)
         sessions.append(session)
 
         // Auto-activate if first session

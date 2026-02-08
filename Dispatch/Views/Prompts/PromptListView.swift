@@ -89,10 +89,12 @@ struct PromptListView: View {
                     .environmentObject(promptVM)
                     .environmentObject(queueVM)
             } else {
-                // Quick entry view when no prompt selected
-                QuickPromptEntryView(selectedProject: currentProject)
-                    .environmentObject(promptVM)
-                    .environmentObject(queueVM)
+                // Empty state when no prompt selected
+                ContentUnavailableView(
+                    "Select a Prompt",
+                    systemImage: "doc.text",
+                    description: Text("Choose a prompt from the list to edit, or create a new one with ⌘N")
+                )
             }
         }
         .navigationTitle(navigationTitle)
