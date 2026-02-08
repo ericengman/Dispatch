@@ -160,11 +160,11 @@ Plans:
   3. Chain execution dispatches sequence with configured delays
   4. ExecutionStateMachine transitions correctly for embedded terminal execution
   5. HookServer completion detection works alongside output pattern matching
-**Plans**: TBD
+**Plans:** 2 plans
 
 Plans:
-- [ ] 20-01: Create EmbeddedTerminalService with dispatch interface
-- [ ] 20-02: Wire queue and chain execution to embedded terminals
+- [ ] 20-01-PLAN.md — Create EmbeddedTerminalService with dispatch interface, session validation
+- [ ] 20-02-PLAN.md — Verify queue and chain integration, human verification checkpoint
 
 ### Phase 21: Status Display
 **Goal**: Rich status display from Claude Code JSONL data
@@ -214,6 +214,6 @@ Phases execute in numeric order: 14 -> 14.1 -> 14.2 -> 15 -> ...
 | 17. Claude Code Integration | v2.0 | 4/4 | Complete | 2026-02-08 |
 | 18. Multi-Session UI | v2.0 | 2/2 | Complete | 2026-02-08 |
 | 19. Session Persistence | v2.0 | 2/2 | Complete | 2026-02-08 |
-| 20. Service Integration | v2.0 | 0/2 | Not started | - |
+| 20. Service Integration | v2.0 | 0/2 | Ready | - |
 | 21. Status Display | v2.0 | 0/1 | Not started | - |
 | 22. Migration & Cleanup | v2.0 | 0/2 | Not started | - |
