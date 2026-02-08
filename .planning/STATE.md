@@ -5,7 +5,7 @@
 See: .planning/PROJECT.md (updated 2026-02-07)
 
 **Core value:** Users can dispatch prompts to Claude Code with zero friction via embedded terminal sessions
-**Current focus:** Phase 15 - Safe Terminal Wrapper
+**Current focus:** Phase 16 - Process Lifecycle
 
 ## Current Position
 
