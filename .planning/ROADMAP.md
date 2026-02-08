@@ -51,7 +51,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 15: Safe Terminal Wrapper** - Implement thread-safe data reception to prevent crashes
 - [x] **Phase 16: Process Lifecycle** - Track, persist, and clean up terminal processes
 - [x] **Phase 17: Claude Code Integration** - Spawn Claude Code, dispatch prompts, detect completion
-- [ ] **Phase 18: Multi-Session UI** - Support multiple simultaneous terminal sessions with split panes
+- [x] **Phase 18: Multi-Session UI** - Support multiple simultaneous terminal sessions with split panes
 - [ ] **Phase 19: Session Persistence** - Save and resume sessions across app restarts
 - [ ] **Phase 20: Service Integration** - Wire embedded terminals to queue and chain execution
 - [ ] **Phase 21: Status Display** - Parse JSONL for rich status and context window visualization
@@ -131,8 +131,8 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 18-01-PLAN.md — Session management infrastructure (TerminalSession model, TerminalSessionManager, bridge registry)
-- [ ] 18-02-PLAN.md — Multi-session UI (SessionTabBar, SessionPaneView, MultiSessionTerminalView, MainView integration)
+- [x] 18-01-PLAN.md — Session management infrastructure (TerminalSession model, TerminalSessionManager, bridge registry)
+- [x] 18-02-PLAN.md — Multi-session UI (SessionTabBar, SessionPaneView, MultiSessionTerminalView, MainView integration)
 
 ### Phase 19: Session Persistence
 **Goal**: Terminal sessions survive app restarts with context preserved
@@ -144,11 +144,11 @@ Plans:
   3. Reopening Dispatch offers to resume previous sessions
   4. Resuming a session uses `claude -r <sessionId>` to continue conversation
   5. Expired/stale sessions create fresh sessions gracefully
-**Plans**: TBD
+**Plans:** 2 plans
 
 Plans:
-- [ ] 19-01: Create TerminalSession SwiftData model with project relationship
-- [ ] 19-02: Implement session resume using claude -r flag
+- [ ] 19-01-PLAN.md — Convert TerminalSession to @Model with Project relationship
+- [ ] 19-02-PLAN.md — Wire persistence (load on launch, resume picker, stale handling)
 
 ### Phase 20: Service Integration
 **Goal**: Embedded terminals work with existing queue and chain execution
