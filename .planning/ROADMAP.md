@@ -68,10 +68,10 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. EmbeddedTerminalView displays in the Dispatch window with proper sizing
   3. User can type commands in the embedded terminal and see output
   4. Terminal supports ANSI colors and standard terminal escape sequences
-**Plans**: TBD
+**Plans:** 1 plan
 
 Plans:
-- [ ] 14-01: Add SwiftTerm package and create EmbeddedTerminalView
+- [ ] 14-01-PLAN.md — Add SwiftTerm package and create EmbeddedTerminalView
 
 ### Phase 15: Safe Terminal Wrapper
 **Goal**: Terminal data reception is thread-safe and survives view lifecycle changes
@@ -206,7 +206,7 @@ Phases execute in numeric order: 14 -> 14.1 -> 14.2 -> 15 -> ...
 | 11. Skill Migration | v1.1 | 3/3 | Complete | 2026-02-04 |
 | 12. Verification | v1.1 | 3/3 | Complete | 2026-02-07 |
 | 13. Polish | v1.1 | 2/2 | Complete | 2026-02-07 |
-| 14. SwiftTerm Integration | v2.0 | 0/1 | Not started | - |
+| 14. SwiftTerm Integration | v2.0 | 0/1 | Planned | - |
 | 15. Safe Terminal Wrapper | v2.0 | 0/1 | Not started | - |
 | 16. Process Lifecycle | v2.0 | 0/2 | Not started | - |
 | 17. Claude Code Integration | v2.0 | 0/2 | Not started | - |
