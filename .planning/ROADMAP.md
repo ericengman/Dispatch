@@ -110,11 +110,13 @@ Plans:
   2. Dispatching a prompt writes it to the PTY and Claude Code receives it
   3. Completion is detected via output pattern matching (as backup to HookServer)
   4. Terminal shows Claude Code's colored output correctly
-**Plans:** 2 plans
+**Plans:** 4 plans (2 core + 2 gap closure)
 
 Plans:
-- [ ] 17-01-PLAN.md — Create ClaudeCodeLauncher service with environment configuration
-- [ ] 17-02-PLAN.md — Implement prompt dispatch via PTY and completion detection
+- [x] 17-01-PLAN.md — Create ClaudeCodeLauncher service with environment configuration
+- [x] 17-02-PLAN.md — Implement prompt dispatch via PTY and completion detection
+- [ ] 17-03-PLAN.md — Wire Claude Code as default terminal launch mode (gap closure)
+- [ ] 17-04-PLAN.md — Create EmbeddedTerminalBridge for ExecutionManager dispatch (gap closure)
 
 ### Phase 18: Multi-Session UI
 **Goal**: Users can manage multiple simultaneous Claude Code sessions
@@ -209,7 +211,7 @@ Phases execute in numeric order: 14 -> 14.1 -> 14.2 -> 15 -> ...
 | 14. SwiftTerm Integration | v2.0 | 1/1 | Complete | 2026-02-07 |
 | 15. Safe Terminal Wrapper | v2.0 | 1/1 | Complete | 2026-02-07 |
 | 16. Process Lifecycle | v2.0 | 2/2 | Complete | 2026-02-08 |
-| 17. Claude Code Integration | v2.0 | 0/2 | Not started | - |
+| 17. Claude Code Integration | v2.0 | 2/4 | In progress | - |
 | 18. Multi-Session UI | v2.0 | 0/2 | Not started | - |
 | 19. Session Persistence | v2.0 | 0/2 | Not started | - |
 | 20. Service Integration | v2.0 | 0/2 | Not started | - |
