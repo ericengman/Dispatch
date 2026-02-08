@@ -62,7 +62,7 @@ struct MainView: View {
 
     // MARK: - State
 
-    @State private var selection: NavigationSelection? = NavigationSelection.loadSaved() ?? .allPrompts
+    @State private var selection: NavigationSelection? = NavigationSelection.loadSaved()
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
     @State private var showingQueue: Bool = false
     @State private var queueHeight: CGFloat = 150
@@ -78,13 +78,10 @@ struct MainView: View {
 
     // MARK: - View Models
 
-    @StateObject private var promptVM = PromptViewModel()
     @StateObject private var projectVM = ProjectViewModel.shared
     @StateObject private var chainVM = ChainViewModel.shared
     @StateObject private var queueVM = QueueViewModel.shared
-    @StateObject private var historyVM = HistoryViewModel.shared
     @StateObject private var executionState = ExecutionStateMachine.shared
-    @StateObject private var simulatorVM = SimulatorViewModel.shared
 
     // MARK: - Body
 
@@ -193,37 +190,24 @@ struct MainView: View {
     @ViewBuilder
     private var contentView: some View {
         switch selection {
-        case .allPrompts:
-            PromptListView(filter: .all)
-                .environmentObject(promptVM)
-                .environmentObject(queueVM)
+        case .allPrompts, .starred, .history:
+            // These navigation options have been removed - show empty state
+            ContentUnavailableView("Select a Project", systemImage: "folder")
 
-        case .starred:
-            PromptListView(filter: .starred)
-                .environmentObject(promptVM)
-                .environmentObject(queueVM)
-
-        case .history:
-            HistoryListView()
-                .environmentObject(historyVM)
-                .environmentObject(queueVM)
-
-        case let .project(projectId):
-            PromptListView(filter: .project(projectId))
-                .environmentObject(promptVM)
-                .environmentObject(queueVM)
+        case .project:
+            // Project content is shown via skills panel - no additional content needed
+            EmptyView()
 
         case let .chain(chainId):
             if let chain = chainVM.chains.first(where: { $0.id == chainId }) {
                 ChainEditorView(chain: chain)
                     .environmentObject(chainVM)
-                    .environmentObject(promptVM)
             } else {
                 ContentUnavailableView("Chain Not Found", systemImage: "link")
             }
 
         case nil:
-            ContentUnavailableView("Select an Item", systemImage: "sidebar.left")
+            ContentUnavailableView("Select a Project", systemImage: "folder")
         }
     }
 
@@ -274,35 +258,18 @@ struct MainView: View {
                 .keyboardShortcut("t", modifiers: .command)
                 .disabled(!TerminalSessionManager.shared.canCreateSession)
             }
-
-            // New prompt button
-            Button {
-                createNewPrompt()
-            } label: {
-                Label("New Prompt", systemImage: "plus")
-            }
-            .keyboardShortcut("n", modifiers: .command)
         }
     }
 
     // MARK: - Actions
 
     private func configureViewModels() {
-        promptVM.configure(with: modelContext)
         projectVM.configure(with: modelContext)
         chainVM.configure(with: modelContext)
         queueVM.configure(with: modelContext)
-        historyVM.configure(with: modelContext)
-        simulatorVM.configure(with: modelContext)
         SettingsManager.shared.configure(with: modelContext)
 
         logInfo("ViewModels configured", category: .app)
-    }
-
-    private func createNewPrompt() {
-        if let prompt = promptVM.createPrompt() {
-            promptVM.selectPrompt(prompt)
-        }
     }
 }
 
@@ -311,9 +278,7 @@ struct MainView: View {
 #Preview {
     MainView()
         .modelContainer(for: [
-            Prompt.self,
             Project.self,
-            PromptHistory.self,
             PromptChain.self,
             ChainItem.self,
             QueueItem.self,

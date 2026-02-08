@@ -5,8 +5,8 @@
 //  Sidebar navigation view
 //
 
-import SwiftUI
 import SwiftData
+import SwiftUI
 
 struct SidebarView: View {
     // MARK: - Environment
@@ -30,23 +30,8 @@ struct SidebarView: View {
 
     var body: some View {
         List(selection: $selection) {
-            // MARK: - Library Section
-            Section("Library") {
-                NavigationLink(value: NavigationSelection.starred) {
-                    Label("Starred", systemImage: "star.fill")
-                        .foregroundStyle(.yellow)
-                }
-
-                NavigationLink(value: NavigationSelection.history) {
-                    Label("History", systemImage: "clock.fill")
-                }
-
-                NavigationLink(value: NavigationSelection.allPrompts) {
-                    Label("All Prompts", systemImage: "doc.text.fill")
-                }
-            }
-
             // MARK: - Projects Section
+
             Section {
                 ForEach(projectVM.projects) { project in
                     NavigationLink(value: NavigationSelection.project(project.id)) {
@@ -68,15 +53,6 @@ struct SidebarView: View {
                                         .truncationMode(.head)
                                 }
                             }
-
-                            Spacer()
-
-                            Text("\(project.promptCount)")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(.quaternary, in: Capsule())
                         }
                     }
                     .contextMenu {
@@ -134,6 +110,7 @@ struct SidebarView: View {
             }
 
             // MARK: - Chains Section
+
             Section {
                 ForEach(chainVM.chains) { chain in
                     NavigationLink(value: NavigationSelection.chain(chain.id)) {
@@ -271,7 +248,7 @@ struct SidebarView: View {
 // MARK: - Preview
 
 #Preview {
-    SidebarView(selection: .constant(.allPrompts))
+    SidebarView(selection: .constant(nil))
         .environmentObject(ProjectViewModel.shared)
         .environmentObject(ChainViewModel.shared)
         .frame(width: 250)
