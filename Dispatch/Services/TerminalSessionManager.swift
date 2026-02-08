@@ -201,4 +201,140 @@ final class TerminalSessionManager {
         session.updateActivity()
         logDebug("Updated activity for session: \(sessionId)", category: .terminal)
     }
+
+    // MARK: - Persistence Management
+
+    /// Load persisted sessions from SwiftData on app launch
+    /// Returns sessions sorted by lastActivity (most recent first)
+    func loadPersistedSessions() -> [TerminalSession] {
+        guard let modelContext = modelContext else {
+            logWarning("Cannot load sessions: modelContext not configured", category: .terminal)
+            return []
+        }
+
+        var descriptor = FetchDescriptor<TerminalSession>(
+            sortBy: [SortDescriptor(\.lastActivity, order: .reverse)]
+        )
+        // Limit to sessions from last 7 days
+        let cutoff = Date().addingTimeInterval(-7 * 24 * 3600)
+        descriptor.predicate = #Predicate { $0.lastActivity > cutoff }
+
+        do {
+            let sessions = try modelContext.fetch(descriptor)
+            logInfo("Loaded \(sessions.count) persisted sessions", category: .terminal)
+            return sessions
+        } catch {
+            logError("Failed to load persisted sessions: \(error)", category: .terminal)
+            return []
+        }
+    }
+
+    /// Associate session with Project by matching workingDirectory to Project.path
+    /// - Parameter session: The session to associate
+    /// - Returns: The associated Project, if found
+    @discardableResult
+    func associateWithProject(_ session: TerminalSession) -> Project? {
+        guard let workingDirectory = session.workingDirectory,
+              let modelContext = modelContext
+        else {
+            return nil
+        }
+
+        // Fetch projects with matching path
+        var descriptor = FetchDescriptor<Project>()
+        descriptor.predicate = #Predicate { $0.path == workingDirectory }
+
+        do {
+            let projects = try modelContext.fetch(descriptor)
+            if let project = projects.first {
+                session.project = project
+                logInfo("Associated session '\(session.name)' with project '\(project.name)'", category: .terminal)
+                return project
+            }
+        } catch {
+            logError("Failed to find project for path \(workingDirectory): \(error)", category: .terminal)
+        }
+
+        return nil
+    }
+
+    /// Resume a persisted session by adding it to active sessions
+    /// - Parameter session: The persisted TerminalSession from SwiftData
+    /// - Returns: true if resumed, false if max sessions reached
+    @discardableResult
+    func resumePersistedSession(_ session: TerminalSession) -> Bool {
+        guard canCreateSession else {
+            logWarning("Cannot resume session: max limit reached", category: .terminal)
+            return false
+        }
+
+        // Add to active sessions array
+        sessions.append(session)
+
+        // Update activity timestamp
+        session.updateActivity()
+
+        // Auto-activate if first session
+        if activeSessionId == nil {
+            activeSessionId = session.id
+        }
+
+        logInfo("Resumed persisted session: \(session.name) (\(session.id))", category: .terminal)
+        return true
+    }
+
+    /// Remove sessions older than specified days from SwiftData
+    /// - Parameter olderThanDays: Delete sessions with lastActivity older than this many days
+    func cleanupStaleSessions(olderThanDays: Int = 7) {
+        guard let modelContext = modelContext else { return }
+
+        let cutoff = Date().addingTimeInterval(-Double(olderThanDays) * 24 * 3600)
+        var descriptor = FetchDescriptor<TerminalSession>()
+        descriptor.predicate = #Predicate { $0.lastActivity < cutoff }
+
+        do {
+            let staleSessions = try modelContext.fetch(descriptor)
+            for session in staleSessions {
+                modelContext.delete(session)
+                logDebug("Deleted stale session: \(session.name)", category: .terminal)
+            }
+            if !staleSessions.isEmpty {
+                logInfo("Cleaned up \(staleSessions.count) stale sessions", category: .terminal)
+            }
+        } catch {
+            logError("Failed to cleanup stale sessions: \(error)", category: .terminal)
+        }
+    }
+
+    /// Check if a Claude Code session ID is still valid (file exists)
+    /// - Parameter sessionId: The Claude session ID to verify
+    /// - Parameter workingDirectory: The project path for the session
+    /// - Returns: true if session file exists, false if stale/deleted
+    func isClaudeSessionValid(sessionId: String, workingDirectory: String?) async -> Bool {
+        guard let workingDirectory = workingDirectory else {
+            // Can't verify without path - assume valid
+            return true
+        }
+
+        // Use discovery service to check if session exists
+        let sessions = await ClaudeSessionDiscoveryService.shared.discoverSessions(for: workingDirectory)
+        return sessions.contains { $0.sessionId == sessionId }
+    }
+
+    /// Handle failed session resume by clearing stale Claude session ID
+    /// Called when Claude Code reports session not found
+    /// Note: User must close and reopen the terminal to launch fresh - clearing the ID
+    /// just prevents future resume attempts with the invalid session
+    func handleStaleSession(_ sessionId: UUID) {
+        guard let session = sessions.first(where: { $0.id == sessionId }) else { return }
+
+        logWarning("Session '\(session.name)' was stale, clearing Claude session ID", category: .terminal)
+
+        // Clear the stale Claude session ID so it won't try to resume again
+        session.claudeSessionId = nil
+        session.updateActivity()
+
+        // Note: The terminal will need to be recreated to launch fresh
+        // User can close and reopen the terminal tab
+    }
 }
