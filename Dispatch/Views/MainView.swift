@@ -70,6 +70,7 @@ struct MainView: View {
     @State private var selectedClaudeFile: ClaudeFile?
     @State private var selectedRun: SimulatorRun?
     @State private var showTerminal: Bool = true // Default to showing terminal
+    @State private var sessionManager = TerminalSessionManager.shared
 
     /// True when a file viewer (skill, claude file, or run) is active
     private var isFileViewerActive: Bool {
@@ -100,8 +101,9 @@ struct MainView: View {
                             .frame(minWidth: 400)
 
                         // Multi-session terminal panel
+                        // Use smaller minWidth when empty to prevent squashing skills panel
                         MultiSessionTerminalView()
-                            .frame(minWidth: 400)
+                            .frame(minWidth: sessionManager.sessions.isEmpty ? 250 : 400)
                     }
                     .frame(maxHeight: .infinity)
                 } else {

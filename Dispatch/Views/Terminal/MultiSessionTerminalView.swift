@@ -10,11 +10,16 @@ import SwiftUI
 struct MultiSessionTerminalView: View {
     @State private var sessionManager = TerminalSessionManager.shared
 
+    // Project path for session discovery
+    var projectPath: String?
+
     var body: some View {
         VStack(spacing: 0) {
-            // Tab bar for session switching
-            SessionTabBar()
-            Divider()
+            // Tab bar for session switching (hidden when empty)
+            if !sessionManager.sessions.isEmpty {
+                SessionTabBar(projectPath: projectPath)
+                Divider()
+            }
 
             // Layout mode picker (only show with 2+ sessions)
             if sessionManager.sessions.count >= 2 {
@@ -36,49 +41,38 @@ struct MultiSessionTerminalView: View {
 
             // Terminal content area
             if sessionManager.sessions.isEmpty {
-                // Empty state
-                ContentUnavailableView(
-                    "No Sessions",
-                    systemImage: "terminal",
-                    description: Text("Create a new session to get started")
+                // Interactive empty state with session discovery
+                SessionStarterCell(
+                    projectPath: projectPath,
+                    onNewSession: {
+                        _ = sessionManager.createSession()
+                    },
+                    onResumeSession: { claudeSession in
+                        _ = sessionManager.createResumeSession(claudeSession: claudeSession)
+                    }
                 )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 terminalContent
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
-        }
-        .onAppear {
-            // Auto-create first session if none exist
-            if sessionManager.sessions.isEmpty {
-                _ = sessionManager.createSession()
             }
         }
     }
 
     @ViewBuilder
     private var terminalContent: some View {
-        // Use GeometryReader to handle layout ourselves without recreating views
-        GeometryReader { geometry in
-            let sessions = sessionManager.sessions
-            let activeId = sessionManager.activeSessionId
-
-            ZStack {
-                // Always keep all session views alive to prevent recreation
-                ForEach(sessions) { session in
-                    SessionPaneView(session: session)
-                        .frame(
-                            width: frameWidth(for: session, in: geometry, sessions: sessions),
-                            height: frameHeight(for: session, in: geometry, sessions: sessions)
-                        )
-                        .position(
-                            x: positionX(for: session, in: geometry, sessions: sessions),
-                            y: positionY(for: session, in: geometry, sessions: sessions)
-                        )
-                        .opacity(shouldShow(session: session, activeId: activeId, sessions: sessions) ? 1 : 0)
-                        .allowsHitTesting(shouldShow(session: session, activeId: activeId, sessions: sessions))
-                }
-            }
-            .padding(8)
+        // Simplified layout: just show active session
+        if let activeSession = sessionManager.activeSession {
+            SessionPaneView(session: activeSession)
+                .padding(8)
+        } else if let firstSession = sessionManager.sessions.first {
+            // Fallback: show first session if no active session
+            SessionPaneView(session: firstSession)
+                .padding(8)
+        } else {
+            // This shouldn't happen since we check isEmpty above
+            Text("No active session")
+                .foregroundStyle(.secondary)
         }
     }
 
