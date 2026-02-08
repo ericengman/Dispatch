@@ -3,6 +3,7 @@
 
 import Foundation
 import SwiftData
+import SwiftTerm
 
 @Observable
 @MainActor

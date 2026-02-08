@@ -13,6 +13,7 @@ import SwiftUI
 enum TerminalLaunchMode {
     case shell // Launch user's default shell
     case claudeCode(workingDirectory: String?, skipPermissions: Bool) // Launch Claude Code directly
+    case claudeCodeResume(sessionId: String, workingDirectory: String?, skipPermissions: Bool) // Resume existing session
 }
 
 struct EmbeddedTerminalView: NSViewRepresentable {
@@ -45,11 +46,9 @@ struct EmbeddedTerminalView: NSViewRepresentable {
             // Multi-session mode: register with specific session ID
             EmbeddedTerminalBridge.shared.register(sessionId: sessionId, coordinator: context.coordinator, terminal: terminal)
 
-            // Update session model references for completeness
-            if let session = TerminalSessionManager.shared.sessions.first(where: { $0.id == sessionId }) {
-                session.coordinator = context.coordinator
-                session.terminal = terminal
-            }
+            // Store runtime references in manager (coordinator/terminal cannot be persisted in @Model)
+            TerminalSessionManager.shared.setCoordinator(context.coordinator, for: sessionId)
+            TerminalSessionManager.shared.setTerminal(terminal, for: sessionId)
         } else {
             // Legacy mode: use single-session API
             EmbeddedTerminalBridge.shared.register(coordinator: context.coordinator, terminal: terminal)
@@ -78,6 +77,16 @@ struct EmbeddedTerminalView: NSViewRepresentable {
                 in: terminal,
                 workingDirectory: workingDirectory,
                 skipPermissions: skipPermissions
+            )
+
+        case let .claudeCodeResume(sessionId, workingDirectory, skipPermissions):
+            logInfo("Launching Claude Code with resume session: \(sessionId)", category: .terminal)
+            // ClaudeCodeLauncher handles PID registration
+            ClaudeCodeLauncher.shared.launchClaudeCode(
+                in: terminal,
+                workingDirectory: workingDirectory,
+                skipPermissions: skipPermissions,
+                resumeSessionId: sessionId
             )
         }
 
