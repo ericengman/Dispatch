@@ -81,10 +81,10 @@ Plans:
   1. Rapidly closing and reopening terminal views does not crash the app
   2. Terminal continues receiving data during view updates/redraws
   3. No EXC_BAD_ACCESS crashes during process termination
-**Plans**: TBD
+**Plans:** 1 plan
 
 Plans:
-- [ ] 15-01: Implement SafeLocalProcessTerminalView with NSLock protection
+- [ ] 15-01-PLAN.md — Add lifecycle-safe coordinator with deinit cleanup
 
 ### Phase 16: Process Lifecycle
 **Goal**: Terminal processes are tracked, persisted, and cleaned up reliably
