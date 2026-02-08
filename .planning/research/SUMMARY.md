@@ -1,150 +1,175 @@
 # Project Research Summary
 
-**Project:** Dispatch Screenshot Routing Fix
-**Domain:** CLI-to-macOS-app integration for iOS simulator screenshot management
-**Researched:** 2026-02-03
+**Project:** Dispatch v2.0 — In-App Claude Code
+**Domain:** Embedded terminal sessions for Claude Code management
+**Researched:** 2026-02-07
 **Confidence:** HIGH
 
 ## Executive Summary
 
-This project addresses a straightforward but pervasive problem: Claude Code skills save iOS simulator screenshots to temporary directories instead of routing them through Dispatch for user review. The root cause is duplicated, inconsistent integration code scattered across 39 skills, where many skills skip integration entirely. The Dispatch API endpoints already exist and work correctly; the problem is on the skill side.
+Dispatch v2.0 replaces Terminal.app-based AppleScript control with embedded SwiftTerm terminals running Claude Code directly in the app. This eliminates automation permissions, improves reliability (no AppleScript timing issues), and enables richer integration between Dispatch's prompt management and Claude Code execution. The reference implementation is AgentHub (MIT licensed), which provides production-tested patterns for SwiftTerm integration, process lifecycle management, and session persistence.
 
-The recommended solution is a **shared bash library** (`~/.claude/lib/dispatch.sh`) that encapsulates all Dispatch integration logic. Skills source this library and call simple functions (`dispatch_init`, `dispatch_finalize`) instead of reimplementing the integration themselves. This eliminates duplication, ensures consistency, and provides graceful fallback when Dispatch is not running. The Dispatch app's HookInstaller should be extended to install this library automatically.
+The recommended approach adds a single dependency (SwiftTerm 1.10.0+) and creates a parallel `EmbeddedTerminalService` that matches the existing `TerminalService` interface. This allows gradual migration while maintaining backwards compatibility. The key architectural insight from AgentHub is the need for a `SafeLocalProcessTerminalView` wrapper that prevents crashes during deallocation, and a `TerminalProcessRegistry` that cleans up orphaned processes across app restarts.
 
-The primary risks are shell state management (variables lost between bash calls) and race conditions (screenshots not flushed to disk before completion scan). Both are well-understood and mitigable with temp file persistence and a small delay before completion. With the shared library pattern, these mitigations are implemented once and benefit all skills.
+Critical risks center on process lifecycle: DispatchIO race conditions during terminal deallocation can cause crashes, and orphaned Claude Code processes accumulate if cleanup fails. Both are well-understood and mitigated by AgentHub patterns that Dispatch can adopt directly. The estimated effort is 13-19 days for table stakes features, with clear phase boundaries allowing incremental delivery.
 
 ## Key Findings
 
 ### Recommended Stack
 
-The existing stack requires no changes. Dispatch is a Swift/SwiftUI macOS app with SwiftData persistence, and skills are bash-based markdown files. The solution adds a single bash library file.
+SwiftTerm is THE standard for macOS terminal embedding, used by CodeEdit, Secure Shellfish, La Terminal, and AgentHub. It provides complete terminal emulation (VT100/Xterm, 256-color, TrueColor), PTY management via `LocalProcess`, and process spawning with environment control. No other dependencies are needed for terminal embedding.
 
 **Core technologies:**
-- **Bash library** (`~/.claude/lib/dispatch.sh`): Shared integration code — eliminates duplication across 39 skills
-- **Temp file persistence** (`/tmp/dispatch-*.txt`): State storage between bash calls — works around Claude Code's shell reset behavior
-- **Existing HookServer API**: No new endpoints needed — `/health`, `/screenshots/run`, `/screenshots/complete` already work
+- **SwiftTerm 1.10.0+**: Terminal emulation + PTY + process management — single dependency replaces all AppleScript complexity
+- **NSViewRepresentable wrapper**: SwiftUI integration for SwiftTerm's AppKit views — standard pattern, well-documented
+- **SwiftData models**: Session persistence for `TerminalSession` — consistent with existing Dispatch architecture
 
-No new dependencies. The solution uses curl, grep, and bash features already present in all skills.
+**Explicitly NOT adding:**
+- ClaudeCodeSDK (programmatic API, not interactive terminal)
+- GRDB, markdown-ui, HighlightSwift (unneeded for terminal embedding)
+- Additional HTTP frameworks (existing NWListener sufficient)
 
 ### Expected Features
 
-**Must have (table stakes):**
-- Health check detects Dispatch availability — skills check before calling APIs
-- Create run returns usable path immediately — directory pre-created by Dispatch
-- Complete run triggers filesystem scan — screenshots appear in Dispatch UI
-- Graceful fallback to temp directory — skills work without Dispatch
+**Must have (table stakes for Terminal.app replacement):**
+- Embedded terminal view with full ANSI color support
+- Process lifecycle management (spawn, track, terminate Claude Code)
+- Multi-session display with selection/focus
+- Input dispatch to sessions (replace AppleScript-based prompt sending)
+- Completion detection (hook-based + output pattern matching)
+- Session persistence and resume capability
 
-**Should have (v1.x after validation):**
-- Screenshot labels via API — add context during capture
-- Bulk screenshot registration — reduce race conditions on large runs
-- Run status query — verify completion, debug missing screenshots
+**Should have (differentiators, could defer to post-v2.0):**
+- JSONL monitoring for rich status display (thinking, executing, etc.)
+- Context window usage visualization
+- Full-screen/enlarge mode
 
-**Defer (v2+):**
-- WebSocket notifications — overkill for current scale
-- Automatic screenshot capture — too noisy, skills know when to capture
-- In-app screenshot editing — macOS Preview handles this well
+**Anti-features (explicitly NOT building):**
+- Git worktree management (Dispatch is prompt management, not git workflow)
+- Multi-provider support (Dispatch is Claude Code-specific)
+- Repository picker UI (use existing Project model)
+- Approval notification service (Dispatch uses `--dangerously-skip-permissions`)
 
 ### Architecture Approach
 
-The architecture follows a **shared library + SessionStart hook** pattern. Skills source the library at execution time to get integration functions. A SessionStart hook detects Dispatch availability at session start and sets environment variables. The library handles all API calls, error handling, and fallback logic.
+Create a parallel service layer (`EmbeddedTerminalService`) that implements the same interface as `TerminalService`, allowing gradual migration. The SwiftUI integration uses `NSViewRepresentable` to wrap SwiftTerm's AppKit `TerminalView`. Process lifecycle is managed by a `TerminalProcessRegistry` that persists PIDs to UserDefaults for crash recovery.
 
 **Major components:**
-1. **Shared Library** (`~/.claude/lib/dispatch.sh`) — encapsulates health check, run creation, completion, path management
-2. **SessionStart Hook** (`~/.claude/hooks/session-start.sh`) — detects Dispatch at session start, sets environment
-3. **HookInstaller Enhancement** — Dispatch app installs/updates library automatically
-4. **Skill Updates** — change ~30 lines of duplicated code to 3 lines sourcing the library
+1. **EmbeddedTerminalView** (SwiftUI wrapper) — NSViewRepresentable for SwiftTerm's TerminalView
+2. **DispatchTerminalView** (SwiftTerm subclass) — safe data reception, completion pattern detection
+3. **EmbeddedTerminalService** (actor) — session management, prompt dispatch, parallel to TerminalService
+4. **TerminalProcessRegistry** — PID tracking, orphan cleanup on app launch
+5. **TerminalSession** (SwiftData model) — session persistence, project association
 
 ### Critical Pitfalls
 
-1. **State lost between bash calls** — use temp files (`/tmp/dispatch-run-id`, `/tmp/dispatch-screenshot-path`) instead of environment variables
-2. **Silent Dispatch fallback** — make fallback explicit with clear output: "Dispatch not running - screenshots at /tmp/..."
-3. **Race condition on completion** — add 1-second sleep before calling `/screenshots/complete` to let filesystem flush
-4. **Project name mismatch** — use `git rev-parse --show-toplevel` instead of `pwd` for project name derivation
-5. **API version drift** — document API version in library, return clear errors for malformed requests
+1. **DispatchIO race condition on deallocation** — CRITICAL. Terminal view deallocated while PTY data in flight causes EXC_BAD_ACCESS. **Prevention:** Implement `SafeLocalProcessTerminalView` with NSLock-protected `isStopped` flag; call `stopReceivingData()` BEFORE process termination.
+
+2. **Orphaned zombie processes** — CRITICAL. Child processes continue after app crash or unexpected view removal. **Prevention:** Implement `TerminalProcessRegistry` that persists PIDs; clean up on app launch; use `killpg()` for process group termination.
+
+3. **Process group termination failure** — HIGH. SIGTERM to shell PID doesn't kill Claude Code grandchild. **Prevention:** Use `killpg(pid, SIGTERM)` with two-stage shutdown (SIGTERM, wait 300ms, SIGKILL if alive).
+
+4. **NSViewRepresentable retain cycles** — HIGH. Closures capture coordinator and view, causing memory leaks. **Prevention:** Weak references in coordinator, optional closures, explicit `dismantleNSView` cleanup.
+
+5. **Focus/input routing confusion** — MEDIUM. With multiple terminals, input goes to wrong session. **Prevention:** Clear `@FocusState` management, ensure only focused terminal receives key events.
 
 ## Implications for Roadmap
 
 Based on research, suggested phase structure:
 
-### Phase 1: Foundation
-**Rationale:** The shared library is the foundation everything else builds on. Must be correct before updating skills.
-**Delivers:** `~/.claude/lib/dispatch.sh` with all integration functions, tested independently
-**Addresses:** Core routing problem, consistent API usage
-**Avoids:** Pitfalls 1 (state loss) and 2 (silent fallback) by implementing correct patterns once
+### Phase 1: SwiftTerm Integration
+**Rationale:** Core dependency must work before building on it. Validates SwiftTerm compatibility with Dispatch's macOS 14 target.
+**Delivers:** SwiftTerm package added, basic `EmbeddedTerminalView` showing bash shell
+**Addresses:** None yet — pure infrastructure
+**Avoids:** Pitfall 4 (forkpty from Swift) by using SwiftTerm's safe implementation
 
-### Phase 2: Hook Integration
-**Rationale:** SessionStart hook provides environment context before skills run. Depends on library existing.
-**Delivers:** `~/.claude/hooks/session-start.sh`, updated `~/.claude/settings.json`
-**Uses:** Library functions for health check
-**Implements:** Early Dispatch detection for session-wide awareness
+### Phase 2: Safe Terminal Wrapper
+**Rationale:** Safety patterns must be in place before process lifecycle. AgentHub's crashes during development came from skipping this.
+**Delivers:** `DispatchTerminalView` with safe data reception, configuration guard
+**Uses:** SwiftTerm `LocalProcessTerminalView` as base class
+**Avoids:** Pitfall 1 (DispatchIO race condition), Pitfall 4 (retain cycles)
 
-### Phase 3: Dispatch App Updates
-**Rationale:** HookInstaller should auto-install the library so users don't need manual setup. Depends on library and hook being finalized.
-**Delivers:** `installSharedLibrary()` method in HookInstaller, Settings UI status indicator
-**Implements:** Zero-config installation for Dispatch users
+### Phase 3: Process Lifecycle
+**Rationale:** Cleanup must work before multi-session. Orphaned processes compound without registry.
+**Delivers:** `TerminalProcessRegistry`, graceful termination, crash recovery cleanup
+**Implements:** Two-stage shutdown (SIGTERM then SIGKILL), process group termination
+**Avoids:** Pitfall 2 (orphaned processes), Pitfall 3 (process group failure)
 
-### Phase 4: Skill Migration
-**Rationale:** Update all skills to use the library. Largest phase but safest to do after infrastructure is stable.
-**Delivers:** All 39 skills reviewed and updated (4 heavily using Dispatch, others may need minimal changes)
-**Avoids:** Pitfall 3 (inconsistent paths) by standardizing on library usage
+### Phase 4: Claude Code Integration
+**Rationale:** With terminal and process management stable, integrate Claude Code specifically.
+**Delivers:** Claude Code launch, prompt dispatch via PTY, completion detection
+**Uses:** Existing `HookServer` for completion (unchanged), output pattern matching as backup
+**Implements:** `EmbeddedTerminalService` with `dispatchPrompt()` matching existing interface
 
-### Phase 5: Verification
-**Rationale:** End-to-end validation that the full chain works: skill -> screenshot -> Dispatch UI
-**Delivers:** Tested workflows, documentation updates
-**Avoids:** Pitfall 4 (race conditions) and 5 (API drift) through explicit testing
+### Phase 5: Multi-Session UI
+**Rationale:** Single session must work before managing multiple. Focus/routing complexity increases with sessions.
+**Delivers:** Session tabs, split view, session selection, session limits
+**Addresses:** Full-screen toggle, multi-terminal display
+**Avoids:** Pitfall 5 (focus routing), resource exhaustion
+
+### Phase 6: Session Persistence
+**Rationale:** Persistence comes after core functionality is stable. SwiftData integration builds on existing patterns.
+**Delivers:** `TerminalSession` SwiftData model, project-session association, session resume
+**Uses:** SwiftData (existing), `-r` flag for Claude Code session resume
+**Implements:** Architecture component from ARCHITECTURE.md
+
+### Phase 7: Migration & Polish
+**Rationale:** Only after embedded terminals are fully working, deprecate AppleScript path.
+**Delivers:** Deprecated `TerminalService` methods, settings toggle for terminal mode, dual-mode UI
+**Implements:** Smooth transition for users with Terminal.app workflows
 
 ### Phase Ordering Rationale
 
-- **Library first:** Everything depends on the library being correct. Test it in isolation before integrating.
-- **Hook before app updates:** The hook works independently of HookInstaller; app updates are convenience, not critical path.
-- **App updates before skill migration:** Ensures library is installed when skills try to source it.
-- **Skills last:** Largest scope, most tedious, but safest when infrastructure is proven stable.
-- **Verification throughout:** Each phase should have verification, but Phase 5 is dedicated E2E validation.
+- **SwiftTerm first:** Everything builds on the terminal emulator. Must validate compatibility.
+- **Safety before features:** Phases 2-3 establish safety patterns before adding complexity.
+- **Single session before multi:** Each phase validates before the next adds scope.
+- **Claude Code integration mid-sequence:** By Phase 4, infrastructure is stable enough for business logic.
+- **Persistence late:** Session data only matters after sessions work correctly.
+- **Migration last:** Don't break existing workflows until new path is proven.
 
 ### Research Flags
 
 Phases likely needing deeper research during planning:
-- **Phase 4 (Skill Migration):** Need to audit all 39 skills for screenshot usage patterns. Some may not take screenshots at all.
+- **Phase 2 (Safe Terminal Wrapper):** Review AgentHub's `SafeLocalProcessTerminalView` implementation in detail before coding
+- **Phase 6 (Session Persistence):** Claude Code's `-r` session resume behavior needs verification
 
 Phases with standard patterns (skip research-phase):
-- **Phase 1 (Foundation):** Bash library patterns well-understood
-- **Phase 2 (Hook Integration):** Claude Code hooks documented
-- **Phase 3 (Dispatch App Updates):** Extends existing HookInstaller pattern
-- **Phase 5 (Verification):** Standard testing, no new patterns
+- **Phase 1 (SwiftTerm Integration):** Well-documented, SPM integration is straightforward
+- **Phase 3 (Process Lifecycle):** POSIX signals, patterns from AgentHub are clear
+- **Phase 5 (Multi-Session UI):** Standard SwiftUI patterns
+- **Phase 7 (Migration):** Internal refactoring, no external research needed
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | No new technologies; extending existing patterns |
-| Features | HIGH | API endpoints already exist and work; features are validation, not implementation |
-| Architecture | HIGH | Shared library pattern is well-established; verified against Claude Code docs |
-| Pitfalls | HIGH | Based on direct analysis of existing code and skill execution model |
+| Stack | HIGH | SwiftTerm verified via GitHub, version confirmed, API reviewed |
+| Features | HIGH | Direct analysis of AgentHub source code, table stakes clearly identified |
+| Architecture | HIGH | Based on AgentHub patterns and existing Dispatch codebase |
+| Pitfalls | HIGH | Derived from AgentHub implementation, Apple Developer Forums, verified patterns |
 
 **Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **Skill audit completeness:** 39 skills exist, but not all take screenshots. Need to identify which ones during Phase 4 planning.
-- **SessionStart hook environment persistence:** `CLAUDE_ENV_FILE` behavior should be verified in real execution. May need alternative approach if it doesn't persist as expected.
-- **Multi-instance scenarios:** Current design assumes single Dispatch instance. If users run multiple, port configuration becomes relevant.
+- **Scrollback persistence:** PTY state cannot be serialized. Accept fresh terminals on restart, or implement background server (like iTerm2) — defer decision to Phase 6 planning.
+- **Sandbox compatibility:** SwiftTerm uses `forkpty()` which works in non-sandboxed apps. Mac App Store distribution would require rethinking. Currently not a concern (direct distribution).
+- **Session resume reliability:** Claude Code's `-r` flag behavior with stale session IDs needs testing during Phase 6.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- `/Users/eric/Dispatch/Dispatch/Services/HookServer.swift` — existing API implementation, endpoint definitions
-- `/Users/eric/Dispatch/Dispatch/Services/ScreenshotWatcherService.swift` — screenshot processing, directory monitoring
-- `/Users/eric/.claude/skills/test-feature/SKILL.md` — current integration pattern
-- `/Users/eric/.claude/skills/explore-app/SKILL.md` — current integration pattern
-- `/Users/eric/.claude/skills/test-dynamic-type/SKILL.md` — current integration pattern
+- [SwiftTerm GitHub](https://github.com/migueldeicaza/SwiftTerm) — terminal emulation, LocalProcess API
+- [AgentHub GitHub](https://github.com/jamesrochabrun/AgentHub) — production patterns for embedded Claude Code terminals
+- AgentHub source files: `EmbeddedTerminalView.swift`, `TerminalProcessRegistry.swift`, `SafeLocalProcessTerminalView` pattern
 
 ### Secondary (MEDIUM confidence)
-- Claude Code Hooks Reference — SessionStart hook behavior, CLAUDE_ENV_FILE
-- Bash library best practices — shell sourcing patterns
+- [Apple Developer Forums](https://developer.apple.com/forums/thread/133787) — zombie process handling
+- SwiftTerm LocalProcess documentation — process spawning patterns
 
 ### Tertiary (LOW confidence)
-- Skill count (39) from grep — needs validation during Phase 4 planning
+- iTerm2 Session Restoration documentation — background server pattern (deferred consideration)
 
 ---
-*Research completed: 2026-02-03*
+*Research completed: 2026-02-07*
 *Ready for roadmap: yes*

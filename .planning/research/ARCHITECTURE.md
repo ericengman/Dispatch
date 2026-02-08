@@ -1,490 +1,695 @@
-# Architecture Patterns: Skill-to-Dispatch Screenshot Integration
+# Architecture Research: Embedded Terminal Integration (v2.0)
 
-**Domain:** Cross-skill configuration sharing for macOS/Claude Code integration
-**Researched:** 2026-02-03
-**Confidence:** HIGH (verified against official Claude Code documentation and existing codebase)
+**Domain:** In-app Claude Code terminal embedding for macOS
+**Researched:** 2026-02-07
+**Confidence:** HIGH (verified against SwiftTerm documentation, AgentHub reference implementation, and Dispatch codebase)
 
 ## Executive Summary
 
-The core problem is that skills currently duplicate the Dispatch API integration code, and many skills don't implement it at all. Screenshots end up in temp folders instead of being routed to Dispatch for user review and annotation.
+Dispatch v2.0 replaces Terminal.app-based AppleScript control with embedded SwiftTerm terminals running Claude Code directly in the app. This eliminates the need for automation permissions, improves reliability, and enables richer integration.
 
-**Recommended architecture:** A **shared bash library** (`~/.claude/lib/dispatch.sh`) that skills source, combined with a **SessionStart hook** that sets environment variables for the current session. This provides:
-- Single source of truth for integration code
-- Zero-config for skill authors (just source the library)
-- Graceful fallback when Dispatch isn't running
-- Automatic environment setup via Claude Code's native hook system
+**Reference Implementation:** [AgentHub](https://github.com/jamesrochabrun/AgentHub) (MIT licensed) provides a production-ready pattern for SwiftTerm + Claude Code integration.
 
-## Current State Analysis
+**Key Architectural Decision:** Create a parallel `EmbeddedTerminalService` that implements the same interface as `TerminalService`, allowing gradual migration and dual-mode operation.
 
-### Existing Components
-
-**Dispatch HookServer (Port 19847)**
-- Already implements all required endpoints:
-  - `GET /health` - Check if Dispatch is running
-  - `POST /screenshots/run` - Create a run, returns `{runId, path}`
-  - `POST /screenshots/complete` - Mark run complete, trigger scan
-  - `GET /screenshots/location?project=X` - Get screenshot directory
-- NWListener-based, already works reliably
-- No changes needed to the server
-
-**ScreenshotWatcherService**
-- Watches the screenshot directory for new runs
-- Creates SwiftData records when screenshots appear
-- Handles cleanup of old runs
-- Works correctly when screenshots arrive in the right location
-
-**Existing Skills**
-- Skills like `test-feature`, `explore-app`, `test-dynamic-type` already document the API
-- Each skill duplicates ~30 lines of bash for Dispatch integration
-- Many skills skip the integration entirely (problem source)
-
-### The Gap
-
-Skills are supposed to:
-1. Check if Dispatch is running (`curl /health`)
-2. Create a run (`POST /screenshots/run`)
-3. Save screenshots to the returned path
-4. Mark complete (`POST /screenshots/complete`)
-
-But in practice:
-- Integration code is copy-pasted (and often outdated)
-- New skills skip it because it's "optional"
-- Skills save to `/tmp/` or default locations
-- Dispatch never sees the screenshots
-
-## Recommended Architecture
-
-### Pattern: Shared Library + SessionStart Hook
-
-```
-~/.claude/
-├── lib/
-│   └── dispatch.sh          # Shared library (NEW)
-├── hooks/
-│   └── session-start.sh     # SessionStart hook (NEW)
-└── skills/
-    └── */SKILL.md           # Skills source the library
-```
-
-### Component 1: Shared Library (`~/.claude/lib/dispatch.sh`)
-
-A sourceable bash library that encapsulates all Dispatch integration logic.
-
-```bash
-#!/bin/bash
-# ~/.claude/lib/dispatch.sh
-# Dispatch Screenshot Integration Library
-# Source this in skills: . ~/.claude/lib/dispatch.sh
-
-DISPATCH_PORT="${DISPATCH_PORT:-19847}"
-DISPATCH_BASE_URL="http://localhost:${DISPATCH_PORT}"
-
-# Check if Dispatch is running
-# Returns: 0 if running, 1 if not
-dispatch_is_running() {
-    local health
-    health=$(curl -s --connect-timeout 1 "${DISPATCH_BASE_URL}/health" 2>/dev/null)
-    [[ "$health" == *'"status":"ok"'* ]]
-}
-
-# Create a screenshot run
-# Args: $1=project_name $2=run_name $3=device_info (optional)
-# Sets: DISPATCH_RUN_ID, DISPATCH_SCREENSHOT_PATH
-# Returns: 0 on success, 1 on failure
-dispatch_create_run() {
-    local project="${1:-$(basename "$(pwd)")}"
-    local name="${2:-Screenshot Run}"
-    local device="${3:-}"
-
-    if ! dispatch_is_running; then
-        # Fallback to temp directory
-        DISPATCH_RUN_ID=""
-        DISPATCH_SCREENSHOT_PATH="/tmp/dispatch-screenshots-$(date +%Y%m%d-%H%M%S)"
-        mkdir -p "$DISPATCH_SCREENSHOT_PATH"
-        return 1
-    fi
-
-    local response
-    response=$(curl -s -X POST "${DISPATCH_BASE_URL}/screenshots/run" \
-        -H "Content-Type: application/json" \
-        -d "{\"project\":\"${project}\",\"name\":\"${name}\",\"device\":\"${device}\"}" 2>/dev/null)
-
-    if [[ -z "$response" ]]; then
-        DISPATCH_RUN_ID=""
-        DISPATCH_SCREENSHOT_PATH="/tmp/dispatch-screenshots-$(date +%Y%m%d-%H%M%S)"
-        mkdir -p "$DISPATCH_SCREENSHOT_PATH"
-        return 1
-    fi
-
-    # Parse response - handle both camelCase and snake_case
-    DISPATCH_RUN_ID=$(echo "$response" | grep -oE '"runId"\s*:\s*"[^"]+"' | cut -d'"' -f4)
-    [[ -z "$DISPATCH_RUN_ID" ]] && DISPATCH_RUN_ID=$(echo "$response" | grep -oE '"run_id"\s*:\s*"[^"]+"' | cut -d'"' -f4)
-
-    DISPATCH_SCREENSHOT_PATH=$(echo "$response" | grep -oE '"path"\s*:\s*"[^"]+"' | cut -d'"' -f4 | tr -d '\\')
-
-    if [[ -n "$DISPATCH_RUN_ID" && -n "$DISPATCH_SCREENSHOT_PATH" ]]; then
-        export DISPATCH_RUN_ID
-        export DISPATCH_SCREENSHOT_PATH
-        return 0
-    fi
-
-    DISPATCH_RUN_ID=""
-    DISPATCH_SCREENSHOT_PATH="/tmp/dispatch-screenshots-$(date +%Y%m%d-%H%M%S)"
-    mkdir -p "$DISPATCH_SCREENSHOT_PATH"
-    return 1
-}
-
-# Complete a screenshot run
-# Args: $1=run_id (optional, defaults to DISPATCH_RUN_ID)
-# Returns: 0 on success, 1 on failure
-dispatch_complete_run() {
-    local run_id="${1:-$DISPATCH_RUN_ID}"
-
-    [[ -z "$run_id" ]] && return 1
-
-    curl -s -X POST "${DISPATCH_BASE_URL}/screenshots/complete" \
-        -H "Content-Type: application/json" \
-        -d "{\"runId\":\"${run_id}\"}" 2>/dev/null
-
-    return 0
-}
-
-# Get screenshot save path (without creating a run)
-# Args: $1=project_name (optional)
-# Returns: path on stdout
-dispatch_get_screenshot_path() {
-    local project="${1:-$(basename "$(pwd)")}"
-
-    if dispatch_is_running; then
-        local response
-        response=$(curl -s "${DISPATCH_BASE_URL}/screenshots/location?project=${project}" 2>/dev/null)
-        local path
-        path=$(echo "$response" | grep -oE '"path"\s*:\s*"[^"]+"' | cut -d'"' -f4)
-        [[ -n "$path" ]] && echo "$path" && return 0
-    fi
-
-    # Fallback
-    echo "/tmp/dispatch-screenshots-${project}"
-}
-
-# Initialize Dispatch for a skill session
-# Call this at the start of any skill that takes screenshots
-# Args: $1=run_name $2=project_name (optional)
-dispatch_init() {
-    local run_name="${1:-Skill Run}"
-    local project="${2:-$(basename "$(pwd)")}"
-    local device
-    device=$(xcrun simctl list devices booted 2>/dev/null | grep -m1 "iPhone\|iPad" | sed 's/.*(\([^)]*\)).*/\1/' | xargs)
-
-    dispatch_create_run "$project" "$run_name" "$device"
-
-    if [[ -n "$DISPATCH_RUN_ID" ]]; then
-        echo "Dispatch: Run created (${DISPATCH_RUN_ID})"
-        echo "Screenshots: ${DISPATCH_SCREENSHOT_PATH}"
-    else
-        echo "Dispatch: Not running - using fallback path"
-        echo "Screenshots: ${DISPATCH_SCREENSHOT_PATH}"
-    fi
-}
-
-# Finalize Dispatch session
-# Call this at the end of any skill that takes screenshots
-dispatch_finalize() {
-    if [[ -n "$DISPATCH_RUN_ID" ]]; then
-        dispatch_complete_run
-        echo "Dispatch: Run completed - screenshots available for review"
-    fi
-}
-```
-
-### Component 2: SessionStart Hook
-
-A hook that runs when Claude Code starts, setting up environment variables for the session.
-
-**Location:** `~/.claude/hooks/session-start.sh` or configured in `~/.claude/settings.json`
-
-```bash
-#!/bin/bash
-# SessionStart hook: Set up Dispatch environment
-# This runs when Claude Code starts and persists env vars for the session
-
-DISPATCH_PORT="${DISPATCH_PORT:-19847}"
-
-# Check if Dispatch is running
-if curl -s --connect-timeout 1 "http://localhost:${DISPATCH_PORT}/health" 2>/dev/null | grep -q '"status":"ok"'; then
-    # Dispatch is running - export to CLAUDE_ENV_FILE for session persistence
-    if [[ -n "$CLAUDE_ENV_FILE" ]]; then
-        echo "export DISPATCH_AVAILABLE=true" >> "$CLAUDE_ENV_FILE"
-        echo "export DISPATCH_PORT=${DISPATCH_PORT}" >> "$CLAUDE_ENV_FILE"
-        echo "export DISPATCH_BASE_URL=http://localhost:${DISPATCH_PORT}" >> "$CLAUDE_ENV_FILE"
-    fi
-
-    # Return context for Claude
-    echo '{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"Dispatch app is running. Screenshots can be routed through Dispatch for review."}}'
-else
-    if [[ -n "$CLAUDE_ENV_FILE" ]]; then
-        echo "export DISPATCH_AVAILABLE=false" >> "$CLAUDE_ENV_FILE"
-    fi
-fi
-
-exit 0
-```
-
-**Hook configuration** (`~/.claude/settings.json`):
-```json
-{
-  "hooks": {
-    "SessionStart": [
-      {
-        "matcher": "startup",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "~/.claude/hooks/session-start.sh"
-          }
-        ]
-      }
-    ]
-  }
-}
-```
-
-### Component 3: Updated Skill Pattern
-
-Skills become much simpler - they just source the library and call init/finalize:
-
-```markdown
----
-name: test-feature
-description: Test a specific iOS feature in the simulator
 ---
 
-## Screenshot Integration
+## AgentHub Pattern Analysis
 
-```bash
-# At the start of the skill
-. ~/.claude/lib/dispatch.sh
-dispatch_init "Feature Test"
+AgentHub implements embedded Claude Code terminals with this architecture:
 
-# Take screenshots during testing (save to $DISPATCH_SCREENSHOT_PATH)
-mcp__ios-simulator__screenshot(path: "$DISPATCH_SCREENSHOT_PATH/01-login.png")
-
-# At the end of the skill
-dispatch_finalize
 ```
+SwiftUI View (EmbeddedTerminalView)
+    |
+    +-- NSViewRepresentable wrapper
+        |
+        +-- TerminalContainerView (NSView)
+            |
+            +-- ManagedLocalProcessTerminalView (subclass of TerminalView)
+                |
+                +-- LocalProcess (PTY management)
+                    |
+                    +-- bash -c "claude --dangerously-skip-permissions"
 ```
 
-### Component 4: HookInstaller Enhancement (Dispatch App)
+### Key AgentHub Components
 
-The Dispatch app's `HookInstaller.swift` should be updated to:
-1. Install the shared library to `~/.claude/lib/dispatch.sh`
-2. Install the SessionStart hook
-3. Update skills to use the library (or provide a migration guide)
+| Component | Purpose | Dispatch Equivalent |
+|-----------|---------|---------------------|
+| `ManagedLocalProcessTerminalView` | Extended TerminalView with process lifecycle | New: `DispatchTerminalView` |
+| `EmbeddedTerminalView` | SwiftUI NSViewRepresentable wrapper | New: `EmbeddedTerminalView` |
+| `TerminalLauncher` | Process spawning, environment setup | Replaces: `TerminalService.launchTerminal()` |
+| `TerminalProcessRegistry` | PID tracking, cleanup on quit | New: `TerminalProcessRegistry` |
+
+### AgentHub Key Patterns
+
+**1. Thread-Safe Data Reception**
+```swift
+class SafeLocalProcessTerminalView: LocalProcessTerminalView {
+    private let lock = NSLock()
+    private var isReceivingData = true
+
+    func stopDataReception() {
+        lock.lock()
+        isReceivingData = false
+        lock.unlock()
+    }
+
+    override func dataReceived(slice: ArraySlice<UInt8>) {
+        lock.lock()
+        defer { lock.unlock() }
+        guard isReceivingData else { return }
+        super.dataReceived(slice: slice)
+    }
+}
+```
+
+**2. Graceful Process Termination**
+```swift
+func terminateProcessTree(gracePeriod: TimeInterval = 0.3) {
+    // 1. Send SIGTERM to process group
+    killpg(pid, SIGTERM)
+
+    // 2. Wait grace period
+    Thread.sleep(forTimeInterval: gracePeriod)
+
+    // 3. Force kill if still alive
+    if processStillRunning(pid) {
+        killpg(pid, SIGKILL)
+    }
+}
+```
+
+**3. Prompt Delivery via stdin**
+```swift
+// Send text directly to PTY stdin
+func sendPrompt(_ text: String) {
+    guard let data = text.data(using: .utf8) else { return }
+    localProcess.send(data: data)
+}
+```
+
+---
+
+## Dispatch Integration Plan
+
+### New Components
+
+#### 1. `EmbeddedTerminalView.swift` (SwiftUI)
+
+**Location:** `Dispatch/Views/Terminal/EmbeddedTerminalView.swift`
 
 ```swift
-// New method in HookInstaller.swift
-func installSharedLibrary() throws {
-    let libDirectory = homeDirectory.appendingPathComponent(".claude/lib", isDirectory: true)
-    try FileManager.default.createDirectory(at: libDirectory, withIntermediateDirectories: true)
+struct EmbeddedTerminalView: NSViewRepresentable {
+    let session: TerminalSession
+    @Binding var isActive: Bool
 
-    let libraryPath = libDirectory.appendingPathComponent("dispatch.sh")
-    let libraryContent = generateLibraryScript(port: port)
-    try libraryContent.write(to: libraryPath, atomically: true, encoding: .utf8)
-    try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: libraryPath.path)
+    func makeNSView(context: Context) -> TerminalContainerView {
+        let container = TerminalContainerView()
+        container.configure(session: session)
+        return container
+    }
+
+    func updateNSView(_ nsView: TerminalContainerView, context: Context) {
+        // Handle appearance changes, focus state
+    }
 }
 ```
 
-## Integration Points with Existing System
+**Integration Point:** Replaces `TerminalPickerView` functionality for embedded sessions.
 
-### HookServer Endpoints (No Changes Needed)
+#### 2. `TerminalContainerView.swift` (AppKit)
 
-| Endpoint | Method | Purpose | Status |
-|----------|--------|---------|--------|
-| `/health` | GET | Check if Dispatch running | Already implemented |
-| `/screenshots/run` | POST | Create screenshot run | Already implemented |
-| `/screenshots/complete` | POST | Mark run complete | Already implemented |
-| `/screenshots/location` | GET | Get screenshot directory | Already implemented |
+**Location:** `Dispatch/Views/Terminal/TerminalContainerView.swift`
 
-### ScreenshotWatcherService (No Changes Needed)
+NSView wrapper that owns the SwiftTerm TerminalView and LocalProcess.
 
-The watcher already:
-- Monitors the correct directory
-- Parses manifest files
-- Creates SwiftData records
-- Handles cleanup
+```swift
+class TerminalContainerView: NSView {
+    private var terminalView: DispatchTerminalView?
+    private var session: TerminalSession?
 
-### Skills Integration (Update Needed)
+    func configure(session: TerminalSession) {
+        self.session = session
+        setupTerminalView()
+        startProcess(workingDirectory: session.workingDirectory)
+    }
 
-Skills need to be updated to source the library:
-
-**Before (30+ lines of duplicated bash):**
-```bash
-DISPATCH_HEALTH=$(curl -s http://localhost:19847/health 2>/dev/null)
-if echo "$DISPATCH_HEALTH" | grep -q '"status":"ok"'; then
-  PROJECT_NAME=$(basename "$(pwd)")
-  DEVICE_INFO=$(xcrun simctl list devices booted | ...)
-  DISPATCH_RESPONSE=$(curl -s -X POST http://localhost:19847/screenshots/run ...)
-  DISPATCH_RUN_ID=$(echo "$DISPATCH_RESPONSE" | grep -o ...)
-  DISPATCH_SCREENSHOT_PATH=$(echo "$DISPATCH_RESPONSE" | grep -o ...)
-  # ... more parsing and error handling
-fi
+    private func startProcess(workingDirectory: URL) {
+        let environment = prepareEnvironment()
+        terminalView?.startProcess(
+            executable: "/bin/bash",
+            args: ["-c", "claude --dangerously-skip-permissions"],
+            environment: environment,
+            currentDirectory: workingDirectory.path
+        )
+    }
+}
 ```
 
-**After (3 lines):**
-```bash
-. ~/.claude/lib/dispatch.sh
-dispatch_init "Test Feature"
-# ... screenshots go to $DISPATCH_SCREENSHOT_PATH
-dispatch_finalize
+#### 3. `DispatchTerminalView.swift` (SwiftTerm Subclass)
+
+**Location:** `Dispatch/Views/Terminal/DispatchTerminalView.swift`
+
+Extended TerminalView with Dispatch-specific features.
+
+```swift
+class DispatchTerminalView: LocalProcessTerminalView {
+    // Thread-safe data reception
+    private let dataLock = NSLock()
+    private var isReceiving = true
+
+    // Completion detection via output parsing
+    weak var completionDelegate: TerminalCompletionDelegate?
+
+    override func dataReceived(slice: ArraySlice<UInt8>) {
+        dataLock.lock()
+        defer { dataLock.unlock() }
+        guard isReceiving else { return }
+
+        super.dataReceived(slice: slice)
+
+        // Check for Claude Code completion patterns
+        if let text = String(bytes: slice, encoding: .utf8) {
+            checkForCompletionPattern(text)
+        }
+    }
+
+    private func checkForCompletionPattern(_ text: String) {
+        // Claude Code prompt patterns indicate completion
+        let patterns = ["╭─", "> ", "claude>"]
+        for pattern in patterns {
+            if text.contains(pattern) {
+                completionDelegate?.terminalDidComplete(self)
+                break
+            }
+        }
+    }
+}
 ```
+
+#### 4. `TerminalSession.swift` (Model)
+
+**Location:** `Dispatch/Models/TerminalSession.swift`
+
+SwiftData model for embedded terminal sessions.
+
+```swift
+@Model
+final class TerminalSession {
+    var id: UUID
+    var name: String
+    var workingDirectory: String
+    var createdAt: Date
+    var lastActiveAt: Date
+    var processId: Int32?
+    var isActive: Bool
+
+    // Relationship to Project
+    var project: Project?
+
+    // Terminal state for restoration
+    var scrollbackBuffer: Data?
+}
+```
+
+#### 5. `EmbeddedTerminalService.swift` (Actor)
+
+**Location:** `Dispatch/Services/EmbeddedTerminalService.swift`
+
+Actor-based service parallel to `TerminalService`.
+
+```swift
+actor EmbeddedTerminalService {
+    static let shared = EmbeddedTerminalService()
+
+    private var sessions: [UUID: WeakTerminalReference] = [:]
+    private var processRegistry = TerminalProcessRegistry()
+
+    // MARK: - Session Management
+
+    func createSession(
+        name: String,
+        workingDirectory: URL,
+        project: Project?
+    ) async throws -> TerminalSession
+
+    func getSession(id: UUID) async -> TerminalSession?
+    func getAllSessions() async -> [TerminalSession]
+    func terminateSession(id: UUID) async
+
+    // MARK: - Prompt Dispatch (matches TerminalService interface)
+
+    func sendPrompt(
+        _ content: String,
+        toSession sessionId: UUID
+    ) async throws
+
+    func dispatchPrompt(
+        content: String,
+        projectPath: String?,
+        projectName: String?,
+        pressEnter: Bool
+    ) async throws -> TerminalSession
+}
+```
+
+#### 6. `TerminalProcessRegistry.swift` (Process Tracking)
+
+**Location:** `Dispatch/Services/TerminalProcessRegistry.swift`
+
+Tracks embedded terminal PIDs for cleanup.
+
+```swift
+final class TerminalProcessRegistry: @unchecked Sendable {
+    private var entries: [Int32: Date] = [:]
+    private let lock = NSLock()
+
+    func register(pid: Int32) {
+        lock.lock()
+        defer { lock.unlock() }
+        entries[pid] = Date()
+        persist()
+    }
+
+    func unregister(pid: Int32) {
+        lock.lock()
+        defer { lock.unlock() }
+        entries.removeValue(forKey: pid)
+        persist()
+    }
+
+    func cleanupAll() {
+        lock.lock()
+        let pids = Array(entries.keys)
+        lock.unlock()
+
+        for pid in pids {
+            terminateProcess(pid)
+            unregister(pid: pid)
+        }
+    }
+
+    private func terminateProcess(_ pid: Int32) {
+        // Graceful termination with escalation
+        kill(pid, SIGTERM)
+        usleep(300_000) // 300ms
+        if processExists(pid) {
+            kill(pid, SIGKILL)
+        }
+    }
+}
+```
+
+### Modified Components
+
+#### 1. `ExecutionStateMachine.swift` (Enhancement)
+
+**Changes:**
+- Add `sessionId: UUID?` to `ExecutionContext` for embedded sessions
+- Modify completion detection to use direct terminal output parsing (not just hooks/polling)
+- Add `terminalMode: TerminalMode` enum (`.external`, `.embedded`)
+
+```swift
+enum TerminalMode: String, Sendable {
+    case external  // Terminal.app via AppleScript
+    case embedded  // In-app SwiftTerm terminal
+}
+
+struct ExecutionContext: Sendable {
+    // Existing properties...
+    let terminalMode: TerminalMode
+    let embeddedSessionId: UUID?  // Only for embedded mode
+}
+```
+
+#### 2. `ExecutionManager.swift` (Enhancement)
+
+**Changes:**
+- Route execution through either `TerminalService` or `EmbeddedTerminalService` based on mode
+- Unified interface, different backends
+
+```swift
+func execute(
+    content: String,
+    title: String,
+    mode: TerminalMode = .embedded,  // Default to embedded in v2.0
+    sessionId: UUID? = nil,
+    // ... existing parameters
+) async throws {
+    switch mode {
+    case .embedded:
+        try await executeEmbedded(content: content, sessionId: sessionId)
+    case .external:
+        try await executeExternal(content: content, windowId: targetWindowId)
+    }
+}
+```
+
+#### 3. `HookServer.swift` (Enhancement)
+
+**Changes:**
+- Add endpoint for embedded terminal completion notifications (optional, for symmetry)
+- Could receive notifications from terminal output parser
+
+No breaking changes - hooks remain the primary completion mechanism for external terminals.
+
+#### 4. `QueueItem.swift` (Enhancement)
+
+**Changes:**
+- Add `targetSessionId: UUID?` for embedded terminal targeting
+- Add `terminalMode: TerminalMode` preference
+
+```swift
+@Model
+final class QueueItem {
+    // Existing properties...
+
+    /// Target embedded terminal session (for embedded mode)
+    var targetSessionId: UUID?
+
+    /// Preferred terminal mode
+    var terminalModeRaw: String?
+
+    var terminalMode: TerminalMode? {
+        get { terminalModeRaw.flatMap { TerminalMode(rawValue: $0) } }
+        set { terminalModeRaw = newValue?.rawValue }
+    }
+}
+```
+
+#### 5. `MainView.swift` (Enhancement)
+
+**Changes:**
+- Add terminal panel/area for embedded sessions
+- Toggle between prompt library and terminal views
+- Consider split view layout
+
+```swift
+// New state
+@State private var showTerminalPanel: Bool = true
+@State private var terminalSessions: [TerminalSession] = []
+
+// New view section (conceptual)
+var body: some View {
+    NavigationSplitView {
+        SidebarView(selection: $selection)
+    } detail: {
+        HSplitView {
+            // Existing prompt/content area
+            contentView
+
+            // New terminal panel
+            if showTerminalPanel {
+                TerminalPanelView(sessions: $terminalSessions)
+            }
+        }
+    }
+}
+```
+
+#### 6. `Project.swift` (Enhancement)
+
+**Changes:**
+- Add relationship to `TerminalSession`
+- Track associated embedded terminals per project
+
+```swift
+@Model
+final class Project {
+    // Existing properties...
+
+    @Relationship(deleteRule: .cascade, inverse: \TerminalSession.project)
+    var terminalSessions: [TerminalSession] = []
+}
+```
+
+### Removed Components
+
+#### 1. `TerminalService.swift` - AppleScript Dependency (Deprecated, Not Removed)
+
+**Status:** Keep for backwards compatibility, but deprecate.
+
+The existing `TerminalService` with AppleScript should remain for users who prefer Terminal.app. Mark methods as deprecated with migration guidance.
+
+```swift
+@available(*, deprecated, message: "Use EmbeddedTerminalService for embedded terminals")
+func sendPrompt(_ content: String, toWindowId windowId: String?) async throws
+```
+
+**Rationale:** Some users may have workflows depending on Terminal.app. Complete removal should be a v3.0 consideration after usage data.
+
+#### 2. Window Caching Logic in TerminalService (Simplify)
+
+The `cachedWindows`, `lastWindowFetchTime`, and window enumeration logic becomes unnecessary for embedded terminals. The embedded service tracks sessions directly in SwiftData.
+
+---
 
 ## Data Flow
 
+### Prompt Dispatch Flow (Embedded Mode)
+
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                      Session Start                               │
-├─────────────────────────────────────────────────────────────────┤
-│  1. Claude Code starts                                          │
-│  2. SessionStart hook runs                                      │
-│  3. Hook checks if Dispatch running                             │
-│  4. Sets DISPATCH_AVAILABLE, DISPATCH_PORT in CLAUDE_ENV_FILE   │
-└──────────────────────────────┬──────────────────────────────────┘
-                               │
-                               ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                      Skill Execution                             │
-├─────────────────────────────────────────────────────────────────┤
-│  1. Skill sources ~/.claude/lib/dispatch.sh                     │
-│  2. dispatch_init() creates run via POST /screenshots/run       │
-│  3. Dispatch returns {runId, path}                              │
-│  4. Skill saves screenshots to path                             │
-│  5. dispatch_finalize() calls POST /screenshots/complete        │
-└──────────────────────────────┬──────────────────────────────────┘
-                               │
-                               ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                      Dispatch Processing                         │
-├─────────────────────────────────────────────────────────────────┤
-│  1. /screenshots/complete triggers scan                         │
-│  2. ScreenshotWatcherService finds new run directory            │
-│  3. Reads manifest.json, discovers screenshot files             │
-│  4. Creates SimulatorRun + Screenshot SwiftData records         │
-│  5. UI updates to show new screenshots                          │
-└─────────────────────────────────────────────────────────────────┘
+User Action (Send Prompt)
+    |
+    v
+PromptViewModel / QueueViewModel
+    |
+    v
+ExecutionManager.execute(mode: .embedded)
+    |
+    v
+ExecutionStateMachine.beginSending()
+    |
+    v
+EmbeddedTerminalService.dispatchPrompt()
+    |
+    +-- Find or create TerminalSession for project
+    |
+    +-- Get DispatchTerminalView reference
+    |
+    v
+DispatchTerminalView.send(data:)
+    |
+    v
+LocalProcess writes to PTY stdin
+    |
+    v
+Claude Code processes prompt
+    |
+    v
+Output appears in terminal
+    |
+    v
+DispatchTerminalView.dataReceived()
+    |
+    +-- Render to screen
+    |
+    +-- Check for completion patterns
+    |
+    v
+CompletionDelegate.terminalDidComplete()
+    |
+    v
+ExecutionStateMachine.markCompleted()
+    |
+    v
+Queue advances / Chain continues
 ```
 
-## Alternative Approaches Considered
+### Session Lifecycle
 
-### Option A: Environment Variable Only (Rejected)
+```
+App Launch
+    |
+    +-- TerminalProcessRegistry loads persisted PIDs
+    |
+    +-- Cleanup orphaned processes from previous crash
+    |
+    v
+User Opens Project
+    |
+    v
+EmbeddedTerminalService.createSession()
+    |
+    +-- Create TerminalSession in SwiftData
+    |
+    +-- TerminalContainerView spawns LocalProcess
+    |
+    +-- Register PID in TerminalProcessRegistry
+    |
+    v
+Normal Operation (prompts, output, etc.)
+    |
+    v
+User Closes Session / App Quits
+    |
+    v
+TerminalProcessRegistry.cleanupAll()
+    |
+    +-- SIGTERM to each process
+    |
+    +-- Wait 300ms
+    |
+    +-- SIGKILL if still alive
+    |
+    v
+Clean Exit
+```
 
-Set `DISPATCH_SCREENSHOT_PATH` via SessionStart hook, skills check it.
+---
 
-**Pros:**
-- Simplest implementation
-- No library needed
+## Suggested Build Order
 
-**Cons:**
-- Skills still need to manually call API for run creation
-- No encapsulation of error handling
-- Path alone isn't enough (need run_id for completion)
+### Phase 1: Core Terminal Infrastructure
 
-### Option B: Centralized "Screenshot" Skill (Rejected)
+**Goal:** Get a single embedded terminal working.
 
-Create a skill that other skills delegate screenshot operations to.
+1. Add SwiftTerm package dependency
+2. Create `DispatchTerminalView` (SwiftTerm subclass)
+3. Create `TerminalContainerView` (NSView wrapper)
+4. Create `EmbeddedTerminalView` (SwiftUI wrapper)
+5. Create simple test view showing embedded terminal
 
-**Pros:**
-- Single point of control
+**Deliverable:** A view that shows a bash shell embedded in Dispatch.
 
-**Cons:**
-- Skills can't easily delegate mid-execution
-- Adds complexity for simple screenshot operations
-- Claude Code skills aren't designed for inter-skill delegation
+### Phase 2: Process Management
 
-### Option C: MCP Server (Considered but Deferred)
+**Goal:** Proper process lifecycle and cleanup.
 
-Implement Dispatch integration as an MCP server that provides screenshot tools.
+1. Create `TerminalProcessRegistry`
+2. Implement graceful termination
+3. Add crash recovery (cleanup orphaned processes on launch)
+4. Create `TerminalSession` SwiftData model
 
-**Pros:**
-- Native tool integration
-- Type-safe parameters
-- Automatic discovery
+**Deliverable:** Processes terminate cleanly on app quit, survive app restart.
 
-**Cons:**
-- More complex to implement
-- Requires MCP server infrastructure
-- Overkill for current needs (can add later)
+### Phase 3: Claude Code Integration
 
-### Option D: Shared Bash Library (Recommended)
+**Goal:** Claude Code running in embedded terminal.
 
-The chosen approach. Source a library, call functions.
+1. Implement Claude Code launch in `TerminalContainerView`
+2. Configure proper environment variables
+3. Implement completion detection via output parsing
+4. Integrate with `ExecutionStateMachine`
 
-**Pros:**
-- Familiar pattern for shell scripts
-- Easy to update centrally
-- Graceful fallback built-in
-- Works with Claude Code's execution model
-- Can be installed/updated by Dispatch app
+**Deliverable:** Can dispatch prompts to embedded Claude Code session.
 
-**Cons:**
-- Skills must remember to source it
-- Bash-only (but that's what skills use)
+### Phase 4: Service Layer
 
-## Build Order
+**Goal:** Full `EmbeddedTerminalService` parallel to `TerminalService`.
 
-### Phase 1: Foundation (Do First)
-1. Create `~/.claude/lib/` directory structure
-2. Write `dispatch.sh` library with all functions
-3. Test library independently
+1. Create `EmbeddedTerminalService` actor
+2. Implement session management (create, list, terminate)
+3. Implement `dispatchPrompt()` matching existing interface
+4. Update `ExecutionManager` for dual-mode execution
 
-### Phase 2: Hook Integration
-1. Create SessionStart hook script
-2. Update `~/.claude/settings.json` with hook configuration
-3. Test hook execution on session start
+**Deliverable:** Unified execution API works with both terminal types.
 
-### Phase 3: Dispatch App Updates
-1. Add `installSharedLibrary()` to HookInstaller
-2. Update Settings UI to show library status
-3. Add "Reinstall Integration" button
+### Phase 5: UI Integration
 
-### Phase 4: Skill Migration
-1. Update `test-feature` skill as template
-2. Update remaining skills to use library
-3. Remove duplicated integration code
+**Goal:** Terminal panel in main Dispatch UI.
 
-### Phase 5: Verification
-1. End-to-end test: skill -> screenshot -> Dispatch UI
-2. Test fallback when Dispatch not running
-3. Test session restart behavior
+1. Create `TerminalPanelView` for managing sessions
+2. Create `TerminalTabView` for multiple sessions
+3. Integrate into `MainView` with split view
+4. Add project-terminal association
 
-## Anti-Patterns to Avoid
+**Deliverable:** Full terminal panel in Dispatch UI.
 
-### Don't: Hardcode Port Numbers in Skills
-Skills should use `$DISPATCH_PORT` or the library's defaults, not hardcoded `19847`.
+### Phase 6: Model Updates
 
-### Don't: Skip the Library for "Simple" Cases
-Every screenshot operation should go through the library for consistency.
+**Goal:** SwiftData integration for sessions.
 
-### Don't: Block on Dispatch Availability
-Skills should gracefully fallback to temp directories, not fail.
+1. Update `Project` model with terminal session relationship
+2. Update `QueueItem` with embedded terminal targeting
+3. Implement session persistence and restoration
+4. Add scrollback buffer persistence (optional)
 
-### Don't: Forget to Call `dispatch_finalize`
-Always pair `dispatch_init` with `dispatch_finalize` for proper cleanup.
+**Deliverable:** Sessions persist across app restarts.
 
-## Scalability Considerations
+### Phase 7: Migration & Polish
 
-| Scale | Approach |
-|-------|----------|
-| 1-10 skills | Shared library works well |
-| 10-50 skills | Consider MCP server for better tooling |
-| 50+ skills | MCP server + project-level configuration |
+**Goal:** Smooth transition from Terminal.app.
 
-For the current ~40 skills, the shared library approach is appropriate.
+1. Deprecate `TerminalService` methods
+2. Add settings toggle for terminal mode preference
+3. Implement dual-mode UI (embedded + external)
+4. Documentation and migration guide
+
+**Deliverable:** Complete v2.0 terminal system.
+
+---
+
+## Key Dependencies
+
+### SwiftTerm Package
+
+```swift
+// Package.swift
+dependencies: [
+    .package(url: "https://github.com/migueldeicaza/SwiftTerm", from: "1.6.0"),
+    // Existing HotKey dependency
+    .package(url: "https://github.com/soffes/HotKey", from: "0.2.0")
+]
+```
+
+**Key Classes:**
+- `TerminalView`: Base terminal emulator view (NSView)
+- `LocalProcess`: PTY and process management
+- `LocalProcessTerminalView`: Convenience subclass combining both
+- `LocalProcessDelegate`: Lifecycle callbacks
+
+### System Frameworks
+
+- `Foundation`: Process, FileManager
+- `Darwin`: POSIX signals (SIGTERM, SIGKILL), PTY functions
+- `Network`: Existing HookServer (no changes)
+
+---
+
+## Risk Mitigation
+
+### Risk: SwiftTerm Compatibility Issues
+
+**Mitigation:**
+- SwiftTerm is mature (used by Secure Shellfish, La Terminal, CodeEdit)
+- MIT license allows forking if needed
+- AgentHub provides tested integration pattern
+
+### Risk: Process Cleanup Failures
+
+**Mitigation:**
+- Registry persists to UserDefaults
+- Cleanup runs on app launch
+- Multiple termination strategies (SIGTERM -> SIGKILL)
+
+### Risk: Completion Detection Reliability
+
+**Mitigation:**
+- Multiple detection patterns
+- Fallback to hook server
+- Polling remains as last resort
+
+---
 
 ## Sources
 
-- [Claude Code Hooks Reference](https://code.claude.com/docs/en/hooks) - Official documentation on hooks, SessionStart, CLAUDE_ENV_FILE
-- [Claude Code Settings](https://code.claude.com/docs/en/settings) - Environment variable configuration
-- [Bash Library Best Practices](https://www.tecmint.com/write-custom-shell-functions-and-libraries-in-linux/) - Shell library patterns
-- Existing codebase: `/Users/eric/Dispatch/Dispatch/Services/HookServer.swift` - Current API implementation
-- Existing codebase: `/Users/eric/Dispatch/Dispatch/Services/ScreenshotWatcherService.swift` - Screenshot processing
-- Existing skills: `/Users/eric/.claude/skills/test-feature/SKILL.md` - Current integration pattern
+### Official Documentation
+- [SwiftTerm GitHub](https://github.com/migueldeicaza/SwiftTerm) - Terminal emulator library
+- [SwiftTerm Documentation](https://migueldeicaza.github.io/SwiftTermDocs/documentation/swiftterm/) - API reference
+
+### Reference Implementation
+- [AgentHub GitHub](https://github.com/jamesrochabrun/AgentHub) - Production embedded terminal with Claude Code
+- `ManagedLocalProcessTerminalView.swift` - PTY management pattern
+- `EmbeddedTerminalView.swift` - SwiftUI wrapper pattern
+- `TerminalLauncher.swift` - Process spawning pattern
+- `TerminalProcessRegistry.swift` - Process tracking pattern
+
+### Dispatch Codebase
+- `/Users/eric/Dispatch/Dispatch/Services/TerminalService.swift` - Existing AppleScript implementation
+- `/Users/eric/Dispatch/Dispatch/Services/HookServer.swift` - Completion detection server
+- `/Users/eric/Dispatch/Dispatch/Services/ExecutionStateMachine.swift` - Execution lifecycle
+- `/Users/eric/Dispatch/Dispatch/Models/QueueItem.swift` - Queue item model
+- `/Users/eric/Dispatch/Dispatch/Models/Project.swift` - Project model
+- `/Users/eric/Dispatch/Dispatch/Views/MainView.swift` - Main UI structure
