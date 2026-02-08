@@ -164,6 +164,9 @@ struct DispatchApp: App {
     private func setupApp() {
         logInfo("Dispatch app starting", category: .app)
 
+        // Clean up orphaned terminal processes from previous session
+        TerminalProcessRegistry.shared.cleanupOrphanedProcesses()
+
         // Configure settings manager
         SettingsManager.shared.configure(with: sharedModelContainer.mainContext)
 
