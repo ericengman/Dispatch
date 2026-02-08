@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-07)
 ## Current Position
 
 Phase: 16 of 22 (Process Lifecycle)
-Plan: 1 of 1 in current phase
+Plan: 2 of 2 in current phase
 Status: Phase complete
-Last activity: 2026-02-08 — Completed 16-01-PLAN.md
+Last activity: 2026-02-07 — Completed 16-02-PLAN.md
 
-Progress: [#################░░░] 84% (16/19 phases complete across milestones)
+Progress: [#################░░░] 89% (17/19 phases complete across milestones)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 15 (12 v1.1, 3 v2.0)
-- Average duration: 3.3m
-- Total execution time: 47m
+- Total plans completed: 16 (12 v1.1, 4 v2.0)
+- Average duration: 3.1m
+- Total execution time: 50m
 
 **By Phase:**
 
@@ -35,11 +35,11 @@ Progress: [#################░░░] 84% (16/19 phases complete across milesto
 | 13 | 2 | 7m | 3.5m |
 | 14 | 1 | 5m | 5m |
 | 15 | 1 | 1m | 1m |
-| 16 | 1 | 1m | 1m |
+| 16 | 2 | 4m | 2m |
 
 **Recent Trend:**
-- Last 5 plans: 13-02 (2m), 14-01 (5m), 15-01 (1m), 16-01 (1m)
-- Trend: Registry/service creation very fast (1m), integrations slower (5m)
+- Last 5 plans: 14-01 (5m), 15-01 (1m), 16-01 (1m), 16-02 (3m)
+- Trend: Service extensions fast (1-3m), UI integrations slower (5m)
 
 *Updated after each plan completion*
 
@@ -61,6 +61,9 @@ Recent decisions affecting current work:
 - [16-01]: UserDefaults for PID persistence (simple, sufficient for crash recovery)
 - [16-01]: NSLock over actor isolation for PID registry (synchronous API)
 - [16-01]: Set<pid_t> in-memory structure for fast lookup
+- [16-02]: Two-stage termination with 3s timeout (2s for deinit) prevents zombies while allowing graceful shutdown
+- [16-02]: killpg sends signal to entire process group (shell + Claude Code children)
+- [16-02]: kill(pid, 0) syscall for lightweight process existence check
 
 ### Pending Todos
 
@@ -77,6 +80,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-08 04:26
-Stopped at: Completed 16-01-PLAN.md (Process Registry)
+Last session: 2026-02-07 23:29
+Stopped at: Completed 16-02-PLAN.md (Process Lifecycle Management)
 Resume file: None
