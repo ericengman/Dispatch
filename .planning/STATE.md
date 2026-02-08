@@ -2,19 +2,19 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-03)
+See: .planning/PROJECT.md (updated 2026-02-07)
 
 **Core value:** Users can dispatch prompts (including annotated simulator screenshots) to Claude Code with zero friction
-**Current focus:** v1.1 Milestone Complete
+**Current focus:** v2.0 In-App Claude Code
 
 ## Current Position
 
-Phase: 13 of 13 (Polish) - COMPLETE
-Plan: 2/2 plans complete (13-01, 13-02)
-Status: Phase 13 complete, v1.1 milestone complete
-Last activity: 2026-02-07 — Completed Phase 13 (Polish)
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-02-07 — Milestone v2.0 started
 
-Progress: [================] 100% (v1.1 milestone complete)
+Progress: [                ] 0% (v2.0 milestone started)
 
 ## Performance Metrics
 
