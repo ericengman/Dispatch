@@ -475,30 +475,53 @@ final class ExecutionManager: ObservableObject {
         stateMachine.beginSending(context: context)
 
         do {
-            // Ensure Terminal is running
-            let isRunning = await terminalService.isTerminalRunning()
-            if !isRunning {
-                try await terminalService.launchTerminal()
-            }
+            // Check if embedded terminal is available (preferred)
+            let bridge = EmbeddedTerminalBridge.shared
 
-            // Send the prompt
-            try await terminalService.sendPrompt(
-                content,
-                toWindowId: targetWindowId,
-                delay: sendDelay
-            )
+            if bridge.isAvailable {
+                // Use embedded terminal (PTY dispatch)
+                logInfo("Dispatching via embedded terminal", category: .execution)
 
-            // Transition to executing
-            stateMachine.beginExecuting()
+                let dispatched = bridge.dispatchPrompt(content)
+                guard dispatched else {
+                    throw TerminalServiceError.scriptExecutionFailed("Embedded terminal dispatch failed")
+                }
 
-            // Start completion detection
-            if useHooks {
-                // Hook server will call handleHookCompletion when done
-                // Also start polling as fallback
-                stateMachine.startPolling(windowId: targetWindowId, interval: 2.0)
+                // Transition to executing
+                stateMachine.beginExecuting()
+
+                // Start embedded terminal monitoring for completion
+                if let terminal = bridge.activeTerminal {
+                    stateMachine.startEmbeddedTerminalMonitoring(terminal: terminal)
+                }
             } else {
-                // Only use polling
-                stateMachine.startPolling(windowId: targetWindowId, interval: 2.0)
+                // Fall back to Terminal.app (AppleScript)
+                logInfo("Dispatching via Terminal.app (fallback)", category: .execution)
+
+                let isRunning = await terminalService.isTerminalRunning()
+                if !isRunning {
+                    try await terminalService.launchTerminal()
+                }
+
+                // Send the prompt
+                try await terminalService.sendPrompt(
+                    content,
+                    toWindowId: targetWindowId,
+                    delay: sendDelay
+                )
+
+                // Transition to executing
+                stateMachine.beginExecuting()
+
+                // Start completion detection (only for Terminal.app path)
+                if useHooks {
+                    // Hook server will call handleHookCompletion when done
+                    // Also start polling as fallback
+                    stateMachine.startPolling(windowId: targetWindowId, interval: 2.0)
+                } else {
+                    // Only use polling
+                    stateMachine.startPolling(windowId: targetWindowId, interval: 2.0)
+                }
             }
 
         } catch {
