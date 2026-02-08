@@ -79,15 +79,38 @@ struct EmbeddedTerminalView: NSViewRepresentable {
                 skipPermissions: skipPermissions
             )
 
-        case let .claudeCodeResume(sessionId, workingDirectory, skipPermissions):
-            logInfo("Launching Claude Code with resume session: \(sessionId)", category: .terminal)
+        case let .claudeCodeResume(claudeSessionId, workingDirectory, skipPermissions):
+            logInfo("Launching Claude Code with resume session: \(claudeSessionId)", category: .terminal)
             // ClaudeCodeLauncher handles PID registration
             ClaudeCodeLauncher.shared.launchClaudeCode(
                 in: terminal,
                 workingDirectory: workingDirectory,
                 skipPermissions: skipPermissions,
-                resumeSessionId: sessionId
+                resumeSessionId: claudeSessionId
             )
+
+            // For resume mode, verify session is valid after launch
+            Task {
+                // Wait for terminal to initialize
+                try? await Task.sleep(nanoseconds: 3_000_000_000) // 3s
+
+                // Check terminal content for error patterns
+                if let terminal = context.coordinator.terminalView {
+                    let terminalInstance = terminal.getTerminal()
+                    let data = terminalInstance.getBufferAsData()
+                    if let content = String(data: data, encoding: .utf8) {
+                        if content.contains("Session not found") ||
+                            content.contains("No session") ||
+                            content.contains("does not exist") {
+                            await MainActor.run {
+                                if let sessionId = sessionId {
+                                    TerminalSessionManager.shared.handleStaleSession(sessionId)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         return terminal
@@ -174,6 +197,11 @@ struct EmbeddedTerminalView: NSViewRepresentable {
             guard let terminal = terminalView else {
                 logDebug("Cannot dispatch: no terminal view", category: .terminal)
                 return false
+            }
+
+            // Update session activity
+            if let sessionId = sessionId {
+                TerminalSessionManager.shared.updateSessionActivity(sessionId)
             }
 
             // Prompts need newline to submit to Claude Code
