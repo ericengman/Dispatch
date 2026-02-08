@@ -5,7 +5,7 @@
 See: .planning/PROJECT.md (updated 2026-02-07)
 
 **Core value:** Users can dispatch prompts to Claude Code with zero friction via embedded terminal sessions
-**Current focus:** Phase 17 - Claude Code Integration
+**Current focus:** Phase 17 complete — ready for Phase 18 (Multi-Session UI)
 
 ## Current Position
 
@@ -74,6 +74,7 @@ Recent decisions affecting current work:
 - [17-02]: getBufferAsData for terminal content access (not buffer.lines)
 - [17-02]: Dual monitoring (HookServer + pattern) for robust completion detection
 - [17-02]: 1.5s polling interval balances responsiveness and CPU usage
+- [17-03]: Added ~/.local/bin to claude CLI search paths (npm global install location)
 - [17-04]: Bridge pattern for ExecutionManager to embedded terminal coordinator
 - [17-04]: Embedded terminal takes priority, Terminal.app as fallback
 
@@ -92,6 +93,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-08 10:58
-Stopped at: Completed 17-04-PLAN.md (EmbeddedTerminalBridge)
+Last session: 2026-02-08 11:15
+Stopped at: Phase 17 complete — verification passed (4/4 must-haves)
 Resume file: None

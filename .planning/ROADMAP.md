@@ -50,7 +50,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 14: SwiftTerm Integration** - Add terminal emulation dependency and basic view
 - [x] **Phase 15: Safe Terminal Wrapper** - Implement thread-safe data reception to prevent crashes
 - [x] **Phase 16: Process Lifecycle** - Track, persist, and clean up terminal processes
-- [ ] **Phase 17: Claude Code Integration** - Spawn Claude Code, dispatch prompts, detect completion
+- [x] **Phase 17: Claude Code Integration** - Spawn Claude Code, dispatch prompts, detect completion
 - [ ] **Phase 18: Multi-Session UI** - Support multiple simultaneous terminal sessions with split panes
 - [ ] **Phase 19: Session Persistence** - Save and resume sessions across app restarts
 - [ ] **Phase 20: Service Integration** - Wire embedded terminals to queue and chain execution
@@ -115,8 +115,8 @@ Plans:
 Plans:
 - [x] 17-01-PLAN.md — Create ClaudeCodeLauncher service with environment configuration
 - [x] 17-02-PLAN.md — Implement prompt dispatch via PTY and completion detection
-- [ ] 17-03-PLAN.md — Wire Claude Code as default terminal launch mode (gap closure)
-- [ ] 17-04-PLAN.md — Create EmbeddedTerminalBridge for ExecutionManager dispatch (gap closure)
+- [x] 17-03-PLAN.md — Wire Claude Code as default terminal launch mode (gap closure)
+- [x] 17-04-PLAN.md — Create EmbeddedTerminalBridge for ExecutionManager dispatch (gap closure)
 
 ### Phase 18: Multi-Session UI
 **Goal**: Users can manage multiple simultaneous Claude Code sessions
@@ -211,7 +211,7 @@ Phases execute in numeric order: 14 -> 14.1 -> 14.2 -> 15 -> ...
 | 14. SwiftTerm Integration | v2.0 | 1/1 | Complete | 2026-02-07 |
 | 15. Safe Terminal Wrapper | v2.0 | 1/1 | Complete | 2026-02-07 |
 | 16. Process Lifecycle | v2.0 | 2/2 | Complete | 2026-02-08 |
-| 17. Claude Code Integration | v2.0 | 2/4 | In progress | - |
+| 17. Claude Code Integration | v2.0 | 4/4 | Complete | 2026-02-08 |
 | 18. Multi-Session UI | v2.0 | 0/2 | Not started | - |
 | 19. Session Persistence | v2.0 | 0/2 | Not started | - |
 | 20. Service Integration | v2.0 | 0/2 | Not started | - |
