@@ -5,17 +5,18 @@
 //  State machine for managing prompt execution lifecycle
 //
 
-import Foundation
 import Combine
+import Foundation
+import SwiftTerm
 
 // MARK: - Execution State
 
 /// Represents the current state of prompt execution
 enum ExecutionState: String, Sendable {
-    case idle           // No active execution
-    case sending        // Prompt being sent to terminal
-    case executing      // Waiting for completion signal
-    case completed      // Ready for next action
+    case idle // No active execution
+    case sending // Prompt being sent to terminal
+    case executing // Waiting for completion signal
+    case completed // Ready for next action
 
     var description: String {
         switch self {
@@ -63,7 +64,7 @@ struct ExecutionContext: Sendable {
         self.chainName = chainName
         self.chainStepIndex = chainStepIndex
         self.chainTotalSteps = chainTotalSteps
-        self.startTime = Date()
+        startTime = Date()
     }
 
     var elapsedTime: TimeInterval {
@@ -105,7 +106,7 @@ struct StateChangeEvent: Sendable {
         self.newState = newState
         self.context = context
         self.result = result
-        self.timestamp = Date()
+        timestamp = Date()
     }
 }
 
@@ -128,14 +129,13 @@ final class ExecutionStateMachine: ObservableObject {
     private var stateChangeHandler: ((StateChangeEvent) -> Void)?
     private var completionHandler: ((ExecutionResult) -> Void)?
 
-    private let completionTimeoutSeconds: TimeInterval = 300  // 5 minute timeout
+    private let completionTimeoutSeconds: TimeInterval = 300 // 5 minute timeout
 
     // MARK: - Singleton
 
     static let shared = ExecutionStateMachine()
 
-    private init() {
-    }
+    private init() {}
 
     // MARK: - State Transitions
 
@@ -190,7 +190,7 @@ final class ExecutionStateMachine: ObservableObject {
         switch result {
         case .success:
             resultDescription = "success"
-        case .failure(let error):
+        case let .failure(error):
             resultDescription = "failure: \(error.localizedDescription)"
         case .cancelled:
             resultDescription = "cancelled"
@@ -204,7 +204,7 @@ final class ExecutionStateMachine: ObservableObject {
 
         // Auto-transition to idle after brief delay
         Task {
-            try? await Task.sleep(nanoseconds: 500_000_000)  // 0.5 seconds
+            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
             await MainActor.run {
                 self.transitionToIdle()
             }
@@ -243,7 +243,7 @@ final class ExecutionStateMachine: ObservableObject {
 
     /// Pauses chain execution after current prompt completes
     func pause() {
-        guard state.isActive && context?.isFromChain == true else {
+        guard state.isActive, context?.isFromChain == true else {
             logDebug("Cannot pause: not in chain execution", category: .execution)
             return
         }
@@ -330,6 +330,43 @@ final class ExecutionStateMachine: ObservableObject {
         logDebug("Polling stopped", category: .execution)
     }
 
+    /// Start completion monitoring for embedded terminal
+    /// Uses pattern matching as fallback/complement to HookServer
+    /// - Parameters:
+    ///   - terminal: The embedded terminal to monitor
+    ///   - interval: Polling interval in seconds (default 1.5s)
+    func startEmbeddedTerminalMonitoring(terminal: LocalProcessTerminalView, interval: TimeInterval = 1.5) {
+        guard state == .executing else {
+            logWarning("Cannot start monitoring from state: \(state)", category: .execution)
+            return
+        }
+
+        logInfo("Starting embedded terminal completion monitoring (interval: \(interval)s)", category: .execution)
+
+        pollingTask?.cancel()
+        pollingTask = Task {
+            while !Task.isCancelled && state == .executing {
+                do {
+                    try await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
+
+                    guard !Task.isCancelled else { break }
+
+                    // Check for completion pattern
+                    if ClaudeCodeLauncher.shared.isClaudeCodeIdle(in: terminal) {
+                        logInfo("Completion detected via embedded terminal pattern", category: .execution)
+                        await MainActor.run {
+                            self.markCompleted(result: .success)
+                        }
+                        break
+                    }
+                } catch {
+                    // Task cancelled or sleep interrupted
+                    break
+                }
+            }
+        }
+    }
+
     // MARK: - Hook Notification
 
     /// Called when a completion hook is received
@@ -395,7 +432,6 @@ final class ExecutionManager: ObservableObject {
                 self?.isExecuting = event.newState.isActive
             }
         }
-
     }
 
     // MARK: - Execute Prompt
