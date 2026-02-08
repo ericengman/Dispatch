@@ -28,12 +28,12 @@ Requirements for In-App Claude Code milestone. Each maps to roadmap phases.
 
 ### Multi-Session
 
-- [ ] **SESS-01**: Support multiple simultaneous terminal sessions
-- [ ] **SESS-02**: Display sessions in tabs or panel list
-- [ ] **SESS-03**: Implement split pane view for multiple visible sessions
-- [ ] **SESS-04**: Track and manage session selection/focus state
-- [ ] **SESS-05**: Provide full-screen/enlarge mode for focused session
-- [ ] **SESS-06**: Limit maximum concurrent sessions to prevent resource exhaustion
+- [x] **SESS-01**: Support multiple simultaneous terminal sessions
+- [x] **SESS-02**: Display sessions in tabs or panel list
+- [x] **SESS-03**: Implement split pane view for multiple visible sessions
+- [x] **SESS-04**: Track and manage session selection/focus state
+- [x] **SESS-05**: Provide full-screen/enlarge mode for focused session
+- [x] **SESS-06**: Limit maximum concurrent sessions to prevent resource exhaustion
 
 ### Persistence
 
@@ -107,12 +107,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PROC-03 | Phase 16 | Complete |
 | PROC-04 | Phase 16 | Complete |
 | PROC-05 | Phase 16 | Complete |
-| SESS-01 | Phase 18 | Pending |
-| SESS-02 | Phase 18 | Pending |
-| SESS-03 | Phase 18 | Pending |
-| SESS-04 | Phase 18 | Pending |
-| SESS-05 | Phase 18 | Pending |
-| SESS-06 | Phase 18 | Pending |
+| SESS-01 | Phase 18 | Complete |
+| SESS-02 | Phase 18 | Complete |
+| SESS-03 | Phase 18 | Complete |
+| SESS-04 | Phase 18 | Complete |
+| SESS-05 | Phase 18 | Complete |
+| SESS-06 | Phase 18 | Complete |
 | PERS-01 | Phase 19 | Pending |
 | PERS-02 | Phase 19 | Pending |
 | PERS-03 | Phase 19 | Pending |
