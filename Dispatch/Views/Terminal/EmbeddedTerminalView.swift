@@ -44,6 +44,12 @@ struct EmbeddedTerminalView: NSViewRepresentable {
         if let sessionId = sessionId {
             // Multi-session mode: register with specific session ID
             EmbeddedTerminalBridge.shared.register(sessionId: sessionId, coordinator: context.coordinator, terminal: terminal)
+
+            // Update session model references for completeness
+            if let session = TerminalSessionManager.shared.sessions.first(where: { $0.id == sessionId }) {
+                session.coordinator = context.coordinator
+                session.terminal = terminal
+            }
         } else {
             // Legacy mode: use single-session API
             EmbeddedTerminalBridge.shared.register(coordinator: context.coordinator, terminal: terminal)
