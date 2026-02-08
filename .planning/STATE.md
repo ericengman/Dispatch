@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-07)
 ## Current Position
 
 Phase: 17 of 22 (Claude Code Integration)
-Plan: 2 of 3 in current phase
-Status: In progress
-Last activity: 2026-02-08 — Completed 17-02-PLAN.md
+Plan: 4 of 4 in current phase
+Status: Phase complete
+Last activity: 2026-02-08 — Completed 17-04-PLAN.md
 
-Progress: [#################░░░] 90% (18/19 phases complete across milestones)
+Progress: [##################░░] 95% (19/20 phases complete across milestones)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 18 (12 v1.1, 6 v2.0)
-- Average duration: 3.1m
-- Total execution time: 56m
+- Total plans completed: 20 (12 v1.1, 8 v2.0)
+- Average duration: 3.0m
+- Total execution time: 60m
 
 **By Phase:**
 
@@ -36,11 +36,11 @@ Progress: [#################░░░] 90% (18/19 phases complete across milesto
 | 14 | 1 | 5m | 5m |
 | 15 | 1 | 1m | 1m |
 | 16 | 2 | 4m | 2m |
-| 17 | 2 | 6m | 3m |
+| 17 | 4 | 10m | 2.5m |
 
 **Recent Trend:**
-- Last 5 plans: 16-01 (1m), 16-02 (3m), 17-01 (3m), 17-02 (3m)
-- Trend: Terminal integration consistently 3m per plan
+- Last 5 plans: 17-01 (3m), 17-02 (3m), 17-03 (2m), 17-04 (2m)
+- Trend: Terminal integration consistently fast (2-3m per plan)
 
 *Updated after each plan completion*
 
@@ -74,6 +74,8 @@ Recent decisions affecting current work:
 - [17-02]: getBufferAsData for terminal content access (not buffer.lines)
 - [17-02]: Dual monitoring (HookServer + pattern) for robust completion detection
 - [17-02]: 1.5s polling interval balances responsiveness and CPU usage
+- [17-04]: Bridge pattern for ExecutionManager to embedded terminal coordinator
+- [17-04]: Embedded terminal takes priority, Terminal.app as fallback
 
 ### Pending Todos
 
@@ -90,6 +92,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-08 05:26
-Stopped at: Completed 17-02-PLAN.md (Prompt Dispatch)
+Last session: 2026-02-08 10:58
+Stopped at: Completed 17-04-PLAN.md (EmbeddedTerminalBridge)
 Resume file: None
