@@ -13,6 +13,11 @@ struct MultiSessionTerminalView: View {
     // Project path for session discovery
     var projectPath: String?
 
+    // State for persisted session handling
+    @State private var persistedSessions: [TerminalSession] = []
+    @State private var showPersistedSessionsPicker = false
+    @State private var hasCheckedForSessions = false
+
     var body: some View {
         VStack(spacing: 0) {
             // Tab bar for session switching (hidden when empty)
@@ -57,6 +62,58 @@ struct MultiSessionTerminalView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
+        .onAppear {
+            if sessionManager.sessions.isEmpty && !hasCheckedForSessions {
+                hasCheckedForSessions = true
+
+                // First, check for persisted sessions from SwiftData
+                persistedSessions = sessionManager.loadPersistedSessions()
+
+                if !persistedSessions.isEmpty {
+                    // Has persisted sessions - show picker to resume or start fresh
+                    showPersistedSessionsPicker = true
+                } else {
+                    // No persisted sessions - check Claude Code session files for discovery
+                    Task {
+                        await checkForRecentSessions()
+                    }
+                }
+
+                // Cleanup stale sessions in background
+                Task.detached {
+                    await MainActor.run {
+                        sessionManager.cleanupStaleSessions(olderThanDays: 7)
+                    }
+                }
+            }
+        }
+        .sheet(isPresented: $showPersistedSessionsPicker) {
+            PersistedSessionPicker(
+                sessions: persistedSessions,
+                onResume: { session in
+                    // Resume the persisted session
+                    if sessionManager.resumePersistedSession(session) {
+                        // Try to associate with project
+                        sessionManager.associateWithProject(session)
+                    }
+                },
+                onStartFresh: {
+                    // User wants fresh session - create new one
+                    _ = sessionManager.createSession()
+                },
+                onDismiss: {
+                    // User dismissed without choice - create fresh session
+                    if sessionManager.sessions.isEmpty {
+                        _ = sessionManager.createSession()
+                    }
+                }
+            )
+        }
+    }
+
+    private func checkForRecentSessions() async {
+        // Existing SessionStarterCell handles Claude Code session discovery
+        // This function is for future direct discovery from MultiSessionTerminalView if needed
     }
 
     @ViewBuilder
@@ -146,6 +203,53 @@ struct MultiSessionTerminalView: View {
             let paneHeight = (available - 8) / 2
             return index == 0 ? paneHeight / 2 : available - paneHeight / 2
         }
+    }
+}
+
+// MARK: - Persisted Session Picker
+
+private struct PersistedSessionPicker: View {
+    let sessions: [TerminalSession]
+    let onResume: (TerminalSession) -> Void
+    let onStartFresh: () -> Void
+    let onDismiss: () -> Void
+
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(spacing: 16) {
+            Text("Resume Previous Session")
+                .font(.headline)
+
+            if sessions.isEmpty {
+                Text("No sessions to resume")
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(sessions.prefix(5)) { session in
+                    Button(session.name) {
+                        onResume(session)
+                        dismiss()
+                    }
+                }
+            }
+
+            Divider()
+
+            HStack {
+                Button("Cancel") {
+                    onDismiss()
+                    dismiss()
+                }
+                Spacer()
+                Button("Start Fresh") {
+                    onStartFresh()
+                    dismiss()
+                }
+                .buttonStyle(.borderedProminent)
+            }
+        }
+        .padding()
+        .frame(width: 350)
     }
 }
 
