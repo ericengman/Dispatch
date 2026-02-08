@@ -69,4 +69,89 @@ class TerminalProcessRegistry {
         defer { lock.unlock() }
         return activePIDs.contains(pid)
     }
+
+    // MARK: - Process Lifecycle
+
+    /// Check if a process is still running using kill(pid, 0)
+    func isProcessRunning(_ pid: pid_t) -> Bool {
+        let result = kill(pid, 0)
+
+        if result == 0 {
+            return true // Process exists and we have permission
+        }
+
+        // Check errno to distinguish cases
+        switch errno {
+        case ESRCH:
+            return false // No such process
+        case EPERM:
+            return true // Process exists but no permission (still running)
+        default:
+            logDebug("Unexpected errno \(errno) checking PID \(pid)", category: .terminal)
+            return false
+        }
+    }
+
+    /// Terminate a process group gracefully (SIGTERM -> wait -> SIGKILL)
+    /// - Parameters:
+    ///   - pgid: Process group ID (same as shell PID due to POSIX_SPAWN_SETSID)
+    ///   - timeout: Seconds to wait for graceful shutdown before SIGKILL
+    func terminateProcessGroupGracefully(pgid: pid_t, timeout: TimeInterval = 3.0) {
+        // Stage 1: Send SIGTERM to process group
+        let termResult = killpg(pgid, SIGTERM)
+
+        if termResult == -1, errno == ESRCH {
+            logDebug("Process group \(pgid) already terminated", category: .terminal)
+            return
+        }
+
+        logDebug("Sent SIGTERM to process group \(pgid)", category: .terminal)
+
+        // Stage 2: Wait for graceful shutdown
+        let deadline = Date().addingTimeInterval(timeout)
+        var gracefullyTerminated = false
+
+        while Date() < deadline {
+            if !isProcessRunning(pgid) {
+                gracefullyTerminated = true
+                logDebug("Process group \(pgid) terminated gracefully", category: .terminal)
+                break
+            }
+            Thread.sleep(forTimeInterval: 0.1)
+        }
+
+        // Stage 3: Force termination if still running
+        if !gracefullyTerminated {
+            logDebug("Process group \(pgid) timeout, sending SIGKILL", category: .terminal)
+            killpg(pgid, SIGKILL)
+            Thread.sleep(forTimeInterval: 0.1)
+        }
+    }
+
+    /// Clean up orphaned processes from crashed/force-quit sessions
+    /// Call this on app launch
+    func cleanupOrphanedProcesses() {
+        let persistedPIDs = getAllPIDs()
+
+        guard !persistedPIDs.isEmpty else {
+            logDebug("No persisted PIDs to clean up", category: .terminal)
+            return
+        }
+
+        logInfo("Checking \(persistedPIDs.count) persisted PIDs for orphans", category: .terminal)
+
+        for pid in persistedPIDs {
+            if isProcessRunning(pid) {
+                logInfo("Found orphaned process \(pid), terminating process group", category: .terminal)
+                terminateProcessGroupGracefully(pgid: pid, timeout: 2.0)
+            } else {
+                logDebug("Stale PID \(pid) no longer running", category: .terminal)
+            }
+
+            // Remove from registry either way
+            unregister(pid: pid)
+        }
+
+        logInfo("Orphan cleanup complete", category: .terminal)
+    }
 }
