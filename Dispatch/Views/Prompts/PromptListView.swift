@@ -35,66 +35,73 @@ struct PromptListView: View {
     // MARK: - Body
 
     var body: some View {
-        HSplitView {
-            // Left side - Prompt list
-            VStack(spacing: 0) {
-                // Search bar
-                SearchBarView(text: $promptVM.searchText)
-                    .padding()
+        Group {
+            // When no prompts exist, show empty state full width
+            if promptVM.prompts.isEmpty && !promptVM.isLoading {
+                VStack(spacing: 0) {
+                    // Search bar and toolbar still shown
+                    SearchBarView(text: $promptVM.searchText)
+                        .padding()
+                    promptToolbar
+                    Divider()
 
-                // Toolbar
-                promptToolbar
-
-                Divider()
-
-                // Prompt list
-                if promptVM.isLoading {
-                    ProgressView()
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if promptVM.prompts.isEmpty {
                     emptyStateView
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
-                    List(selection: Binding(
-                        get: { promptVM.selectedPrompt?.id },
-                        set: { id in
-                            if let id = id {
-                                promptVM.selectPrompt(promptVM.prompts.first { $0.id == id })
-                            } else {
-                                promptVM.selectPrompt(nil)
+                }
+            } else {
+                // Normal split view when prompts exist
+                HSplitView {
+                    // Left side - Prompt list
+                    VStack(spacing: 0) {
+                        // Search bar
+                        SearchBarView(text: $promptVM.searchText)
+                            .padding()
+
+                        // Toolbar
+                        promptToolbar
+
+                        Divider()
+
+                        // Prompt list
+                        if promptVM.isLoading {
+                            ProgressView()
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        } else {
+                            List(selection: Binding(
+                                get: { promptVM.selectedPrompt?.id },
+                                set: { id in
+                                    if let id = id {
+                                        promptVM.selectPrompt(promptVM.prompts.first { $0.id == id })
+                                    } else {
+                                        promptVM.selectPrompt(nil)
+                                    }
+                                }
+                            )) {
+                                ForEach(promptVM.prompts) { prompt in
+                                    PromptRowView(prompt: prompt) { p in
+                                        promptVM.toggleStarred(p)
+                                    }
+                                    .tag(prompt.id)
+                                    .contextMenu {
+                                        promptContextMenu(for: prompt)
+                                    }
+                                }
+                                .onDelete { indexSet in
+                                    deletePrompts(at: indexSet)
+                                }
                             }
-                        }
-                    )) {
-                        ForEach(promptVM.prompts) { prompt in
-                            PromptRowView(prompt: prompt) { p in
-                                promptVM.toggleStarred(p)
-                            }
-                            .tag(prompt.id)
-                            .contextMenu {
-                                promptContextMenu(for: prompt)
-                            }
-                        }
-                        .onDelete { indexSet in
-                            deletePrompts(at: indexSet)
+                            .listStyle(.inset)
                         }
                     }
-                    .listStyle(.inset)
-                }
-            }
-            .frame(minWidth: 250, idealWidth: 300, maxWidth: 400)
+                    .frame(minWidth: 250, idealWidth: 300, maxWidth: 400)
 
-            // Right side - Inline editor
-            if let prompt = promptVM.selectedPrompt {
-                PromptEditorPane(prompt: prompt, selectedProject: currentProject)
-                    .environmentObject(promptVM)
-                    .environmentObject(queueVM)
-            } else {
-                // Empty state when no prompt selected
-                ContentUnavailableView(
-                    "Select a Prompt",
-                    systemImage: "doc.text",
-                    description: Text("Choose a prompt from the list to edit, or create a new one with ⌘N")
-                )
+                    // Right side - Inline editor (only when prompt selected)
+                    if let prompt = promptVM.selectedPrompt {
+                        PromptEditorPane(prompt: prompt, selectedProject: currentProject)
+                            .environmentObject(promptVM)
+                            .environmentObject(queueVM)
+                    }
+                }
             }
         }
         .navigationTitle(navigationTitle)
