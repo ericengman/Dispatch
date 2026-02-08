@@ -59,9 +59,27 @@ struct EmbeddedTerminalView: NSViewRepresentable {
 
         func processTerminated(source _: TerminalView, exitCode: Int32?) {
             logDebug("Terminal process exited with code: \(exitCode ?? -1)", category: .terminal)
+            // Clear reference since process is gone
+            terminalView = nil
             DispatchQueue.main.async {
                 self.onProcessExit?(exitCode)
             }
+        }
+
+        /// Safely send data to terminal, checking process state first
+        func sendIfRunning(_ data: Data) -> Bool {
+            guard let terminal = terminalView else {
+                logDebug("Cannot send: no terminal view", category: .terminal)
+                return false
+            }
+            logDebug("Sending \(data.count) bytes to terminal", category: .terminal)
+            terminal.send(txt: String(data: data, encoding: .utf8) ?? "")
+            return true
+        }
+
+        /// Check if terminal is available for commands
+        var isTerminalActive: Bool {
+            terminalView != nil
         }
 
         func sizeChanged(source _: LocalProcessTerminalView, newCols: Int, newRows: Int) {
