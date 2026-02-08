@@ -9,8 +9,8 @@ Requirements for In-App Claude Code milestone. Each maps to roadmap phases.
 
 ### Terminal Core
 
-- [ ] **TERM-01**: Add SwiftTerm package dependency (v1.10.0+) for terminal emulation
-- [ ] **TERM-02**: Create EmbeddedTerminalView (NSViewRepresentable) wrapping SwiftTerm's TerminalView
+- [x] **TERM-01**: Add SwiftTerm package dependency (v1.10.0+) for terminal emulation
+- [x] **TERM-02**: Create EmbeddedTerminalView (NSViewRepresentable) wrapping SwiftTerm's TerminalView
 - [ ] **TERM-03**: Implement SafeLocalProcessTerminalView with NSLock-protected data reception to prevent deallocation crashes
 - [ ] **TERM-04**: Spawn Claude Code process with proper environment (PATH, TERM, COLORTERM, LANG)
 - [ ] **TERM-05**: Dispatch prompts to terminal via PTY write (replace AppleScript-based sending)
@@ -94,8 +94,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| TERM-01 | Phase 14 | Pending |
-| TERM-02 | Phase 14 | Pending |
+| TERM-01 | Phase 14 | Complete |
+| TERM-02 | Phase 14 | Complete |
 | TERM-03 | Phase 15 | Pending |
 | TERM-04 | Phase 17 | Pending |
 | TERM-05 | Phase 17 | Pending |

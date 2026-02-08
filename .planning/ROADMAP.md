@@ -47,7 +47,7 @@ v1.0 phases were part of brownfield development. See `Docs/TODO_SimulatorScreens
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 14: SwiftTerm Integration** - Add terminal emulation dependency and basic view
+- [x] **Phase 14: SwiftTerm Integration** - Add terminal emulation dependency and basic view
 - [ ] **Phase 15: Safe Terminal Wrapper** - Implement thread-safe data reception to prevent crashes
 - [ ] **Phase 16: Process Lifecycle** - Track, persist, and clean up terminal processes
 - [ ] **Phase 17: Claude Code Integration** - Spawn Claude Code, dispatch prompts, detect completion
@@ -71,7 +71,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans:** 1 plan
 
 Plans:
-- [ ] 14-01-PLAN.md — Add SwiftTerm package and create EmbeddedTerminalView
+- [x] 14-01-PLAN.md — Add SwiftTerm package and create EmbeddedTerminalView
 
 ### Phase 15: Safe Terminal Wrapper
 **Goal**: Terminal data reception is thread-safe and survives view lifecycle changes
@@ -206,7 +206,7 @@ Phases execute in numeric order: 14 -> 14.1 -> 14.2 -> 15 -> ...
 | 11. Skill Migration | v1.1 | 3/3 | Complete | 2026-02-04 |
 | 12. Verification | v1.1 | 3/3 | Complete | 2026-02-07 |
 | 13. Polish | v1.1 | 2/2 | Complete | 2026-02-07 |
-| 14. SwiftTerm Integration | v2.0 | 0/1 | Planned | - |
+| 14. SwiftTerm Integration | v2.0 | 1/1 | Complete | 2026-02-07 |
 | 15. Safe Terminal Wrapper | v2.0 | 0/1 | Not started | - |
 | 16. Process Lifecycle | v2.0 | 0/2 | Not started | - |
 | 17. Claude Code Integration | v2.0 | 0/2 | Not started | - |
