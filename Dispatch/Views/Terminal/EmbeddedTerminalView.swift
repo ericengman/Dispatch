@@ -31,7 +31,7 @@ struct EmbeddedTerminalView: NSViewRepresentable {
         context.coordinator.terminalView = terminal
 
         // Register PID for crash recovery
-        let pid = terminal.shellPid
+        let pid = terminal.process.shellPid
         if pid > 0 {
             TerminalProcessRegistry.shared.register(pid: pid)
             logInfo("Terminal process started with PID \(pid)", category: .terminal)
@@ -62,7 +62,7 @@ struct EmbeddedTerminalView: NSViewRepresentable {
             logDebug("Coordinator deinit - terminating process group", category: .terminal)
 
             guard let terminal = terminalView else { return }
-            let pid = terminal.shellPid
+            let pid = terminal.process.shellPid
 
             // Terminate entire process group (shell + children like Claude Code)
             TerminalProcessRegistry.shared.terminateProcessGroupGracefully(pgid: pid, timeout: 2.0)
@@ -78,7 +78,7 @@ struct EmbeddedTerminalView: NSViewRepresentable {
 
             // Unregister from tracking when process exits naturally
             if let terminal = terminalView {
-                TerminalProcessRegistry.shared.unregister(pid: terminal.shellPid)
+                TerminalProcessRegistry.shared.unregister(pid: terminal.process.shellPid)
             }
 
             // Clear reference since process is gone
