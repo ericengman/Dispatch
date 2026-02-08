@@ -26,6 +26,7 @@ class ClaudeCodeLauncher {
     /// Checks common installation paths before falling back to PATH resolution
     func findClaudeCLI() -> String {
         let candidates = [
+            "\(NSHomeDirectory())/.local/bin/claude", // npm global install location
             "\(NSHomeDirectory())/.claude/local/bin/claude",
             "/usr/local/bin/claude",
             "/opt/homebrew/bin/claude"
@@ -55,6 +56,7 @@ class ClaudeCodeLauncher {
         // Build PATH with claude CLI locations prepended
         if var path = processEnv["PATH"] {
             let claudePaths = [
+                "\(NSHomeDirectory())/.local/bin", // npm global install location
                 "\(NSHomeDirectory())/.claude/local/bin",
                 "/usr/local/bin"
             ]
