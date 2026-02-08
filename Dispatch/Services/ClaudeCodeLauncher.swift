@@ -90,10 +90,12 @@ class ClaudeCodeLauncher {
     ///   - terminal: The terminal view to launch Claude Code in
     ///   - workingDirectory: Optional working directory (currently unused, for future)
     ///   - skipPermissions: Whether to pass --dangerously-skip-permissions flag
+    ///   - resumeSessionId: Optional session ID to resume (uses --resume flag)
     func launchClaudeCode(
         in terminal: LocalProcessTerminalView,
         workingDirectory _: String? = nil,
-        skipPermissions: Bool = true
+        skipPermissions: Bool = true,
+        resumeSessionId: String? = nil
     ) {
         let claudePath = findClaudeCLI()
         let environment = buildEnvironment()
@@ -101,6 +103,13 @@ class ClaudeCodeLauncher {
         var args: [String] = []
         if skipPermissions {
             args.append("--dangerously-skip-permissions")
+        }
+
+        // Add resume flag if resuming a previous session
+        if let sessionId = resumeSessionId {
+            args.append("--resume")
+            args.append(sessionId)
+            logInfo("Resuming session: \(sessionId)", category: .terminal)
         }
 
         logInfo("Launching Claude Code with args: \(args)", category: .terminal)

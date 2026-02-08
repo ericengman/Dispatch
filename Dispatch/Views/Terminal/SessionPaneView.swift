@@ -20,7 +20,7 @@ struct SessionPaneView: View {
         // Terminal view with session ID - no header since tab bar handles session switching
         EmbeddedTerminalView(
             sessionId: session.id,
-            launchMode: .claudeCode(workingDirectory: nil, skipPermissions: true)
+            launchMode: session.launchMode
         )
         .clipShape(RoundedRectangle(cornerRadius: 4))
         .overlay(

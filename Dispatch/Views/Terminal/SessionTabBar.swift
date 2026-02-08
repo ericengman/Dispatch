@@ -9,6 +9,11 @@ import SwiftUI
 
 struct SessionTabBar: View {
     @State private var sessionManager = TerminalSessionManager.shared
+    @State private var showResumePicker = false
+    @State private var recentSessions: [ClaudeCodeSession] = []
+
+    // Project path for session discovery (defaults to current directory)
+    var projectPath: String?
 
     var body: some View {
         HStack(spacing: 0) {
@@ -19,15 +24,28 @@ struct SessionTabBar: View {
 
             Spacer()
 
-            // New session button
-            Button {
-                _ = sessionManager.createSession()
+            // New session menu
+            Menu {
+                Button("New Session", systemImage: "plus") {
+                    _ = sessionManager.createSession()
+                }
+
+                Divider()
+
+                Button("Resume Previous...", systemImage: "clock.arrow.circlepath") {
+                    Task {
+                        await loadRecentSessions()
+                        showResumePicker = true
+                    }
+                }
             } label: {
                 Image(systemName: "plus")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            .buttonStyle(.plain)
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .fixedSize()
             .disabled(!sessionManager.canCreateSession)
             .opacity(sessionManager.canCreateSession ? 1.0 : 0.5)
             .help(sessionManager.canCreateSession ? "New Session" : "Max sessions reached")
@@ -35,6 +53,20 @@ struct SessionTabBar: View {
         }
         .frame(height: 28)
         .background(Color(nsColor: .controlBackgroundColor))
+        .sheet(isPresented: $showResumePicker) {
+            SessionResumePicker(sessions: recentSessions) { selectedSession in
+                if let session = selectedSession {
+                    _ = sessionManager.createResumeSession(claudeSession: session)
+                } else {
+                    _ = sessionManager.createSession()
+                }
+            }
+        }
+    }
+
+    private func loadRecentSessions() async {
+        let path = projectPath ?? FileManager.default.currentDirectoryPath
+        recentSessions = await ClaudeSessionDiscoveryService.shared.getRecentSessions(for: path)
     }
 }
 
