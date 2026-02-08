@@ -97,7 +97,7 @@ struct MainView: View {
                             .frame(minWidth: 400)
 
                         // Terminal panel
-                        EmbeddedTerminalView()
+                        EmbeddedTerminalView(launchMode: .claudeCode(workingDirectory: nil, skipPermissions: true))
                             .frame(minWidth: 400)
                     }
                     .frame(maxHeight: .infinity)
