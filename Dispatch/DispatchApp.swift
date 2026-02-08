@@ -22,7 +22,8 @@ struct DispatchApp: App {
             QueueItem.self,
             AppSettings.self,
             SimulatorRun.self,
-            Screenshot.self
+            Screenshot.self,
+            TerminalSession.self
         ])
 
         let modelConfiguration = ModelConfiguration(
@@ -169,6 +170,9 @@ struct DispatchApp: App {
 
         // Configure settings manager
         SettingsManager.shared.configure(with: sharedModelContainer.mainContext)
+
+        // Configure terminal session manager
+        TerminalSessionManager.shared.configure(modelContext: sharedModelContainer.mainContext)
 
         // Configure screenshot watcher
         screenshotWatcherManager.configure(with: sharedModelContainer.mainContext)
