@@ -9,19 +9,19 @@ See: .planning/PROJECT.md (updated 2026-02-07)
 
 ## Current Position
 
-Phase: 18 of 22 (Multi-Session UI)
-Plan: 2 of 2 in current phase
-Status: Phase complete
-Last activity: 2026-02-08 — Phase 18 complete (verification passed)
+Phase: 19 of 22 (Session Persistence)
+Plan: 1 of 3 in current phase
+Status: In progress
+Last activity: 2026-02-08 — Completed 19-01-PLAN.md
 
-Progress: [##################░░] 97% (21/22 phases complete across milestones)
+Progress: [##################░░] 97% (22/23 phases complete across milestones)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 22 (12 v1.1, 10 v2.0)
-- Average duration: 2.9m
-- Total execution time: 65m
+- Total plans completed: 23 (12 v1.1, 11 v2.0)
+- Average duration: 3.0m
+- Total execution time: 69.6m
 
 **By Phase:**
 
@@ -38,10 +38,11 @@ Progress: [##################░░] 97% (21/22 phases complete across milestone
 | 16 | 2 | 4m | 2m |
 | 17 | 4 | 10m | 2.5m |
 | 18 | 2 | 5m | 2.5m |
+| 19 | 1 | 4.6m | 4.6m |
 
 **Recent Trend:**
-- Last 5 plans: 17-03 (2m), 17-04 (2m), 18-01 (3m), 18-02 (2m)
-- Trend: Multi-session UI maintained velocity, consistent 2-3m completion
+- Last 5 plans: 17-04 (2m), 18-01 (3m), 18-02 (2m), 19-01 (4.6m)
+- Trend: Session persistence foundation slightly longer, still under 5m
 
 *Updated after each plan completion*
 
@@ -89,6 +90,9 @@ Recent decisions affecting current work:
 - [18-02]: Blue border highlight indicates active session
 - [18-02]: Split layouts show first 2 sessions only
 - [18-02]: @State with singleton pattern for TerminalSessionManager
+- [19-01]: Runtime refs (coordinator, terminal) stored in manager dictionaries, not @Model
+- [19-01]: deleteRule: .nullify for Project → TerminalSession relationship
+- [19-01]: lastActivity updated on session creation (Date())
 
 ### Pending Todos
 
@@ -105,6 +109,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-08 20:50
-Stopped at: Phase 18 complete — verification passed, gap fixed
+Last session: 2026-02-08 21:27
+Stopped at: Completed 19-01-PLAN.md
 Resume file: None
