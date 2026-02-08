@@ -9,19 +9,19 @@ See: .planning/PROJECT.md (updated 2026-02-07)
 
 ## Current Position
 
-Phase: 15 of 22 (Safe Terminal Wrapper)
+Phase: 16 of 22 (Process Lifecycle)
 Plan: 1 of 1 in current phase
 Status: Phase complete
-Last activity: 2026-02-08 — Completed 15-01-PLAN.md
+Last activity: 2026-02-08 — Completed 16-01-PLAN.md
 
-Progress: [################░░░░] 79% (15/19 phases complete across milestones)
+Progress: [#################░░░] 84% (16/19 phases complete across milestones)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 14 (12 v1.1, 2 v2.0)
-- Average duration: 3.4m
-- Total execution time: 46m
+- Total plans completed: 15 (12 v1.1, 3 v2.0)
+- Average duration: 3.3m
+- Total execution time: 47m
 
 **By Phase:**
 
@@ -35,10 +35,11 @@ Progress: [################░░░░] 79% (15/19 phases complete across miles
 | 13 | 2 | 7m | 3.5m |
 | 14 | 1 | 5m | 5m |
 | 15 | 1 | 1m | 1m |
+| 16 | 1 | 1m | 1m |
 
 **Recent Trend:**
-- Last 5 plans: 13-01 (5m), 13-02 (2m), 14-01 (5m), 15-01 (1m)
-- Trend: Lifecycle patterns execute quickly (1m), integrations slower (5m)
+- Last 5 plans: 13-02 (2m), 14-01 (5m), 15-01 (1m), 16-01 (1m)
+- Trend: Registry/service creation very fast (1m), integrations slower (5m)
 
 *Updated after each plan completion*
 
@@ -57,6 +58,9 @@ Recent decisions affecting current work:
 - [14-01]: Respect user's $SHELL environment variable
 - [15-01]: Strong reference cleanup pattern for Coordinator lifecycle
 - [15-01]: sendIfRunning helper for safe command execution
+- [16-01]: UserDefaults for PID persistence (simple, sufficient for crash recovery)
+- [16-01]: NSLock over actor isolation for PID registry (synchronous API)
+- [16-01]: Set<pid_t> in-memory structure for fast lookup
 
 ### Pending Todos
 
@@ -73,6 +77,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-08 00:49
-Stopped at: Completed 15-01-PLAN.md (Safe Terminal Wrapper)
+Last session: 2026-02-08 04:26
+Stopped at: Completed 16-01-PLAN.md (Process Registry)
 Resume file: None
