@@ -476,13 +476,13 @@ final class ExecutionManager: ObservableObject {
 
         do {
             // Check if embedded terminal is available (preferred)
-            let bridge = EmbeddedTerminalBridge.shared
+            let embeddedService = EmbeddedTerminalService.shared
 
-            if bridge.isAvailable {
+            if embeddedService.isAvailable {
                 // Use embedded terminal (PTY dispatch)
                 logInfo("Dispatching via embedded terminal", category: .execution)
 
-                let dispatched = bridge.dispatchPrompt(content)
+                let dispatched = embeddedService.dispatchPrompt(content)
                 guard dispatched else {
                     throw TerminalServiceError.scriptExecutionFailed("Embedded terminal dispatch failed")
                 }
@@ -491,7 +491,8 @@ final class ExecutionManager: ObservableObject {
                 stateMachine.beginExecuting()
 
                 // Start embedded terminal monitoring for completion
-                if let terminal = bridge.activeTerminal {
+                if let sessionId = embeddedService.activeSessionId,
+                   let terminal = embeddedService.getTerminal(for: sessionId) {
                     stateMachine.startEmbeddedTerminalMonitoring(terminal: terminal)
                 }
             } else {
