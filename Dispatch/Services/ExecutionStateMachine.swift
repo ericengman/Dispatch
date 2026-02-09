@@ -128,6 +128,7 @@ final class ExecutionStateMachine: ObservableObject {
     private var completionTimeout: Task<Void, Never>?
     private var stateChangeHandler: ((StateChangeEvent) -> Void)?
     private var completionHandler: ((ExecutionResult) -> Void)?
+    private var executingSessionId: UUID?
 
     private let completionTimeoutSeconds: TimeInterval = 300 // 5 minute timeout
 
@@ -223,6 +224,7 @@ final class ExecutionStateMachine: ObservableObject {
         if previousState != .idle {
             context = nil
             isPaused = false
+            executingSessionId = nil
             state = .idle
 
             logDebug("State: \(previousState) → \(state)", category: .execution)
@@ -367,12 +369,31 @@ final class ExecutionStateMachine: ObservableObject {
         }
     }
 
+    // MARK: - Session Tracking
+
+    /// Track executing session for validation (set by ExecutionManager after dispatch)
+    func setExecutingSession(_ sessionId: UUID?) {
+        executingSessionId = sessionId
+        if let id = sessionId {
+            logDebug("Tracking executing session: \(id)", category: .execution)
+        }
+    }
+
     // MARK: - Hook Notification
 
     /// Called when a completion hook is received
     func handleHookCompletion(sessionId: String?) {
         guard state == .executing else {
             logDebug("Ignoring hook completion in state: \(state)", category: .execution)
+            return
+        }
+
+        // Validate session if we have expected session ID
+        if let executing = executingSessionId,
+           let hookSession = sessionId,
+           let hookUUID = UUID(uuidString: hookSession),
+           hookUUID != executing {
+            logWarning("Ignoring hook from different session: expected \(executing), got \(hookSession)", category: .execution)
             return
         }
 
@@ -486,6 +507,9 @@ final class ExecutionManager: ObservableObject {
                 guard dispatched else {
                     throw TerminalServiceError.scriptExecutionFailed("Embedded terminal dispatch failed")
                 }
+
+                // Track session for completion validation (INTG-04)
+                stateMachine.setExecutingSession(embeddedService.activeSessionId)
 
                 // Transition to executing
                 stateMachine.beginExecuting()
