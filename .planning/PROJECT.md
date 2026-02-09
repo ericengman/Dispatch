@@ -52,7 +52,14 @@ Users can dispatch prompts (including annotated simulator screenshots) to Claude
 
 <!-- Current scope. Building toward these. -->
 
-(To be defined in next milestone)
+**v3.0 Screenshot Capture:**
+- [ ] Cross-hair region screenshot capture (native macOS style)
+- [ ] Full window screenshot capture with app selection
+- [ ] Live preview of recent/open applications for quick capture
+- [ ] iOS Simulator detection and listing
+- [ ] Shared annotation/markup system (refactored from Screenshot Runs)
+- [ ] Screenshot queue with multi-screenshot support
+- [ ] Session targeting for dispatch
 
 ### Out of Scope
 
@@ -111,5 +118,16 @@ MainView (NavigationSplitView)
 | Dual completion detection | HookServer primary, pattern fallback | ✓ Good |
 | Deprecate over delete | Rollback safety, removal in v3.0 | ✓ Good |
 
+## Current Milestone: v3.0 Screenshot Capture
+
+**Goal:** Enable quick screenshot capture from anywhere with annotation and dispatch to Claude sessions.
+
+**Target features:**
+- Cross-hair region selection (native macOS screenshot UX)
+- Full window capture with application picker
+- Live preview of capturable windows (recent apps, simulators)
+- Reusable annotation/markup system
+- Multi-screenshot queuing with session targeting
+
 ---
-*Last updated: 2026-02-09 after v2.0 milestone*
+*Last updated: 2026-02-09 after v3.0 milestone started*
