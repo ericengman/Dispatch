@@ -5,9 +5,9 @@
 //  ViewModel for managing prompts
 //
 
+import Combine
 import Foundation
 import SwiftData
-import Combine
 
 // MARK: - Sort Options
 
@@ -63,7 +63,7 @@ final class PromptViewModel: ObservableObject {
     }
 
     func configure(with context: ModelContext) {
-        self.modelContext = context
+        modelContext = context
         fetchPrompts()
     }
 
@@ -122,7 +122,7 @@ final class PromptViewModel: ObservableObject {
             break
         case .starred:
             filtered = filtered.filter { $0.isStarred }
-        case .project(let projectId):
+        case let .project(projectId):
             filtered = filtered.filter { $0.project?.id == projectId }
         }
 
@@ -131,7 +131,7 @@ final class PromptViewModel: ObservableObject {
             let search = searchText.lowercased()
             filtered = filtered.filter { prompt in
                 prompt.displayTitle.lowercased().contains(search) ||
-                prompt.content.lowercased().contains(search)
+                    prompt.content.lowercased().contains(search)
             }
         }
 
@@ -301,7 +301,7 @@ final class PromptViewModel: ObservableObject {
 
     // MARK: - Sending
 
-    func sendPrompt(_ prompt: Prompt, toWindowId windowId: String? = nil) async throws {
+    func sendPrompt(_ prompt: Prompt, toWindowId _: String? = nil) async throws {
         logInfo("Sending prompt: '\(prompt.displayTitle)'", category: .execution)
 
         // Resolve placeholders if needed
@@ -321,27 +321,20 @@ final class PromptViewModel: ObservableObject {
             throw PromptError.emptyContent
         }
 
-        // Get project info for terminal matching
-        let projectPath = prompt.project?.path
-        let projectName = prompt.project?.name
-
-        // Use unified dispatch service
-        // This will find a matching terminal for the project, or create a new one
-        let terminal = try await TerminalService.shared.dispatchPrompt(
+        // Use ExecutionManager for embedded terminal dispatch
+        try await ExecutionManager.shared.execute(
             content: content,
-            projectPath: projectPath,
-            projectName: projectName,
-            pressEnter: true
+            title: prompt.displayTitle
         )
 
         // Record usage
         prompt.recordUsage()
         saveContext()
 
-        // Create history entry
-        createHistoryEntry(for: prompt, windowId: terminal.id, windowName: terminal.displayName)
+        // Create history entry (no terminal window tracking for embedded)
+        createHistoryEntry(for: prompt, windowId: nil, windowName: nil)
 
-        logInfo("Prompt sent successfully: '\(prompt.displayTitle)' to terminal: \(terminal.displayName)", category: .execution)
+        logInfo("Prompt sent successfully: '\(prompt.displayTitle)'", category: .execution)
     }
 
     private func createHistoryEntry(for prompt: Prompt, windowId: String?, windowName: String? = nil) {
@@ -389,7 +382,7 @@ enum PromptError: Error, LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .unresolvedPlaceholders(let names):
+        case let .unresolvedPlaceholders(names):
             return "Unresolved placeholders: \(names.joined(separator: ", "))"
         case .emptyContent:
             return "Prompt content is empty"
