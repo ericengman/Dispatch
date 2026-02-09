@@ -78,6 +78,10 @@ private struct SessionTab: View {
         sessionManager.activeSessionId == session.id
     }
 
+    private var statusMonitor: SessionStatusMonitor? {
+        sessionManager.statusMonitor(for: session.id)
+    }
+
     var body: some View {
         HStack(spacing: 4) {
             Text(session.name)
@@ -85,6 +89,11 @@ private struct SessionTab: View {
                 .fontWeight(isActive ? .semibold : .regular)
                 .foregroundStyle(isActive ? .primary : .secondary)
                 .lineLimit(1)
+
+            // Show status for active session when not idle
+            if let monitor = statusMonitor, monitor.status.state != .idle {
+                SessionStatusView(status: monitor.status)
+            }
 
             Button {
                 sessionManager.closeSession(session.id)

@@ -19,6 +19,7 @@ final class TerminalSessionManager {
     // Runtime references (cannot be persisted in @Model)
     private(set) var coordinators: [UUID: EmbeddedTerminalView.Coordinator] = [:]
     private(set) var terminals: [UUID: LocalProcessTerminalView] = [:]
+    private(set) var statusMonitors: [UUID: SessionStatusMonitor] = [:]
 
     // SwiftData context for persistence
     private var modelContext: ModelContext?
@@ -112,6 +113,9 @@ final class TerminalSessionManager {
             logWarning("Created resume session: \(session.name) for Claude session \(claudeSession.sessionId) - in-memory only", category: .terminal)
         }
 
+        // Start status monitoring for resumed sessions with Claude session ID
+        startStatusMonitoring(for: session)
+
         // Auto-activate if first session
         if activeSessionId == nil {
             activeSessionId = session.id
@@ -128,6 +132,9 @@ final class TerminalSessionManager {
 
         let session = sessions[index]
         logInfo("Closing session: \(session.name)", category: .terminal)
+
+        // Stop status monitoring before cleanup
+        stopStatusMonitoring(for: sessionId)
 
         // Remove from runtime dictionaries
         coordinators.removeValue(forKey: sessionId)
@@ -200,6 +207,41 @@ final class TerminalSessionManager {
         }
         session.updateActivity()
         logDebug("Updated activity for session: \(sessionId)", category: .terminal)
+    }
+
+    // MARK: - Status Monitor Management
+
+    /// Start JSONL status monitoring for a session with Claude session ID
+    /// - Parameter session: The terminal session to monitor
+    func startStatusMonitoring(for session: TerminalSession) {
+        guard let claudeSessionId = session.claudeSessionId,
+              let claudeUUID = UUID(uuidString: claudeSessionId),
+              let workingDirectory = session.workingDirectory
+        else {
+            logDebug("Cannot start status monitoring: session missing claudeSessionId or workingDirectory", category: .status)
+            return
+        }
+
+        let monitor = SessionStatusMonitor()
+        monitor.startMonitoring(sessionId: claudeUUID, workingDirectory: workingDirectory)
+        statusMonitors[session.id] = monitor
+        logInfo("Started status monitoring for session: \(session.id)", category: .status)
+    }
+
+    /// Stop JSONL status monitoring for a session
+    /// - Parameter sessionId: The terminal session ID to stop monitoring
+    func stopStatusMonitoring(for sessionId: UUID) {
+        guard let monitor = statusMonitors[sessionId] else { return }
+        monitor.stopMonitoring()
+        statusMonitors.removeValue(forKey: sessionId)
+        logInfo("Stopped status monitoring for session: \(sessionId)", category: .status)
+    }
+
+    /// Get the status monitor for a session
+    /// - Parameter sessionId: The terminal session ID
+    /// - Returns: The SessionStatusMonitor if monitoring is active
+    func statusMonitor(for sessionId: UUID) -> SessionStatusMonitor? {
+        statusMonitors[sessionId]
     }
 
     // MARK: - Persistence Management
