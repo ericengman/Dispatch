@@ -41,8 +41,6 @@ struct SkillsSidePanel: View {
     // Terminal state (shared across all skill cards)
     @State private var matchingTerminals: [TerminalWindow] = []
     @State private var isLoadingTerminals = false
-    @State private var showingAutomationPermissionAlert = false
-    @State private var showingAccessibilityPermissionAlert = false
 
     // Grid columns for 2xN layout
     private let columns = [
@@ -94,26 +92,6 @@ struct SkillsSidePanel: View {
                 await loadTerminalsAsync()
                 fetchRuns()
             }
-        }
-        .alert("Terminal Permission Required", isPresented: $showingAutomationPermissionAlert) {
-            Button("Open Settings") {
-                Task {
-                    await TerminalService.shared.openAutomationSettings()
-                }
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("Dispatch needs permission to control Terminal.app.\n\nGo to System Settings > Privacy & Security > Automation and enable Terminal for Dispatch.")
-        }
-        .alert("Accessibility Permission Required", isPresented: $showingAccessibilityPermissionAlert) {
-            Button("Open Settings") {
-                Task {
-                    await TerminalService.shared.openAccessibilitySettings()
-                }
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("Dispatch needs Accessibility permission to send keystrokes to Terminal.\n\nGo to System Settings > Privacy & Security > Accessibility and add Dispatch to the list.")
         }
     }
 
@@ -337,8 +315,8 @@ struct SkillsSidePanel: View {
                                 project: project,
                                 matchingTerminals: matchingTerminals,
                                 selectedSkill: $selectedSkill,
-                                onAutomationPermissionDenied: { showingAutomationPermissionAlert = true },
-                                onAccessibilityPermissionDenied: { showingAccessibilityPermissionAlert = true }
+                                onAutomationPermissionDenied: {},
+                                onAccessibilityPermissionDenied: {}
                             )
                         }
                     }
@@ -530,14 +508,12 @@ struct SkillsSidePanel: View {
             await MainActor.run {
                 matchingTerminals = []
                 isLoadingTerminals = false
-                showingAutomationPermissionAlert = true
             }
         } catch TerminalServiceError.accessibilityPermissionDenied {
             logWarning("Accessibility permission denied when loading terminals", category: .terminal)
             await MainActor.run {
                 matchingTerminals = []
                 isLoadingTerminals = false
-                showingAccessibilityPermissionAlert = true
             }
         } catch {
             logError("Failed to load terminals: \(error)", category: .terminal)
