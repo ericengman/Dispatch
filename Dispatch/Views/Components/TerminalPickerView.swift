@@ -7,6 +7,7 @@
 
 import SwiftUI
 
+@available(*, deprecated, message: "Terminal.app window selection is no longer used. Embedded terminal uses active session.")
 struct TerminalPickerView: View {
     // MARK: - Properties
 
@@ -167,6 +168,7 @@ struct TerminalPickerView: View {
 
 // MARK: - Inline Terminal Picker
 
+@available(*, deprecated, message: "Terminal.app window selection is no longer used.")
 struct InlineTerminalPicker: View {
     @Binding var selectedId: String?
     @Binding var selectedName: String?

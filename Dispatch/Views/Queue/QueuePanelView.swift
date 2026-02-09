@@ -138,8 +138,6 @@ struct QueueItemRowView: View {
 
     let item: QueueItem
 
-    @State private var showingTerminalPicker = false
-
     var body: some View {
         HStack(spacing: 12) {
             // Order number
@@ -172,16 +170,6 @@ struct QueueItemRowView: View {
             // Status indicator
             statusIndicator
 
-            // Terminal target
-            Button {
-                showingTerminalPicker = true
-            } label: {
-                Label(item.targetDescription, systemImage: "terminal")
-                    .font(.caption)
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-
             // Remove button
             Button {
                 queueVM.removeFromQueue(item)
@@ -194,14 +182,6 @@ struct QueueItemRowView: View {
         }
         .padding(.vertical, 4)
         .opacity(item.status == .completed ? 0.5 : 1)
-        .sheet(isPresented: $showingTerminalPicker) {
-            TerminalPickerView(
-                selectedId: item.targetTerminalId,
-                selectedName: item.targetTerminalName
-            ) { id, name in
-                queueVM.updateTarget(for: item, windowId: id, windowName: name)
-            }
-        }
     }
 
     @ViewBuilder
