@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-07)
 ## Current Position
 
 Phase: 20 of 22 (Service Integration)
-Plan: 0 of 2 in current phase
-Status: Ready to plan
-Last activity: 2026-02-08 — Completed Phase 19 (Session Persistence)
+Plan: 1 of 2 in current phase
+Status: In progress
+Last activity: 2026-02-08 — Completed 20-01-PLAN.md
 
-Progress: [###################░] 98% (24/25 phases complete across milestones)
+Progress: [###################░] 98% (25/26 phases complete across milestones)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 24 (12 v1.1, 12 v2.0)
+- Total plans completed: 25 (12 v1.1, 13 v2.0)
 - Average duration: 3.0m
-- Total execution time: 72.9m
+- Total execution time: 75.1m
 
 **By Phase:**
 
@@ -39,10 +39,11 @@ Progress: [###################░] 98% (24/25 phases complete across milestones)
 | 17 | 4 | 10m | 2.5m |
 | 18 | 2 | 5m | 2.5m |
 | 19 | 2 | 7.9m | 4.0m |
+| 20 | 1 | 2.2m | 2.2m |
 
 **Recent Trend:**
-- Last 5 plans: 18-01 (3m), 18-02 (2m), 19-01 (4.6m), 19-02 (3.3m)
-- Trend: Session persistence work consistently 3-5m per plan
+- Last 5 plans: 18-02 (2m), 19-01 (4.6m), 19-02 (3.3m), 20-01 (2.2m)
+- Trend: Service integration work 2-3m per plan (simpler than persistence)
 
 *Updated after each plan completion*
 
@@ -97,6 +98,9 @@ Recent decisions affecting current work:
 - [19-02]: Stale session detection via terminal output patterns (3s delay for init)
 - [19-02]: Clear claudeSessionId on stale detection, let user close/reopen for fresh
 - [19-02]: Activity timestamp updated on prompt dispatch for accurate recency
+- [20-01]: EmbeddedTerminalService wraps EmbeddedTerminalBridge (parallel to TerminalService)
+- [20-01]: Session activity updated automatically on dispatch (PERS-05 compliance)
+- [20-01]: Hook completion validates executingSessionId to prevent cross-session confusion
 
 ### Pending Todos
 
@@ -114,5 +118,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-08
-Stopped at: Completed Phase 19 (Session Persistence)
+Stopped at: Completed 20-01-PLAN.md
 Resume file: None
