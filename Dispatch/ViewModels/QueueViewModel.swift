@@ -285,9 +285,7 @@ final class QueueViewModel: ObservableObject {
 
             try await ExecutionManager.shared.execute(
                 content: resolveResult.resolvedText,
-                title: item.displayTitle,
-                targetWindowId: item.targetTerminalId,
-                targetWindowName: item.targetTerminalName
+                title: item.displayTitle
             )
 
             // Wait for completion signal

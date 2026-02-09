@@ -5,9 +5,9 @@
 //  ViewModel for managing prompt history
 //
 
+import Combine
 import Foundation
 import SwiftData
-import Combine
 
 // MARK: - History ViewModel
 
@@ -36,7 +36,7 @@ final class HistoryViewModel: ObservableObject {
     }
 
     func configure(with context: ModelContext, retentionDays: Int = 30) {
-        self.modelContext = context
+        modelContext = context
         self.retentionDays = retentionDays
         fetchEntries()
         cleanupOldEntries()
@@ -64,9 +64,9 @@ final class HistoryViewModel: ObservableObject {
                     let search = searchText.lowercased()
                     results = results.filter { entry in
                         entry.content.lowercased().contains(search) ||
-                        (entry.originalPromptTitle?.lowercased().contains(search) ?? false) ||
-                        (entry.chainName?.lowercased().contains(search) ?? false) ||
-                        (entry.projectName?.lowercased().contains(search) ?? false)
+                            (entry.originalPromptTitle?.lowercased().contains(search) ?? false) ||
+                            (entry.chainName?.lowercased().contains(search) ?? false) ||
+                            (entry.projectName?.lowercased().contains(search) ?? false)
                     }
                 }
 
@@ -119,9 +119,7 @@ final class HistoryViewModel: ObservableObject {
 
         try await ExecutionManager.shared.execute(
             content: entry.content,
-            title: entry.displayTitle,
-            targetWindowId: entry.terminalWindowId,
-            targetWindowName: entry.terminalWindowName
+            title: entry.displayTitle
         )
 
         // Create new history entry

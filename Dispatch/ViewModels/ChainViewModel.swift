@@ -218,7 +218,7 @@ final class ChainViewModel: ObservableObject {
     // MARK: - Execution
 
     /// Starts executing a chain
-    func startExecution(of chain: PromptChain, targetWindowId: String? = nil) async {
+    func startExecution(of chain: PromptChain) async {
         guard !executionState.isActive else {
             logWarning("Chain already executing", category: .chain)
             return
@@ -254,7 +254,7 @@ final class ChainViewModel: ObservableObject {
                 executionState = .running(currentStep: index, totalSteps: items.count)
 
                 do {
-                    try await executeItem(item, index: index, totalSteps: items.count, targetWindowId: targetWindowId)
+                    try await executeItem(item, index: index, totalSteps: items.count)
 
                     // Wait for delay before next step
                     if item.delaySeconds > 0 && index < items.count - 1 {
@@ -282,7 +282,7 @@ final class ChainViewModel: ObservableObject {
         }
     }
 
-    private func executeItem(_ item: ChainItem, index: Int, totalSteps: Int, targetWindowId: String?) async throws {
+    private func executeItem(_ item: ChainItem, index: Int, totalSteps: Int) async throws {
         guard let content = item.effectiveContent else {
             throw ExecutionError.chainItemInvalid
         }
@@ -300,7 +300,6 @@ final class ChainViewModel: ObservableObject {
         try await ExecutionManager.shared.execute(
             content: resolveResult.resolvedText,
             title: item.displayTitle,
-            targetWindowId: targetWindowId,
             isFromChain: true,
             chainName: currentExecutingChain?.name,
             chainStepIndex: index,
