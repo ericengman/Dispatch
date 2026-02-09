@@ -5,10 +5,10 @@
 //  ViewModel for managing projects
 //
 
+import AppKit
+import Combine
 import Foundation
 import SwiftData
-import Combine
-import AppKit
 
 // MARK: - Project ViewModel
 
@@ -32,7 +32,7 @@ final class ProjectViewModel: ObservableObject {
     private init() {}
 
     func configure(with context: ModelContext) {
-        self.modelContext = context
+        modelContext = context
         fetchProjects()
 
         // Automatically discover and sync Claude Code projects on startup
@@ -144,7 +144,7 @@ final class ProjectViewModel: ObservableObject {
 
         // Check for duplicate name
         if projects.contains(where: { $0.name.lowercased() == name.lowercased() }) {
-            self.error = "A project with this name already exists"
+            error = "A project with this name already exists"
             logWarning("Duplicate project name: \(name)", category: .data)
             return nil
         }
@@ -176,7 +176,7 @@ final class ProjectViewModel: ObservableObject {
         if let name = name {
             // Check for duplicate name
             if projects.contains(where: { $0.id != project.id && $0.name.lowercased() == name.lowercased() }) {
-                self.error = "A project with this name already exists"
+                error = "A project with this name already exists"
                 return
             }
             project.name = name
@@ -196,8 +196,8 @@ final class ProjectViewModel: ObservableObject {
         guard let context = modelContext else { return }
 
         // Don't delete the "General" project if it's the last one
-        if projects.count == 1 && project.name == "General" {
-            self.error = "Cannot delete the last project"
+        if projects.count == 1, project.name == "General" {
+            error = "Cannot delete the last project"
             return
         }
 
@@ -265,20 +265,35 @@ final class ProjectViewModel: ObservableObject {
         logDebug("Opened project folder: \(pathURL.path)", category: .data)
     }
 
-    /// Opens a project in Terminal
+    /// Opens a project in a new embedded terminal session
     func openInTerminal(_ project: Project) {
         guard let pathURL = project.pathURL else {
             logWarning("Project '\(project.name)' has no file path", category: .data)
             return
         }
 
-        Task {
-            do {
-                try await TerminalService.shared.openNewWindow(at: pathURL.path)
-                logInfo("Opened project in Terminal: \(project.name)", category: .data)
-            } catch {
-                logError("Failed to open Terminal: \(error)", category: .data)
-            }
+        let sessionManager = TerminalSessionManager.shared
+
+        // Check session limit
+        guard sessionManager.canCreateSession else {
+            logWarning("Cannot create terminal session: max limit reached", category: .data)
+            return
+        }
+
+        // Create session with project name
+        if let session = sessionManager.createSession(name: project.name) {
+            // Set working directory for the session
+            session.workingDirectory = pathURL.path
+
+            // Associate session with project
+            session.project = project
+
+            // Make it the active session
+            sessionManager.setActiveSession(session.id)
+
+            logInfo("Created embedded terminal for project: \(project.name)", category: .data)
+        } else {
+            logError("Failed to create terminal session for project: \(project.name)", category: .data)
         }
     }
 

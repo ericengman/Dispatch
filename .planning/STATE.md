@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-07)
 ## Current Position
 
 Phase: 22 of 22 (Migration & Cleanup)
-Plan: 3 of 3 in current phase (22-01, 22-02, and 22-03 complete)
+Plan: 4 of 4 in current phase (22-01, 22-02, 22-03, and 22-04 complete)
 Status: Phase complete
-Last activity: 2026-02-09 — Completed 22-03-PLAN.md
+Last activity: 2026-02-09 — Completed 22-04-PLAN.md
 
 Progress: [####################] 100% (9/9 v2.0 phases complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 30 (12 v1.1, 18 v2.0)
-- Average duration: 2.9m
-- Total execution time: 87.2m
+- Total plans completed: 31 (12 v1.1, 19 v2.0)
+- Average duration: 2.8m
+- Total execution time: 88.2m
 
 **By Phase:**
 
@@ -41,10 +41,10 @@ Progress: [####################] 100% (9/9 v2.0 phases complete)
 | 19 | 2 | 7.9m | 4.0m |
 | 20 | 2 | 3.9m | 2.0m |
 | 21 | 1 | 3.4m | 3.4m |
-| 22 | 3 | 7.0m | 2.3m |
+| 22 | 4 | 8.0m | 2.0m |
 
 **Recent Trend:**
-- Last 5 plans: 21-01 (3.4m), 22-01 (4.0m), 22-02 (2.0m), 22-03 (1.0m)
+- Last 5 plans: 22-01 (4.0m), 22-02 (2.0m), 22-03 (1.0m), 22-04 (1.0m)
 - Trend: Migration cleanup complete, v2.0 finished
 
 *Updated after each plan completion*
@@ -115,6 +115,8 @@ Recent decisions affecting current work:
 - [22-01]: Guard-else pattern for embedded service availability checks
 - [22-03]: Remove terminal window tracking for embedded sessions
 - [22-03]: Simplify history creation with nil windowId/windowName
+- [22-04]: Mark deprecated rather than remove for backward compatibility until v3.0
+- [22-04]: Clear deprecation message directs to embedded terminal dispatch
 
 ### Pending Todos
 
@@ -133,5 +135,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-09
-Stopped at: Completed 22-03-PLAN.md (Phase 22 and v2.0 complete)
+Stopped at: Completed 22-04-PLAN.md (Phase 22 and v2.0 complete)
 Resume file: None
