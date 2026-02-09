@@ -5,9 +5,9 @@
 //  ViewModel for managing prompt chains
 //
 
+import Combine
 import Foundation
 import SwiftData
-import Combine
 
 // MARK: - Chain Execution State
 
@@ -31,13 +31,13 @@ enum ChainExecutionState: Sendable {
         switch self {
         case .idle:
             return "Idle"
-        case .running(let current, let total):
+        case let .running(current, total):
             return "Running \(current + 1)/\(total)"
-        case .paused(let current, let total):
+        case let .paused(current, total):
             return "Paused at \(current + 1)/\(total)"
         case .completed:
             return "Completed"
-        case .failed(let error):
+        case let .failed(error):
             return "Failed: \(error)"
         }
     }
@@ -66,11 +66,10 @@ final class ChainViewModel: ObservableObject {
 
     static let shared = ChainViewModel()
 
-    private init() {
-    }
+    private init() {}
 
     func configure(with context: ModelContext) {
-        self.modelContext = context
+        modelContext = context
         fetchChains()
     }
 
@@ -226,7 +225,7 @@ final class ChainViewModel: ObservableObject {
         }
 
         guard chain.isValid else {
-            self.error = "Chain has no valid items"
+            error = "Chain has no valid items"
             logError("Cannot execute invalid chain", category: .chain)
             return
         }
@@ -259,7 +258,7 @@ final class ChainViewModel: ObservableObject {
 
                     // Wait for delay before next step
                     if item.delaySeconds > 0 && index < items.count - 1 {
-                        logDebug("Waiting \(item.delaySeconds)s before next step", category: .chain)
+                        logInfo("Chain applying \(item.delaySeconds)s delay before next step", category: .chain)
                         try await Task.sleep(nanoseconds: UInt64(item.delaySeconds) * 1_000_000_000)
                     }
 
@@ -288,7 +287,7 @@ final class ChainViewModel: ObservableObject {
             throw ExecutionError.chainItemInvalid
         }
 
-        logDebug("Executing chain step \(index + 1)/\(totalSteps): '\(item.displayTitle)'", category: .chain)
+        logInfo("Chain step \(index + 1)/\(totalSteps) executing via ExecutionManager", category: .chain)
 
         // Resolve placeholders
         let resolveResult = await PlaceholderResolver.shared.autoResolve(text: content)
@@ -310,11 +309,13 @@ final class ChainViewModel: ObservableObject {
 
         // Wait for completion
         while ExecutionStateMachine.shared.state == .executing {
-            try await Task.sleep(nanoseconds: 100_000_000)  // 0.1s
+            try await Task.sleep(nanoseconds: 100_000_000) // 0.1s
         }
 
+        logInfo("Chain step \(index + 1) completed, state: \(ExecutionStateMachine.shared.state)", category: .chain)
+
         // Check result
-        if case .failure(let error) = ExecutionStateMachine.shared.lastResult {
+        if case let .failure(error) = ExecutionStateMachine.shared.lastResult {
             throw error
         }
 
@@ -329,7 +330,7 @@ final class ChainViewModel: ObservableObject {
 
     /// Pauses chain execution
     func pauseExecution() {
-        guard case .running(let step, let total) = executionState else { return }
+        guard case let .running(step, total) = executionState else { return }
 
         executionState = .paused(atStep: step, totalSteps: total)
         ExecutionStateMachine.shared.pause()
@@ -338,7 +339,7 @@ final class ChainViewModel: ObservableObject {
 
     /// Resumes chain execution
     func resumeExecution() {
-        guard case .paused(let step, let total) = executionState else { return }
+        guard case let .paused(step, total) = executionState else { return }
 
         executionState = .running(currentStep: step, totalSteps: total)
         ExecutionStateMachine.shared.resume()
@@ -360,7 +361,7 @@ final class ChainViewModel: ObservableObject {
 
         // Reset to idle after a delay
         Task {
-            try? await Task.sleep(nanoseconds: 1_000_000_000)  // 1s
+            try? await Task.sleep(nanoseconds: 1_000_000_000) // 1s
             await MainActor.run {
                 if case .completed = self.executionState {
                     self.executionState = .idle
