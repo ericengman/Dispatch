@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-07)
 ## Current Position
 
 Phase: 22 of 22 (Migration & Cleanup)
-Plan: 2 of TBD in current phase
-Status: In progress
-Last activity: 2026-02-09 — Completed 22-02-PLAN.md
+Plan: 2 of 2 in current phase (22-01 and 22-02 complete)
+Status: Phase complete
+Last activity: 2026-02-09 — Completed 22-01-PLAN.md
 
-Progress: [####################] 97% (8/9 v2.0 phases, plan 2 of phase 22 complete)
+Progress: [####################] 100% (9/9 v2.0 phases complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 28 (12 v1.1, 16 v2.0)
-- Average duration: 2.9m
-- Total execution time: 82.2m
+- Total plans completed: 29 (12 v1.1, 17 v2.0)
+- Average duration: 3.0m
+- Total execution time: 86.2m
 
 **By Phase:**
 
@@ -41,11 +41,11 @@ Progress: [####################] 97% (8/9 v2.0 phases, plan 2 of phase 22 comple
 | 19 | 2 | 7.9m | 4.0m |
 | 20 | 2 | 3.9m | 2.0m |
 | 21 | 1 | 3.4m | 3.4m |
-| 22 | 1 | 2.0m | 2.0m |
+| 22 | 2 | 6.0m | 3.0m |
 
 **Recent Trend:**
-- Last 5 plans: 20-01 (2.2m), 20-02 (1.7m), 21-01 (3.4m), 22-02 (2.0m)
-- Trend: Migration cleanup plan fast (deprecation + config removal)
+- Last 5 plans: 20-02 (1.7m), 21-01 (3.4m), 22-02 (2.0m), 22-01 (4.0m)
+- Trend: Migration cleanup complete, v2.0 finished
 
 *Updated after each plan completion*
 
@@ -111,6 +111,8 @@ Recent decisions affecting current work:
 - [21-01]: Remove deinit from MainActor class - rely on cancel handler for cleanup
 - [22-02]: Mark deprecated rather than delete for reference during migration
 - [22-02]: Remove NSAppleEventsUsageDescription entirely for clean new installs
+- [22-01]: Deprecate TerminalService instead of deleting (allows rollback)
+- [22-01]: Guard-else pattern for embedded service availability checks
 
 ### Pending Todos
 
@@ -129,5 +131,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-09
-Stopped at: Completed 22-02-PLAN.md
+Stopped at: Completed 22-01-PLAN.md (Phase 22 and v2.0 complete)
 Resume file: None
