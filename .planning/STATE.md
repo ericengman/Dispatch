@@ -5,7 +5,7 @@
 See: .planning/PROJECT.md (updated 2026-02-07)
 
 **Core value:** Users can dispatch prompts to Claude Code with zero friction via embedded terminal sessions
-**Current focus:** Phase 22 in progress — Migration & Cleanup
+**Current focus:** Milestone v2.0 complete — In-App Claude Code
 
 ## Current Position
 
@@ -139,5 +139,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-09
-Stopped at: Completed 22-05-PLAN.md
+Stopped at: Milestone v2.0 complete, all 9 phases verified
 Resume file: None
