@@ -5,9 +5,9 @@
 //  Model for Claude Code skills (custom slash commands)
 //
 
-import Foundation
-import Combine
 import AppKit
+import Combine
+import Foundation
 
 // MARK: - Skill Scope
 
@@ -84,13 +84,13 @@ struct Skill: Identifiable, Hashable, Sendable {
     /// Detects common parameter patterns in skill content
     var hasInputParameters: Bool {
         let parameterPatterns = [
-            "\\$1", "\\$2", "\\$3",           // Positional args
-            "\\$\\{.*\\}",                     // ${variable}
-            "\\$ARGS", "\\$INPUT",             // Named args
-            "<[A-Z_]+>",                       // <PLACEHOLDER>
+            "\\$1", "\\$2", "\\$3", // Positional args
+            "\\$\\{.*\\}", // ${variable}
+            "\\$ARGS", "\\$INPUT", // Named args
+            "<[A-Z_]+>", // <PLACEHOLDER>
             "\\[required\\]", "\\[optional\\]", // [required] markers
-            "{{.*}}",                          // {{mustache}}
-            "%s", "%@"                         // Format specifiers
+            "{{.*}}", // {{mustache}}
+            "%s", "%@" // Format specifiers
         ]
 
         for pattern in parameterPatterns {
@@ -120,8 +120,7 @@ actor SkillDiscoveryService {
             .appendingPathComponent("skills")
     }
 
-    private init() {
-    }
+    private init() {}
 
     // MARK: - Discovery
 
@@ -313,8 +312,7 @@ final class SkillManager: ObservableObject {
 
     // MARK: - Initialization
 
-    private init() {
-    }
+    private init() {}
 
     // MARK: - Starring & Demoting
 
@@ -429,6 +427,7 @@ final class SkillManager: ObservableObject {
     ///   - skill: The skill to run
     ///   - windowId: Optional window ID to target
     ///   - pressEnter: Whether to press enter after typing (false for skills with params)
+    @available(*, deprecated, message: "Use embedded terminal dispatch instead. Terminal.app execution will be removed in v3.0.")
     func runInExistingTerminal(_ skill: Skill, windowId: String? = nil, pressEnter: Bool = true) async throws {
         logInfo("Running skill '\(skill.name)' (command: \(skill.slashCommand)) in existing terminal (window: \(windowId ?? "active"), pressEnter: \(pressEnter))", category: .execution)
 
@@ -463,6 +462,7 @@ final class SkillManager: ObservableObject {
     ///   - skill: The skill to run
     ///   - projectPath: The project directory to open terminal in (overrides skill's project path)
     ///   - pressEnter: Whether to press enter after typing the command (nil = auto-detect based on hasInputParameters)
+    @available(*, deprecated, message: "Use embedded terminal dispatch instead. Terminal.app execution will be removed in v3.0.")
     func runInNewTerminal(_ skill: Skill, projectPath: URL? = nil, pressEnter: Bool? = nil) async throws {
         // Use provided project path, fall back to skill's project path, then to home directory
         let workingDir = projectPath?.path ?? skill.projectPath?.path ?? FileManager.default.homeDirectoryForCurrentUser.path
@@ -479,7 +479,7 @@ final class SkillManager: ObservableObject {
         try await TerminalService.shared.sendPrompt("claude --dangerously-skip-permissions", toWindowId: window.id)
 
         // Wait for Claude to start up (give it time to initialize)
-        try await Task.sleep(nanoseconds: 2_000_000_000)  // 2 seconds
+        try await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
 
         // Type the slash command
         // Use provided pressEnter value, or fall back to auto-detect based on hasInputParameters
