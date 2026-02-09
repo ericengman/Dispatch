@@ -53,7 +53,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 17: Claude Code Integration** - Spawn Claude Code, dispatch prompts, detect completion
 - [x] **Phase 18: Multi-Session UI** - Support multiple simultaneous terminal sessions with split panes
 - [x] **Phase 19: Session Persistence** - Save and resume sessions across app restarts
-- [ ] **Phase 20: Service Integration** - Wire embedded terminals to queue and chain execution
+- [x] **Phase 20: Service Integration** - Wire embedded terminals to queue and chain execution
 - [ ] **Phase 21: Status Display** - Parse JSONL for rich status and context window visualization
 - [ ] **Phase 22: Migration & Cleanup** - Remove Terminal.app dependency and AppleScript code
 
@@ -163,8 +163,8 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 20-01-PLAN.md — Create EmbeddedTerminalService with dispatch interface, session validation
-- [ ] 20-02-PLAN.md — Verify queue and chain integration, human verification checkpoint
+- [x] 20-01-PLAN.md — Create EmbeddedTerminalService with dispatch interface, session validation
+- [x] 20-02-PLAN.md — Verify queue and chain integration, human verification checkpoint
 
 ### Phase 21: Status Display
 **Goal**: Rich status display from Claude Code JSONL data
@@ -214,6 +214,6 @@ Phases execute in numeric order: 14 -> 14.1 -> 14.2 -> 15 -> ...
 | 17. Claude Code Integration | v2.0 | 4/4 | Complete | 2026-02-08 |
 | 18. Multi-Session UI | v2.0 | 2/2 | Complete | 2026-02-08 |
 | 19. Session Persistence | v2.0 | 2/2 | Complete | 2026-02-08 |
-| 20. Service Integration | v2.0 | 0/2 | Ready | - |
+| 20. Service Integration | v2.0 | 2/2 | Complete | 2026-02-08 |
 | 21. Status Display | v2.0 | 0/1 | Not started | - |
 | 22. Migration & Cleanup | v2.0 | 0/2 | Not started | - |
