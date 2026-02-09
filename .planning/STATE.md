@@ -4,17 +4,17 @@
 
 See: .planning/PROJECT.md (updated 2026-02-09)
 
-**Core value:** Users can dispatch prompts to Claude Code with zero friction via embedded terminal sessions
-**Current focus:** Planning next milestone
+**Core value:** Users can dispatch prompts (including annotated screenshots) to Claude Code with zero friction
+**Current focus:** Phase 23 - Region Capture
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Researching domain
-Last activity: 2026-02-09 — Milestone v3.0 started
+Phase: 23 of 27 (Region Capture)
+Plan: 0 of ? in current phase
+Status: Ready to plan
+Last activity: 2026-02-09 — v3.0 roadmap created
 
-Progress: [░░░░░░░░░░░░░░░░░░░░] 0% (v3.0 in progress)
+Progress: [####################] v2.0 complete | [░░░░░░░░░░░░░░░░░░░░] 0% v3.0
 
 ## Performance Metrics
 
@@ -24,13 +24,23 @@ Progress: [░░░░░░░░░░░░░░░░░░░░] 0% (v3.
 - Total execution time: ~91m
 - Timeline: 3 days (Feb 7-9, 2026)
 
-*Reset for next milestone*
+**v3.0:**
+- Total plans completed: 0
+- Phases: 5 (23-27)
+- Requirements: 11
+
+*Updated after each plan completion*
 
 ## Accumulated Context
 
 ### Decisions
 
 Key decisions are logged in PROJECT.md Key Decisions table.
+
+Recent decisions affecting current work:
+- Use `screencapture -i` for region capture (native, zero custom UI)
+- Use `SCContentSharingPicker` for window capture (no Screen Recording permission)
+- Reuse existing AnnotationCanvasView and annotation infrastructure
 
 ### Pending Todos
 
@@ -45,14 +55,14 @@ None.
 From v2.0 (non-blocking tech debt):
 - 20 skills still use hardcoded `/tmp` paths instead of Dispatch library
 - Status monitoring only starts for resumed sessions (not new sessions)
-- Deprecated code retained for rollback safety (removal planned v3.0)
+- Deprecated code retained for rollback safety
 
 ## Session Continuity
 
 Last session: 2026-02-09
-Stopped at: v2.0 milestone completed
+Stopped at: v3.0 roadmap created
 Resume file: None
 
 ---
 
-**Next step:** Complete research, then define requirements
+**Next step:** `/gsd:plan-phase 23` to plan Region Capture phase

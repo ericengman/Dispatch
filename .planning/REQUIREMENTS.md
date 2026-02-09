@@ -57,23 +57,23 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CAPT-01 | TBD | Pending |
-| CAPT-02 | TBD | Pending |
-| CAPT-03 | TBD | Pending |
-| CAPT-04 | TBD | Pending |
-| ANNOT-01 | TBD | Pending |
-| ANNOT-02 | TBD | Pending |
-| ANNOT-03 | TBD | Pending |
-| UI-01 | TBD | Pending |
-| UI-02 | TBD | Pending |
-| UI-03 | TBD | Pending |
-| UI-04 | TBD | Pending |
+| CAPT-01 | Phase 23 | Pending |
+| CAPT-02 | Phase 24 | Pending |
+| CAPT-03 | Phase 24 | Pending |
+| CAPT-04 | Phase 26 | Pending |
+| ANNOT-01 | Phase 25 | Pending |
+| ANNOT-02 | Phase 25 | Pending |
+| ANNOT-03 | Phase 25 | Pending |
+| UI-01 | Phase 26 | Pending |
+| UI-02 | Phase 27 | Pending |
+| UI-03 | Phase 26 | Pending |
+| UI-04 | Phase 26 | Pending |
 
 **Coverage:**
 - v3.0 requirements: 11 total
-- Mapped to phases: 0
-- Unmapped: 11 (pending roadmap creation)
+- Mapped to phases: 11
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-09*
-*Last updated: 2026-02-09 after initial definition*
+*Last updated: 2026-02-09 after roadmap creation*

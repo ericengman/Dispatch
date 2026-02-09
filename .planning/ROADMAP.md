@@ -5,6 +5,7 @@
 - [x] **v1.0 MVP** - Phases 1-7 (shipped)
 - [x] **v1.1 Screenshot Integration Fix** - Phases 8-13 (shipped 2026-02-07)
 - [x] **v2.0 In-App Claude Code** - Phases 14-22 (shipped 2026-02-09)
+- [ ] **v3.0 Screenshot Capture** - Phases 23-27 (in progress)
 
 ## Phases
 
@@ -56,6 +57,73 @@ See `milestones/v2.0-ROADMAP.md` for full archive.
 
 </details>
 
+### v3.0 Screenshot Capture (In Progress)
+
+**Milestone Goal:** Add quick screenshot capture with annotation and dispatch to Claude sessions.
+
+- [ ] **Phase 23: Region Capture** - Cross-hair region selection via native screencapture
+- [ ] **Phase 24: Window Capture** - System window picker with Simulator prominence
+- [ ] **Phase 25: Annotation Integration** - Connect capture pipeline to annotation UI
+- [ ] **Phase 26: Sidebar Integration** - Quick Capture section with MRU and thumbnails
+- [ ] **Phase 27: Polish** - Keyboard shortcuts for capture modes
+
+## Phase Details
+
+### Phase 23: Region Capture
+**Goal**: User can capture any screen region with native cross-hair selection
+**Depends on**: Nothing (first phase of v3.0)
+**Requirements**: CAPT-01
+**Success Criteria** (what must be TRUE):
+  1. User clicks "Region Capture" and sees native macOS cross-hair cursor
+  2. User can drag to select any rectangular area on any display
+  3. Captured image is saved to Dispatch's screenshot directory
+  4. Capture service foundation exists for subsequent phases
+**Plans**: TBD
+
+### Phase 24: Window Capture
+**Goal**: User can capture entire windows via system picker with Simulator windows highlighted
+**Depends on**: Phase 23
+**Requirements**: CAPT-02, CAPT-03
+**Success Criteria** (what must be TRUE):
+  1. User clicks "Window Capture" and sees SCContentSharingPicker
+  2. User can select any window to capture (not just Dispatch)
+  3. iOS Simulator windows appear prominently in the picker list
+  4. Captured window image saves to Dispatch's screenshot directory
+**Plans**: TBD
+
+### Phase 25: Annotation Integration
+**Goal**: Captured screenshots flow into annotation UI for markup before dispatch
+**Depends on**: Phase 24
+**Requirements**: ANNOT-01, ANNOT-02, ANNOT-03
+**Success Criteria** (what must be TRUE):
+  1. After capture, annotation UI opens automatically with the screenshot
+  2. User can capture additional screenshots while annotation UI is open (queue)
+  3. User can select target Claude session before dispatching annotated screenshot
+  4. Existing annotation tools (arrows, boxes, text) work on captured screenshots
+**Plans**: TBD
+
+### Phase 26: Sidebar Integration
+**Goal**: Quick Capture UI section in sidebar with recent captures and window thumbnails
+**Depends on**: Phase 25
+**Requirements**: UI-01, UI-03, UI-04, CAPT-04
+**Success Criteria** (what must be TRUE):
+  1. Quick Capture section appears in sidebar with Region and Window buttons
+  2. Recent captures strip shows last 3-5 captures as clickable thumbnails
+  3. Window picker shows live thumbnail previews of capturable windows
+  4. User can re-capture previously captured windows from MRU list
+  5. Clicking a recent capture opens it in annotation UI
+**Plans**: TBD
+
+### Phase 27: Polish
+**Goal**: Keyboard shortcuts enable rapid capture workflows
+**Depends on**: Phase 26
+**Requirements**: UI-02
+**Success Criteria** (what must be TRUE):
+  1. User can invoke region capture via keyboard shortcut
+  2. User can invoke window capture via keyboard shortcut
+  3. Shortcuts are configurable in settings (or use sensible defaults)
+**Plans**: TBD
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -76,6 +144,11 @@ See `milestones/v2.0-ROADMAP.md` for full archive.
 | 20. Service Integration | v2.0 | 2/2 | Complete | 2026-02-08 |
 | 21. Status Display | v2.0 | 1/1 | Complete | 2026-02-08 |
 | 22. Migration & Cleanup | v2.0 | 7/7 | Complete | 2026-02-09 |
+| 23. Region Capture | v3.0 | 0/? | Not started | - |
+| 24. Window Capture | v3.0 | 0/? | Not started | - |
+| 25. Annotation Integration | v3.0 | 0/? | Not started | - |
+| 26. Sidebar Integration | v3.0 | 0/? | Not started | - |
+| 27. Polish | v3.0 | 0/? | Not started | - |
 
 ---
-*Next milestone: Use `/gsd:new-milestone` to start v2.1*
+*Next: `/gsd:plan-phase 23` to begin v3.0 implementation*
