@@ -9,7 +9,7 @@ Requirements for Screenshot Capture milestone. Each maps to roadmap phases.
 
 ### Capture Modes
 
-- [ ] **CAPT-01**: User can invoke cross-hair region selection via native macOS screencapture
+- [x] **CAPT-01**: User can invoke cross-hair region selection via native macOS screencapture
 - [ ] **CAPT-02**: User can select and capture any window via system picker (SCContentSharingPicker)
 - [ ] **CAPT-03**: User sees iOS Simulator windows prominently listed for quick capture
 - [ ] **CAPT-04**: User can re-capture recently captured windows from MRU list
@@ -57,7 +57,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CAPT-01 | Phase 23 | Pending |
+| CAPT-01 | Phase 23 | Complete |
 | CAPT-02 | Phase 24 | Pending |
 | CAPT-03 | Phase 24 | Pending |
 | CAPT-04 | Phase 26 | Pending |
@@ -76,4 +76,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-02-09*
-*Last updated: 2026-02-09 after roadmap creation*
+*Last updated: 2026-02-09 after Phase 23 completion*

@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-09)
 
 **Core value:** Users can dispatch prompts (including annotated screenshots) to Claude Code with zero friction
-**Current focus:** Phase 23 - Region Capture
+**Current focus:** Phase 24 - Window Capture
 
 ## Current Position
 
-Phase: 23 of 27 (Region Capture)
-Plan: 1 of ? in current phase
-Status: In progress
-Last activity: 2026-02-09 — Completed 23-01-PLAN.md
+Phase: 24 of 27 (Window Capture)
+Plan: 0 of ? in current phase
+Status: Ready to plan
+Last activity: 2026-02-09 — Completed Phase 23 (Region Capture)
 
-Progress: [####################] v2.0 complete | [█░░░░░░░░░░░░░░░░░░░] 5% v3.0
+Progress: [####################] v2.0 complete | [████░░░░░░░░░░░░░░░░] 20% v3.0
 
 ## Performance Metrics
 
@@ -61,10 +61,10 @@ From v2.0 (non-blocking tech debt):
 
 ## Session Continuity
 
-Last session: 2026-02-09 15:13 PST
-Stopped at: Completed 23-01-PLAN.md (Region Capture Service)
+Last session: 2026-02-09
+Stopped at: Phase 23 complete, ready for Phase 24 planning
 Resume file: None
 
 ---
 
-**Next step:** Continue Phase 23 with next plan, or verify capture functionality
+**Next step:** `/gsd:plan-phase 24` to plan Window Capture phase

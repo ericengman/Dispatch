@@ -61,7 +61,7 @@ See `milestones/v2.0-ROADMAP.md` for full archive.
 
 **Milestone Goal:** Add quick screenshot capture with annotation and dispatch to Claude sessions.
 
-- [ ] **Phase 23: Region Capture** - Cross-hair region selection via native screencapture
+- [x] **Phase 23: Region Capture** - Cross-hair region selection via native screencapture
 - [ ] **Phase 24: Window Capture** - System window picker with Simulator prominence
 - [ ] **Phase 25: Annotation Integration** - Connect capture pipeline to annotation UI
 - [ ] **Phase 26: Sidebar Integration** - Quick Capture section with MRU and thumbnails
@@ -80,7 +80,7 @@ See `milestones/v2.0-ROADMAP.md` for full archive.
   4. Capture service foundation exists for subsequent phases
 **Plans**: 1 plan
 Plans:
-- [ ] 23-01-PLAN.md — ScreenshotCaptureService with region capture via screencapture CLI
+- [x] 23-01-PLAN.md — ScreenshotCaptureService with region capture via screencapture CLI
 
 ### Phase 24: Window Capture
 **Goal**: User can capture entire windows via system picker with Simulator windows highlighted
@@ -146,11 +146,11 @@ Plans:
 | 20. Service Integration | v2.0 | 2/2 | Complete | 2026-02-08 |
 | 21. Status Display | v2.0 | 1/1 | Complete | 2026-02-08 |
 | 22. Migration & Cleanup | v2.0 | 7/7 | Complete | 2026-02-09 |
-| 23. Region Capture | v3.0 | 0/1 | Planned | - |
+| 23. Region Capture | v3.0 | 1/1 | Complete | 2026-02-09 |
 | 24. Window Capture | v3.0 | 0/? | Not started | - |
 | 25. Annotation Integration | v3.0 | 0/? | Not started | - |
 | 26. Sidebar Integration | v3.0 | 0/? | Not started | - |
 | 27. Polish | v3.0 | 0/? | Not started | - |
 
 ---
-*Next: `/gsd:execute-phase 23` to implement Region Capture*
+*Next: `/gsd:plan-phase 24` to plan Window Capture*
