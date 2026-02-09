@@ -188,11 +188,16 @@ Plans:
   2. MainView shows embedded terminal panel instead of external window controls
   3. Terminal.app Automation permission is no longer required
   4. QueueItem and Chain execution use embedded sessions exclusively
-**Plans**: 2 plans
+**Plans**: 7 plans (2 core + 5 gap closure)
 
 Plans:
-- [ ] 22-01-PLAN.md — Replace TerminalService with embedded-only execution in ExecutionManager
-- [ ] 22-02-PLAN.md — Remove Terminal.app UI controls and AppleEvents permission
+- [x] 22-01-PLAN.md — Replace TerminalService with embedded-only execution in ExecutionManager
+- [x] 22-02-PLAN.md — Remove Terminal.app UI controls and AppleEvents permission
+- [ ] 22-03-PLAN.md — Migrate PromptViewModel.executePrompt() to ExecutionManager (gap closure)
+- [ ] 22-04-PLAN.md — Deprecate external Terminal.app skill execution methods (gap closure)
+- [ ] 22-05-PLAN.md — Migrate simulator image dispatch to embedded terminal (gap closure)
+- [ ] 22-06-PLAN.md — Remove Terminal.app permission UI from SkillsSidePanel (gap closure)
+- [ ] 22-07-PLAN.md — Migrate ProjectViewModel.openInTerminal() to embedded terminal (gap closure)
 
 ## Progress
 
@@ -216,4 +221,4 @@ Phases execute in numeric order: 14 -> 14.1 -> 14.2 -> 15 -> ...
 | 19. Session Persistence | v2.0 | 2/2 | Complete | 2026-02-08 |
 | 20. Service Integration | v2.0 | 2/2 | Complete | 2026-02-08 |
 | 21. Status Display | v2.0 | 1/1 | Complete | 2026-02-08 |
-| 22. Migration & Cleanup | v2.0 | 0/2 | Not started | - |
+| 22. Migration & Cleanup | v2.0 | 2/7 | In progress | - |
