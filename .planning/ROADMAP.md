@@ -91,7 +91,9 @@ Plans:
   2. User can select any window to capture (not just Dispatch)
   3. iOS Simulator windows appear prominently in the picker list
   4. Captured window image saves to Dispatch's screenshot directory
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 24-01-PLAN.md — Window capture via SCContentSharingPicker + SCScreenshotManager
 
 ### Phase 25: Annotation Integration
 **Goal**: Captured screenshots flow into annotation UI for markup before dispatch
@@ -147,10 +149,10 @@ Plans:
 | 21. Status Display | v2.0 | 1/1 | Complete | 2026-02-08 |
 | 22. Migration & Cleanup | v2.0 | 7/7 | Complete | 2026-02-09 |
 | 23. Region Capture | v3.0 | 1/1 | Complete | 2026-02-09 |
-| 24. Window Capture | v3.0 | 0/? | Not started | - |
+| 24. Window Capture | v3.0 | 0/1 | Planning | - |
 | 25. Annotation Integration | v3.0 | 0/? | Not started | - |
 | 26. Sidebar Integration | v3.0 | 0/? | Not started | - |
 | 27. Polish | v3.0 | 0/? | Not started | - |
 
 ---
-*Next: `/gsd:plan-phase 24` to plan Window Capture*
+*Next: `/gsd:execute-phase 24` to implement Window Capture*
