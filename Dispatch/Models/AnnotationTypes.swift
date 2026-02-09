@@ -287,6 +287,52 @@ struct AnnotatedImage: Identifiable, Sendable {
     }
 }
 
+// MARK: - QuickCapture Support
+
+extension AnnotatedImage {
+    /// Alternative storage for QuickCapture (non-SwiftData) images.
+    /// Uses filePath directly when Screenshot is not available.
+    private static var quickCaptureImages: [UUID: (filePath: String, image: NSImage)] = [:]
+
+    /// Creates an AnnotatedImage from a QuickCapture (no Screenshot required).
+    /// Stores the image data separately since we can't use SwiftData outside the model context.
+    init(quickCapture: QuickCapture) {
+        // Create a minimal Screenshot-like wrapper using dummy values
+        // The actual image is retrieved from quickCaptureImages cache
+        id = quickCapture.id
+
+        // Store the image in static cache for later retrieval
+        if let image = quickCapture.image {
+            Self.quickCaptureImages[quickCapture.id] = (quickCapture.filePath, image)
+        }
+
+        // We need a Screenshot object for the existing API, but we'll create a detached one
+        // Note: This Screenshot is NOT persisted to SwiftData - it's purely for API compatibility
+        screenshot = Screenshot(
+            id: quickCapture.id,
+            filePath: quickCapture.filePath,
+            captureIndex: 0,
+            label: quickCapture.label
+        )
+        annotations = []
+        cropRect = nil
+    }
+
+    /// Retrieves the cached image for QuickCapture-based AnnotatedImages.
+    /// Falls back to screenshot.image for Screenshot-based AnnotatedImages.
+    var resolvedImage: NSImage? {
+        if let cached = Self.quickCaptureImages[id] {
+            return cached.image
+        }
+        return screenshot.image
+    }
+
+    /// Cleans up cached QuickCapture image data when no longer needed.
+    static func cleanupQuickCapture(id: UUID) {
+        quickCaptureImages.removeValue(forKey: id)
+    }
+}
+
 // MARK: - AnnotationAction (for Undo/Redo)
 
 /// Represents an action that can be undone/redone
