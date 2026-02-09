@@ -12,11 +12,11 @@ Requirements for In-App Claude Code milestone. Each maps to roadmap phases.
 - [x] **TERM-01**: Add SwiftTerm package dependency (v1.10.0+) for terminal emulation
 - [x] **TERM-02**: Create EmbeddedTerminalView (NSViewRepresentable) wrapping SwiftTerm's TerminalView
 - [x] **TERM-03**: Implement SafeLocalProcessTerminalView with NSLock-protected data reception to prevent deallocation crashes
-- [ ] **TERM-04**: Spawn Claude Code process with proper environment (PATH, TERM, COLORTERM, LANG)
-- [ ] **TERM-05**: Dispatch prompts to terminal via PTY write (replace AppleScript-based sending)
-- [ ] **TERM-06**: Detect Claude Code completion via output pattern matching (complement to HookServer)
-- [ ] **TERM-07**: Parse Claude Code JSONL session files for status display (thinking, executing, idle)
-- [ ] **TERM-08**: Display context window usage visualization from JSONL data
+- [x] **TERM-04**: Spawn Claude Code process with proper environment (PATH, TERM, COLORTERM, LANG)
+- [x] **TERM-05**: Dispatch prompts to terminal via PTY write (replace AppleScript-based sending)
+- [x] **TERM-06**: Detect Claude Code completion via output pattern matching (complement to HookServer)
+- [x] **TERM-07**: Parse Claude Code JSONL session files for status display (thinking, executing, idle)
+- [x] **TERM-08**: Display context window usage visualization from JSONL data
 
 ### Process Lifecycle
 
@@ -37,26 +37,26 @@ Requirements for In-App Claude Code milestone. Each maps to roadmap phases.
 
 ### Persistence
 
-- [ ] **PERS-01**: Create TerminalSession SwiftData model for session state
-- [ ] **PERS-02**: Associate sessions with Project model (project-session relationship)
-- [ ] **PERS-03**: Persist session metadata (working directory, project, last activity)
-- [ ] **PERS-04**: Resume sessions on app restart using `claude -r <sessionId>`
-- [ ] **PERS-05**: Handle stale session resume gracefully (create new if expired)
+- [x] **PERS-01**: Create TerminalSession SwiftData model for session state
+- [x] **PERS-02**: Associate sessions with Project model (project-session relationship)
+- [x] **PERS-03**: Persist session metadata (working directory, project, last activity)
+- [x] **PERS-04**: Resume sessions on app restart using `claude -r <sessionId>`
+- [x] **PERS-05**: Handle stale session resume gracefully (create new if expired)
 
 ### Integration
 
-- [ ] **INTG-01**: Create EmbeddedTerminalService implementing dispatch interface
-- [ ] **INTG-02**: Wire queue execution (run next, run all) to embedded terminals
-- [ ] **INTG-03**: Wire chain execution to embedded terminals with delay handling
-- [ ] **INTG-04**: Integrate with ExecutionStateMachine for state transitions
-- [ ] **INTG-05**: Maintain HookServer completion detection alongside output pattern
+- [x] **INTG-01**: Create EmbeddedTerminalService implementing dispatch interface
+- [x] **INTG-02**: Wire queue execution (run next, run all) to embedded terminals
+- [x] **INTG-03**: Wire chain execution to embedded terminals with delay handling
+- [x] **INTG-04**: Integrate with ExecutionStateMachine for state transitions
+- [x] **INTG-05**: Maintain HookServer completion detection alongside output pattern
 
 ### Migration
 
-- [ ] **MIGR-01**: Replace TerminalService AppleScript methods with EmbeddedTerminalService
-- [ ] **MIGR-02**: Update MainView to show embedded terminal panel instead of external window controls
-- [ ] **MIGR-03**: Remove Terminal.app automation permission requirements
-- [ ] **MIGR-04**: Update QueueItem/Chain execution to target embedded sessions
+- [x] **MIGR-01**: Replace TerminalService AppleScript methods with EmbeddedTerminalService
+- [x] **MIGR-02**: Update MainView to show embedded terminal panel instead of external window controls
+- [x] **MIGR-03**: Remove Terminal.app automation permission requirements
+- [x] **MIGR-04**: Update QueueItem/Chain execution to target embedded sessions
 
 ## Future Requirements
 
@@ -97,11 +97,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TERM-01 | Phase 14 | Complete |
 | TERM-02 | Phase 14 | Complete |
 | TERM-03 | Phase 15 | Complete |
-| TERM-04 | Phase 17 | Pending |
-| TERM-05 | Phase 17 | Pending |
-| TERM-06 | Phase 17 | Pending |
-| TERM-07 | Phase 21 | Pending |
-| TERM-08 | Phase 21 | Pending |
+| TERM-04 | Phase 17 | Complete |
+| TERM-05 | Phase 17 | Complete |
+| TERM-06 | Phase 17 | Complete |
+| TERM-07 | Phase 21 | Complete |
+| TERM-08 | Phase 21 | Complete |
 | PROC-01 | Phase 16 | Complete |
 | PROC-02 | Phase 16 | Complete |
 | PROC-03 | Phase 16 | Complete |
@@ -113,20 +113,20 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SESS-04 | Phase 18 | Complete |
 | SESS-05 | Phase 18 | Complete |
 | SESS-06 | Phase 18 | Complete |
-| PERS-01 | Phase 19 | Pending |
-| PERS-02 | Phase 19 | Pending |
-| PERS-03 | Phase 19 | Pending |
-| PERS-04 | Phase 19 | Pending |
-| PERS-05 | Phase 19 | Pending |
-| INTG-01 | Phase 20 | Pending |
-| INTG-02 | Phase 20 | Pending |
-| INTG-03 | Phase 20 | Pending |
-| INTG-04 | Phase 20 | Pending |
-| INTG-05 | Phase 20 | Pending |
-| MIGR-01 | Phase 22 | Pending |
-| MIGR-02 | Phase 22 | Pending |
-| MIGR-03 | Phase 22 | Pending |
-| MIGR-04 | Phase 22 | Pending |
+| PERS-01 | Phase 19 | Complete |
+| PERS-02 | Phase 19 | Complete |
+| PERS-03 | Phase 19 | Complete |
+| PERS-04 | Phase 19 | Complete |
+| PERS-05 | Phase 19 | Complete |
+| INTG-01 | Phase 20 | Complete |
+| INTG-02 | Phase 20 | Complete |
+| INTG-03 | Phase 20 | Complete |
+| INTG-04 | Phase 20 | Complete |
+| INTG-05 | Phase 20 | Complete |
+| MIGR-01 | Phase 22 | Complete |
+| MIGR-02 | Phase 22 | Complete |
+| MIGR-03 | Phase 22 | Complete |
+| MIGR-04 | Phase 22 | Complete |
 
 **Coverage:**
 - v2.0 requirements: 33 total
@@ -135,4 +135,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-02-07*
-*Last updated: 2026-02-08 after Phase 16 completion*
+*Last updated: 2026-02-09 after Milestone v2.0 completion*
