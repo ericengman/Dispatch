@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-07)
 
 **Core value:** Users can dispatch prompts to Claude Code with zero friction via embedded terminal sessions
-**Current focus:** Phase 21 complete — ready for Phase 22 (Migration & Cleanup)
+**Current focus:** Phase 22 in progress — Migration & Cleanup
 
 ## Current Position
 
 Phase: 22 of 22 (Migration & Cleanup)
-Plan: 0 of TBD in current phase
-Status: Ready to plan
-Last activity: 2026-02-08 — Completed Phase 21 (Status Display)
+Plan: 2 of TBD in current phase
+Status: In progress
+Last activity: 2026-02-09 — Completed 22-02-PLAN.md
 
-Progress: [####################] 96% (8/9 v2.0 phases complete)
+Progress: [####################] 97% (8/9 v2.0 phases, plan 2 of phase 22 complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 27 (12 v1.1, 15 v2.0)
-- Average duration: 3.0m
-- Total execution time: 80.2m
+- Total plans completed: 28 (12 v1.1, 16 v2.0)
+- Average duration: 2.9m
+- Total execution time: 82.2m
 
 **By Phase:**
 
@@ -41,10 +41,11 @@ Progress: [####################] 96% (8/9 v2.0 phases complete)
 | 19 | 2 | 7.9m | 4.0m |
 | 20 | 2 | 3.9m | 2.0m |
 | 21 | 1 | 3.4m | 3.4m |
+| 22 | 1 | 2.0m | 2.0m |
 
 **Recent Trend:**
-- Last 5 plans: 19-02 (3.3m), 20-01 (2.2m), 20-02 (1.7m), 21-01 (3.4m)
-- Trend: Status display plan average (file monitoring + UI work)
+- Last 5 plans: 20-01 (2.2m), 20-02 (1.7m), 21-01 (3.4m), 22-02 (2.0m)
+- Trend: Migration cleanup plan fast (deprecation + config removal)
 
 *Updated after each plan completion*
 
@@ -108,6 +109,8 @@ Recent decisions affecting current work:
 - [21-01]: Tail-reading pattern with lastOffset tracking for incremental parsing
 - [21-01]: Status shown only when not idle to reduce visual noise
 - [21-01]: Remove deinit from MainActor class - rely on cancel handler for cleanup
+- [22-02]: Mark deprecated rather than delete for reference during migration
+- [22-02]: Remove NSAppleEventsUsageDescription entirely for clean new installs
 
 ### Pending Todos
 
@@ -126,5 +129,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-09
-Stopped at: Completed 21-01-PLAN.md (Phase 21 complete)
+Stopped at: Completed 22-02-PLAN.md
 Resume file: None
