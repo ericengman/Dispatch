@@ -1,175 +1,172 @@
 # Project Research Summary
 
-**Project:** Dispatch v2.0 — In-App Claude Code
-**Domain:** Embedded terminal sessions for Claude Code management
-**Researched:** 2026-02-07
+**Project:** Dispatch v3.0 — Screenshot Capture
+**Domain:** macOS screenshot capture and annotation for Claude Code workflow
+**Researched:** 2026-02-09
 **Confidence:** HIGH
 
 ## Executive Summary
 
-Dispatch v2.0 replaces Terminal.app-based AppleScript control with embedded SwiftTerm terminals running Claude Code directly in the app. This eliminates automation permissions, improves reliability (no AppleScript timing issues), and enables richer integration between Dispatch's prompt management and Claude Code execution. The reference implementation is AgentHub (MIT licensed), which provides production-tested patterns for SwiftTerm integration, process lifecycle management, and session persistence.
+Dispatch v3.0 aims to add quick screenshot capture to complement the existing iOS Simulator screenshot workflow. Research reveals a clear path: leverage native macOS APIs (`screencapture -i` for region selection, `SCContentSharingPicker` for window capture) rather than building custom UI, and reuse Dispatch's existing annotation infrastructure extensively. The key insight is that both capture methods require zero Screen Recording permission because they are user-initiated through system UI.
 
-The recommended approach adds a single dependency (SwiftTerm 1.10.0+) and creates a parallel `EmbeddedTerminalService` that matches the existing `TerminalService` interface. This allows gradual migration while maintaining backwards compatibility. The key architectural insight from AgentHub is the need for a `SafeLocalProcessTerminalView` wrapper that prevents crashes during deallocation, and a `TerminalProcessRegistry` that cleans up orphaned processes across app restarts.
+The recommended approach is a hybrid strategy: invoke the native `screencapture -i` command for cross-hair region selection (zero implementation overhead, native UX users already know), and use ScreenCaptureKit's `SCContentSharingPicker` for window capture (system-provided picker, no permission needed). After capture, feed the image into Dispatch's existing `AnnotationWindow` and annotation pipeline. This maximizes code reuse—the annotation subsystem (AnnotationViewModel, AnnotationCanvasView, AnnotationToolbar, AnnotationRenderer, SendQueueView) is already well-architected and source-agnostic.
 
-Critical risks center on process lifecycle: DispatchIO race conditions during terminal deallocation can cause crashes, and orphaned Claude Code processes accumulate if cleanup fails. Both are well-understood and mitigated by AgentHub patterns that Dispatch can adopt directly. The estimated effort is 13-19 days for table stakes features, with clear phase boundaries allowing incremental delivery.
+Critical risks to mitigate: (1) Do NOT use CGWindowListCreateImage—it is deprecated in macOS 14 and removed in macOS 15, use ScreenCaptureKit instead; (2) For any overlay UI, use NSPanel not SwiftUI `.overlay()` modifier due to known sheet interaction bugs; (3) Screen Recording permission (if eventually needed) has a stale cache issue requiring app restart after grant.
 
 ## Key Findings
 
 ### Recommended Stack
 
-SwiftTerm is THE standard for macOS terminal embedding, used by CodeEdit, Secure Shellfish, La Terminal, and AgentHub. It provides complete terminal emulation (VT100/Xterm, 256-color, TrueColor), PTY management via `LocalProcess`, and process spawning with environment control. No other dependencies are needed for terminal embedding.
+The stack centers on native macOS APIs with minimal external dependencies.
 
 **Core technologies:**
-- **SwiftTerm 1.10.0+**: Terminal emulation + PTY + process management — single dependency replaces all AppleScript complexity
-- **NSViewRepresentable wrapper**: SwiftUI integration for SwiftTerm's AppKit views — standard pattern, well-documented
-- **SwiftData models**: Session persistence for `TerminalSession` — consistent with existing Dispatch architecture
+- `screencapture -i` (CLI): Region selection — native UX, zero implementation, no permission needed
+- `SCContentSharingPicker` (ScreenCaptureKit): Window picker UI — system-provided, no Screen Recording permission
+- `SCScreenshotManager` (ScreenCaptureKit): Capture API — modern replacement for deprecated CGWindowListCreateImage
+- Existing annotation infrastructure: Views, services, models — direct reuse, already tested
 
-**Explicitly NOT adding:**
-- ClaudeCodeSDK (programmatic API, not interactive terminal)
-- GRDB, markdown-ui, HighlightSwift (unneeded for terminal embedding)
-- Additional HTTP frameworks (existing NWListener sufficient)
+**Not recommended:**
+- CGWindowListCreateImage — deprecated macOS 14, removed macOS 15
+- Custom cross-hair overlay — high complexity, `screencapture -i` provides this for free
+- AVCaptureScreenInput — designed for video, overkill for screenshots
 
 ### Expected Features
 
-**Must have (table stakes for Terminal.app replacement):**
-- Embedded terminal view with full ANSI color support
-- Process lifecycle management (spawn, track, terminate Claude Code)
-- Multi-session display with selection/focus
-- Input dispatch to sessions (replace AppleScript-based prompt sending)
-- Completion detection (hook-based + output pattern matching)
-- Session persistence and resume capability
+**Must have (table stakes):**
+- Region selection (crosshair) — native macOS behavior via `screencapture -i`
+- Window capture — via SCContentSharingPicker
+- Instant feedback — thumbnail after capture
+- Escape to cancel — universal cancel mechanism
+- Keyboard shortcuts — global hotkey to trigger capture
 
-**Should have (differentiators, could defer to post-v2.0):**
-- JSONL monitoring for rich status display (thinking, executing, etc.)
-- Context window usage visualization
-- Full-screen/enlarge mode
+**Should have (differentiators):**
+- Direct annotation pipeline — capture -> annotate -> send to Claude in one flow
+- Simulator-aware capture — auto-detect iOS Simulator windows
+- Session targeting — capture -> annotate -> send to specific Terminal session
 
-**Anti-features (explicitly NOT building):**
-- Git worktree management (Dispatch is prompt management, not git workflow)
-- Multi-provider support (Dispatch is Claude Code-specific)
-- Repository picker UI (use existing Project model)
-- Approval notification service (Dispatch uses `--dangerously-skip-permissions`)
+**Defer (v2+):**
+- Window thumbnails in picker (high complexity)
+- Quick capture mode (skip annotation)
+- Recent windows MRU list
+- Video/GIF recording (scope creep, different product)
+- Cloud upload/sharing (Dispatch sends to Claude, not the internet)
+- Scrolling capture (complexity not worth it, Claude handles multiple screenshots)
 
 ### Architecture Approach
 
-Create a parallel service layer (`EmbeddedTerminalService`) that implements the same interface as `TerminalService`, allowing gradual migration. The SwiftUI integration uses `NSViewRepresentable` to wrap SwiftTerm's AppKit `TerminalView`. Process lifecycle is managed by a `TerminalProcessRegistry` that persists PIDs to UserDefaults for crash recovery.
+Dispatch already has a mature annotation system built for iOS Simulator screenshots. The new quick capture feature can leverage this existing infrastructure extensively—the annotation subsystem (AnnotationViewModel, AnnotationCanvasView, AnnotationToolbar, AnnotationRenderer) is source-agnostic and requires minimal modification. The key architectural decision is to extend the existing Screenshot model with a `CaptureSource` enum rather than creating parallel models.
 
 **Major components:**
-1. **EmbeddedTerminalView** (SwiftUI wrapper) — NSViewRepresentable for SwiftTerm's TerminalView
-2. **DispatchTerminalView** (SwiftTerm subclass) — safe data reception, completion pattern detection
-3. **EmbeddedTerminalService** (actor) — session management, prompt dispatch, parallel to TerminalService
-4. **TerminalProcessRegistry** — PID tracking, orphan cleanup on app launch
-5. **TerminalSession** (SwiftData model) — session persistence, project association
+1. **ScreenshotCaptureService** — orchestrates capture modes (region via screencapture CLI, window via SCContentSharingPicker)
+2. **WindowCaptureController** — wraps SCContentSharingPicker, handles delegate callbacks
+3. **QuickCaptureStore** — transient in-memory storage for non-persisted captures
+4. **Existing annotation infrastructure** — AnnotationWindow, AnnotationCanvasView, SendQueueView (reuse directly)
+
+**Data flow:**
+```
+Capture (region/window) -> Screenshot model -> AnnotationWindow -> SendQueue -> EmbeddedTerminalService
+```
 
 ### Critical Pitfalls
 
-1. **DispatchIO race condition on deallocation** — CRITICAL. Terminal view deallocated while PTY data in flight causes EXC_BAD_ACCESS. **Prevention:** Implement `SafeLocalProcessTerminalView` with NSLock-protected `isStopped` flag; call `stopReceivingData()` BEFORE process termination.
+1. **CGWindowListCreateImage Deprecation** — Use ScreenCaptureKit (SCScreenshotManager) from the start. The legacy API is deprecated in macOS 14 and removed in macOS 15. All online code examples use the deprecated API.
 
-2. **Orphaned zombie processes** — CRITICAL. Child processes continue after app crash or unexpected view removal. **Prevention:** Implement `TerminalProcessRegistry` that persists PIDs; clean up on app launch; use `killpg()` for process group termination.
+2. **SwiftUI Overlay Sheet Bug** — For any capture overlay UI, use NSPanel not SwiftUI `.overlay()` modifier. SwiftUI overlays stop responding correctly when sheets are presented anywhere in the view hierarchy.
 
-3. **Process group termination failure** — HIGH. SIGTERM to shell PID doesn't kill Claude Code grandchild. **Prevention:** Use `killpg(pid, SIGTERM)` with two-stage shutdown (SIGTERM, wait 300ms, SIGKILL if alive).
+3. **Permission Stale Cache** — Screen Recording permission is cached at app launch. After user grants permission, show "restart required" message. Use `SCShareableContent` for better permission detection.
 
-4. **NSViewRepresentable retain cycles** — HIGH. Closures capture coordinator and view, causing memory leaks. **Prevention:** Weak references in coordinator, optional closures, explicit `dismantleNSView` cleanup.
+4. **Multi-Display Coordinate Confusion** — macOS uses global coordinates where (0,0) is bottom-left of primary display. Secondary displays can have negative coordinates. Use `NSScreen.convertRect(toScreen:)` for proper conversion.
 
-5. **Focus/input routing confusion** — MEDIUM. With multiple terminals, input goes to wrong session. **Prevention:** Clear `@FocusState` management, ensure only focused terminal receives key events.
+5. **Retina Scale Factor Mismatch** — Screen coordinates are in points, capture APIs return pixels. Always multiply by `backingScaleFactor` when converting. Dispatch's existing AnnotationCanvasView already handles this—follow that pattern.
+
+6. **Excluding Self Window** — The selection overlay or app windows appear in captured screenshots. With ScreenCaptureKit, use `SCContentFilter` to exclude by bundle identifier. Hide overlay before capture.
 
 ## Implications for Roadmap
 
 Based on research, suggested phase structure:
 
-### Phase 1: SwiftTerm Integration
-**Rationale:** Core dependency must work before building on it. Validates SwiftTerm compatibility with Dispatch's macOS 14 target.
-**Delivers:** SwiftTerm package added, basic `EmbeddedTerminalView` showing bash shell
-**Addresses:** None yet — pure infrastructure
-**Avoids:** Pitfall 4 (forkpty from Swift) by using SwiftTerm's safe implementation
+### Phase 1: Region Capture via screencapture CLI
+**Rationale:** Lowest implementation effort, highest user value. Uses native macOS `screencapture -i` command—zero UI code needed.
+**Delivers:** Region selection capture -> annotation flow
+**Addresses:** Region selection (table stakes), keyboard shortcut trigger
+**Avoids:** Custom overlay complexity, permission issues (user-initiated = no permission needed)
+**Estimate:** 1-2 days
 
-### Phase 2: Safe Terminal Wrapper
-**Rationale:** Safety patterns must be in place before process lifecycle. AgentHub's crashes during development came from skipping this.
-**Delivers:** `DispatchTerminalView` with safe data reception, configuration guard
-**Uses:** SwiftTerm `LocalProcessTerminalView` as base class
-**Avoids:** Pitfall 1 (DispatchIO race condition), Pitfall 4 (retain cycles)
+### Phase 2: Window Capture via SCContentSharingPicker
+**Rationale:** Builds on Phase 1 capture infrastructure. SCContentSharingPicker provides system UI—no custom picker needed.
+**Delivers:** Window picker -> capture -> annotation flow
+**Uses:** ScreenCaptureKit SCContentSharingPicker (macOS 14+)
+**Implements:** WindowCaptureController wrapper
+**Avoids:** Screen Recording permission (system picker is user-initiated)
+**Estimate:** 2-3 days
 
-### Phase 3: Process Lifecycle
-**Rationale:** Cleanup must work before multi-session. Orphaned processes compound without registry.
-**Delivers:** `TerminalProcessRegistry`, graceful termination, crash recovery cleanup
-**Implements:** Two-stage shutdown (SIGTERM then SIGKILL), process group termination
-**Avoids:** Pitfall 2 (orphaned processes), Pitfall 3 (process group failure)
+### Phase 3: Annotation Pipeline Integration
+**Rationale:** Wire capture outputs to existing annotation infrastructure. Low risk—existing code is well-tested.
+**Delivers:** Captured screenshots flow into AnnotationWindow for markup and dispatch
+**Reuses:** AnnotationWindow, AnnotationCanvasView, AnnotationToolbar, SendQueueView, AnnotationRenderer
+**Addresses:** Direct annotation pipeline (differentiator)
+**Estimate:** 1-2 days
 
-### Phase 4: Claude Code Integration
-**Rationale:** With terminal and process management stable, integrate Claude Code specifically.
-**Delivers:** Claude Code launch, prompt dispatch via PTY, completion detection
-**Uses:** Existing `HookServer` for completion (unchanged), output pattern matching as backup
-**Implements:** `EmbeddedTerminalService` with `dispatchPrompt()` matching existing interface
-
-### Phase 5: Multi-Session UI
-**Rationale:** Single session must work before managing multiple. Focus/routing complexity increases with sessions.
-**Delivers:** Session tabs, split view, session selection, session limits
-**Addresses:** Full-screen toggle, multi-terminal display
-**Avoids:** Pitfall 5 (focus routing), resource exhaustion
-
-### Phase 6: Session Persistence
-**Rationale:** Persistence comes after core functionality is stable. SwiftData integration builds on existing patterns.
-**Delivers:** `TerminalSession` SwiftData model, project-session association, session resume
-**Uses:** SwiftData (existing), `-r` flag for Claude Code session resume
-**Implements:** Architecture component from ARCHITECTURE.md
-
-### Phase 7: Migration & Polish
-**Rationale:** Only after embedded terminals are fully working, deprecate AppleScript path.
-**Delivers:** Deprecated `TerminalService` methods, settings toggle for terminal mode, dual-mode UI
-**Implements:** Smooth transition for users with Terminal.app workflows
+### Phase 4: Sidebar Integration and UI Polish
+**Rationale:** Add QuickCaptureSection to SkillsSidePanel. Recent captures strip. Keyboard shortcuts.
+**Delivers:** Discoverable capture actions in sidebar, capture history
+**Implements:** QuickCaptureSection, QuickCaptureStore
+**Addresses:** Instant feedback, session targeting
+**Estimate:** 2-3 days
 
 ### Phase Ordering Rationale
 
-- **SwiftTerm first:** Everything builds on the terminal emulator. Must validate compatibility.
-- **Safety before features:** Phases 2-3 establish safety patterns before adding complexity.
-- **Single session before multi:** Each phase validates before the next adds scope.
-- **Claude Code integration mid-sequence:** By Phase 4, infrastructure is stable enough for business logic.
-- **Persistence late:** Session data only matters after sessions work correctly.
-- **Migration last:** Don't break existing workflows until new path is proven.
+- **Region capture first:** Highest value-to-effort ratio. `screencapture -i` does all the hard work (multi-monitor, coordinate systems, Retina scaling).
+- **Window capture second:** SCContentSharingPicker is similarly low-effort, but slightly more integration work than CLI command.
+- **Annotation integration third:** Depends on capture infrastructure existing. Low risk because existing code is battle-tested.
+- **UI polish last:** Sidebar integration and shortcuts are polish after core functionality works.
 
 ### Research Flags
 
-Phases likely needing deeper research during planning:
-- **Phase 2 (Safe Terminal Wrapper):** Review AgentHub's `SafeLocalProcessTerminalView` implementation in detail before coding
-- **Phase 6 (Session Persistence):** Claude Code's `-r` session resume behavior needs verification
-
 Phases with standard patterns (skip research-phase):
-- **Phase 1 (SwiftTerm Integration):** Well-documented, SPM integration is straightforward
-- **Phase 3 (Process Lifecycle):** POSIX signals, patterns from AgentHub are clear
-- **Phase 5 (Multi-Session UI):** Standard SwiftUI patterns
-- **Phase 7 (Migration):** Internal refactoring, no external research needed
+- **Phase 1 (Region Capture):** Well-documented CLI, straightforward Process invocation
+- **Phase 3 (Annotation Integration):** Existing codebase, just wiring
+- **Phase 4 (UI Polish):** Standard SwiftUI patterns
+
+Phases that may need attention during implementation:
+- **Phase 2 (Window Capture):** SCContentSharingPicker delegate pattern needs careful implementation. Test picker presentation thoroughly.
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | SwiftTerm verified via GitHub, version confirmed, API reviewed |
-| Features | HIGH | Direct analysis of AgentHub source code, table stakes clearly identified |
-| Architecture | HIGH | Based on AgentHub patterns and existing Dispatch codebase |
-| Pitfalls | HIGH | Derived from AgentHub implementation, Apple Developer Forums, verified patterns |
+| Stack | HIGH | Official Apple documentation, WWDC sessions, verified deprecation status |
+| Features | HIGH | Verified against CleanShot X, Shottr, native macOS behavior |
+| Architecture | HIGH | Direct analysis of existing Dispatch codebase, clear reuse paths |
+| Pitfalls | HIGH | Apple Developer Forums, GitHub issues, multiple sources corroborate |
 
 **Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **Scrollback persistence:** PTY state cannot be serialized. Accept fresh terminals on restart, or implement background server (like iTerm2) — defer decision to Phase 6 planning.
-- **Sandbox compatibility:** SwiftTerm uses `forkpty()` which works in non-sandboxed apps. Mac App Store distribution would require rethinking. Currently not a concern (direct distribution).
-- **Session resume reliability:** Claude Code's `-r` flag behavior with stale session IDs needs testing during Phase 6.
+- **Multi-display testing:** Research covers the theory, but actual testing on multi-monitor setups needed during implementation
+- **macOS 15 (Sequoia) monthly prompts:** If Screen Recording permission is eventually needed, UX for recurring prompts needs design consideration
+- **SCContentSharingPicker edge cases:** Limited real-world documentation; may discover nuances during implementation
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- [SwiftTerm GitHub](https://github.com/migueldeicaza/SwiftTerm) — terminal emulation, LocalProcess API
-- [AgentHub GitHub](https://github.com/jamesrochabrun/AgentHub) — production patterns for embedded Claude Code terminals
-- AgentHub source files: `EmbeddedTerminalView.swift`, `TerminalProcessRegistry.swift`, `SafeLocalProcessTerminalView` pattern
+- [ScreenCaptureKit | Apple Developer Documentation](https://developer.apple.com/documentation/screencapturekit/)
+- [SCContentSharingPicker | Apple Developer Documentation](https://developer.apple.com/documentation/screencapturekit/sccontentsharingpicker)
+- [What's new in ScreenCaptureKit - WWDC23](https://developer.apple.com/videos/play/wwdc2023/10136/)
+- [screencapture Man Page - SS64](https://ss64.com/mac/screencapture.html)
+- Existing Dispatch codebase analysis
 
 ### Secondary (MEDIUM confidence)
-- [Apple Developer Forums](https://developer.apple.com/forums/thread/133787) — zombie process handling
-- SwiftTerm LocalProcess documentation — process spawning patterns
+- [A look at ScreenCaptureKit on macOS Sonoma | Nonstrict](https://nonstrict.eu/blog/2023/a-look-at-screencapturekit-on-macos-sonoma/)
+- [CGWindowListCreateImage -> ScreenCaptureKit Migration | Apple Developer Forums](https://developer.apple.com/forums/thread/740493)
+- [CleanShot X Features](https://cleanshot.com/features) — competitive feature reference
+- [Shottr](https://shottr.cc) — developer-focused screenshot tool reference
 
 ### Tertiary (LOW confidence)
-- iTerm2 Session Restoration documentation — background server pattern (deferred consideration)
+- [Deconstructing and Reimplementing macOS' screencapture CLI | Eternal Storms](https://blog.eternalstorms.at/2016/09/10/deconstructing-and-reimplementing-macos-screencapture-cli/)
+- [mac-screen-capture-permissions | GitHub](https://github.com/karaggeorge/mac-screen-capture-permissions)
 
 ---
-*Research completed: 2026-02-07*
+*Research completed: 2026-02-09*
 *Ready for roadmap: yes*
