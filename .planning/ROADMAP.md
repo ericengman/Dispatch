@@ -188,11 +188,11 @@ Plans:
   2. MainView shows embedded terminal panel instead of external window controls
   3. Terminal.app Automation permission is no longer required
   4. QueueItem and Chain execution use embedded sessions exclusively
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 22-01: Replace TerminalService with EmbeddedTerminalService
-- [ ] 22-02: Update UI and remove AppleScript dependencies
+- [ ] 22-01-PLAN.md — Replace TerminalService with embedded-only execution in ExecutionManager
+- [ ] 22-02-PLAN.md — Remove Terminal.app UI controls and AppleEvents permission
 
 ## Progress
 
