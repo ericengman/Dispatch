@@ -14,8 +14,6 @@ struct MultiSessionTerminalView: View {
     var projectPath: String?
 
     // State for persisted session handling
-    @State private var persistedSessions: [TerminalSession] = []
-    @State private var showPersistedSessionsPicker = false
     @State private var hasCheckedForSessions = false
 
     var body: some View {
@@ -50,7 +48,7 @@ struct MultiSessionTerminalView: View {
                 SessionStarterCell(
                     projectPath: projectPath,
                     onNewSession: {
-                        _ = sessionManager.createSession()
+                        _ = sessionManager.createSession(workingDirectory: projectPath)
                     },
                     onResumeSession: { claudeSession in
                         _ = sessionManager.createResumeSession(claudeSession: claudeSession)
@@ -66,18 +64,21 @@ struct MultiSessionTerminalView: View {
             if sessionManager.sessions.isEmpty && !hasCheckedForSessions {
                 hasCheckedForSessions = true
 
-                // First, check for persisted sessions from SwiftData
-                persistedSessions = sessionManager.loadPersistedSessions()
+                // Check for persisted sessions from SwiftData
+                let persistedSessions = sessionManager.loadPersistedSessions()
 
                 if !persistedSessions.isEmpty {
-                    // Has persisted sessions - show picker to resume or start fresh
-                    showPersistedSessionsPicker = true
-                } else {
-                    // No persisted sessions - check Claude Code session files for discovery
-                    Task {
-                        await checkForRecentSessions()
+                    // Auto-resume ALL persisted sessions (preserves terminal count)
+                    // Sessions are sorted by lastActivity (newest first) from loadPersistedSessions
+                    for session in persistedSessions {
+                        if sessionManager.resumePersistedSession(session) {
+                            sessionManager.associateWithProject(session)
+                        }
                     }
+                    // The first (newest) session will already be active from resumePersistedSession
+                    logInfo("Auto-resumed \(persistedSessions.count) persisted session(s)", category: .terminal)
                 }
+                // If no persisted sessions, the empty state (SessionStarterCell) will show
 
                 // Cleanup stale sessions in background
                 Task.detached {
@@ -87,33 +88,6 @@ struct MultiSessionTerminalView: View {
                 }
             }
         }
-        .sheet(isPresented: $showPersistedSessionsPicker) {
-            PersistedSessionPicker(
-                sessions: persistedSessions,
-                onResume: { session in
-                    // Resume the persisted session
-                    if sessionManager.resumePersistedSession(session) {
-                        // Try to associate with project
-                        sessionManager.associateWithProject(session)
-                    }
-                },
-                onStartFresh: {
-                    // User wants fresh session - create new one
-                    _ = sessionManager.createSession()
-                },
-                onDismiss: {
-                    // User dismissed without choice - create fresh session
-                    if sessionManager.sessions.isEmpty {
-                        _ = sessionManager.createSession()
-                    }
-                }
-            )
-        }
-    }
-
-    private func checkForRecentSessions() async {
-        // Existing SessionStarterCell handles Claude Code session discovery
-        // This function is for future direct discovery from MultiSessionTerminalView if needed
     }
 
     @ViewBuilder
@@ -203,115 +177,6 @@ struct MultiSessionTerminalView: View {
             let paneHeight = (available - 8) / 2
             return index == 0 ? paneHeight / 2 : available - paneHeight / 2
         }
-    }
-}
-
-// MARK: - Persisted Session Picker
-
-private struct PersistedSessionPicker: View {
-    let sessions: [TerminalSession]
-    let onResume: (TerminalSession) -> Void
-    let onStartFresh: () -> Void
-    let onDismiss: () -> Void
-
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        VStack(spacing: 0) {
-            // Header
-            HStack {
-                Text("Resume Previous Session")
-                    .font(.headline)
-                Spacer()
-                Button("Cancel") {
-                    onDismiss()
-                    dismiss()
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(.secondary)
-            }
-            .padding()
-
-            Divider()
-
-            if sessions.isEmpty {
-                ContentUnavailableView(
-                    "No Previous Sessions",
-                    systemImage: "clock.arrow.circlepath",
-                    description: Text("No sessions found to resume")
-                )
-                .frame(minHeight: 200)
-            } else {
-                ScrollView {
-                    LazyVStack(spacing: 8) {
-                        ForEach(sessions) { session in
-                            PersistedSessionRow(session: session) {
-                                onResume(session)
-                                dismiss()
-                            }
-                        }
-                    }
-                    .padding()
-                }
-                .frame(maxHeight: 300)
-            }
-
-            Divider()
-
-            HStack {
-                Spacer()
-                Button("Start Fresh Session") {
-                    onStartFresh()
-                    dismiss()
-                }
-                .buttonStyle(.borderedProminent)
-            }
-            .padding()
-        }
-        .frame(width: 450)
-    }
-}
-
-private struct PersistedSessionRow: View {
-    let session: TerminalSession
-    let onTap: () -> Void
-
-    var body: some View {
-        Button(action: onTap) {
-            HStack(spacing: 12) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(session.name)
-                        .font(.body)
-                        .foregroundStyle(.primary)
-
-                    HStack(spacing: 8) {
-                        if session.isResumable {
-                            Label("Resumable", systemImage: "arrow.clockwise")
-                                .font(.caption)
-                                .foregroundStyle(.green)
-                        }
-
-                        Text(session.relativeLastActivity)
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
-                    }
-                }
-
-                Spacer()
-
-                Image(systemName: "arrow.right.circle")
-                    .foregroundStyle(.secondary)
-                    .imageScale(.large)
-            }
-            .padding(10)
-            .background(Color(nsColor: .controlBackgroundColor))
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
-            )
-        }
-        .buttonStyle(.plain)
     }
 }
 

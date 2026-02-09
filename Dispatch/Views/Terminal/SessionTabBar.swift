@@ -11,6 +11,7 @@ struct SessionTabBar: View {
     @State private var sessionManager = TerminalSessionManager.shared
     @State private var showResumePicker = false
     @State private var recentSessions: [ClaudeCodeSession] = []
+    @State private var availableSessions: [ClaudeCodeSession] = []
 
     // Project path for session discovery (defaults to current directory)
     var projectPath: String?
@@ -22,12 +23,57 @@ struct SessionTabBar: View {
                 SessionTab(session: session)
             }
 
+            // Session switcher - shows available Claude sessions not currently open
+            if !availableSessions.isEmpty && sessionManager.canCreateSession {
+                Menu {
+                    ForEach(availableSessions.prefix(5)) { session in
+                        Button {
+                            _ = sessionManager.createResumeSession(claudeSession: session)
+                            // Refresh available sessions
+                            Task { await loadAvailableSessions() }
+                        } label: {
+                            VStack(alignment: .leading) {
+                                Text(session.displayPrompt)
+                                Text("\(session.messageCount) msgs • \(session.relativeModified)")
+                                    .font(.caption)
+                            }
+                        }
+                    }
+
+                    if availableSessions.count > 5 {
+                        Divider()
+                        Button("Show All...") {
+                            Task {
+                                await loadRecentSessions()
+                                showResumePicker = true
+                            }
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 2) {
+                        Image(systemName: "clock.arrow.circlepath")
+                            .font(.caption2)
+                        Text("\(availableSessions.count)")
+                            .font(.caption2)
+                    }
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Color.accentColor.opacity(0.1))
+                    .clipShape(Capsule())
+                }
+                .menuStyle(.borderlessButton)
+                .menuIndicator(.hidden)
+                .fixedSize()
+                .help("Resume another session")
+            }
+
             Spacer()
 
             // New session menu
             Menu {
                 Button("New Session", systemImage: "plus") {
-                    _ = sessionManager.createSession()
+                    _ = sessionManager.createSession(workingDirectory: projectPath)
                 }
 
                 Divider()
@@ -53,13 +99,18 @@ struct SessionTabBar: View {
         }
         .frame(height: 28)
         .background(Color(nsColor: .controlBackgroundColor))
+        .task {
+            await loadAvailableSessions()
+        }
         .sheet(isPresented: $showResumePicker) {
             SessionResumePicker(sessions: recentSessions) { selectedSession in
                 if let session = selectedSession {
                     _ = sessionManager.createResumeSession(claudeSession: session)
                 } else {
-                    _ = sessionManager.createSession()
+                    _ = sessionManager.createSession(workingDirectory: projectPath)
                 }
+                // Refresh available sessions
+                Task { await loadAvailableSessions() }
             }
         }
     }
@@ -67,6 +118,23 @@ struct SessionTabBar: View {
     private func loadRecentSessions() async {
         let path = projectPath ?? FileManager.default.currentDirectoryPath
         recentSessions = await ClaudeSessionDiscoveryService.shared.getRecentSessions(for: path)
+    }
+
+    /// Load available Claude sessions that are NOT currently open as terminals
+    private func loadAvailableSessions() async {
+        let path = projectPath ?? FileManager.default.currentDirectoryPath
+        let allSessions = await ClaudeSessionDiscoveryService.shared.getRecentSessions(
+            for: path,
+            maxCount: 10,
+            withinHours: 168 // 1 week
+        )
+
+        // Filter out sessions that are already open
+        let openSessionIds = Set(sessionManager.sessions.compactMap { $0.claudeSessionId })
+
+        await MainActor.run {
+            availableSessions = allSessions.filter { !openSessionIds.contains($0.sessionId) }
+        }
     }
 }
 

@@ -88,12 +88,12 @@ class ClaudeCodeLauncher {
     /// Launch Claude Code in the given terminal
     /// - Parameters:
     ///   - terminal: The terminal view to launch Claude Code in
-    ///   - workingDirectory: Optional working directory (currently unused, for future)
+    ///   - workingDirectory: Optional working directory for the terminal process
     ///   - skipPermissions: Whether to pass --dangerously-skip-permissions flag
     ///   - resumeSessionId: Optional session ID to resume (uses --resume flag)
     func launchClaudeCode(
         in terminal: LocalProcessTerminalView,
-        workingDirectory _: String? = nil,
+        workingDirectory: String? = nil,
         skipPermissions: Bool = true,
         resumeSessionId: String? = nil
     ) {
@@ -112,13 +112,14 @@ class ClaudeCodeLauncher {
             logInfo("Resuming session: \(sessionId)", category: .terminal)
         }
 
-        logInfo("Launching Claude Code with args: \(args)", category: .terminal)
+        logInfo("Launching Claude Code with args: \(args), workingDirectory: \(workingDirectory ?? "nil")", category: .terminal)
 
         terminal.startProcess(
             executable: claudePath,
             args: args,
             environment: environment,
-            execName: "claude"
+            execName: "claude",
+            currentDirectory: workingDirectory
         )
 
         // Register PID for lifecycle tracking

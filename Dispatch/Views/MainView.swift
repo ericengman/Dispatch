@@ -77,6 +77,16 @@ struct MainView: View {
         selectedSkill != nil || selectedClaudeFile != nil || selectedRun != nil
     }
 
+    /// Path of the currently selected project (nil if no project selected)
+    private var selectedProjectPath: String? {
+        guard let projectId = selection?.projectId,
+              let project = projectVM.projects.first(where: { $0.id == projectId })
+        else {
+            return nil
+        }
+        return project.path
+    }
+
     // MARK: - View Models
 
     @StateObject private var projectVM = ProjectViewModel.shared
@@ -102,7 +112,7 @@ struct MainView: View {
 
                         // Multi-session terminal panel
                         // Use smaller minWidth when empty to prevent squashing skills panel
-                        MultiSessionTerminalView()
+                        MultiSessionTerminalView(projectPath: selectedProjectPath)
                             .frame(minWidth: sessionManager.sessions.isEmpty ? 250 : 400)
                     }
                     .frame(maxHeight: .infinity)
@@ -253,7 +263,7 @@ struct MainView: View {
             // New session shortcut (only when terminal visible)
             if showTerminal {
                 Button {
-                    _ = TerminalSessionManager.shared.createSession()
+                    _ = TerminalSessionManager.shared.createSession(workingDirectory: selectedProjectPath)
                 } label: {
                     Label("New Session", systemImage: "plus.rectangle")
                 }

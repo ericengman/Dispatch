@@ -1,6 +1,7 @@
 // TerminalSessionManager.swift
 // Manages collection of terminal sessions, active session, and layout mode
 
+import AppKit
 import Foundation
 import SwiftData
 import SwiftTerm
@@ -47,7 +48,7 @@ final class TerminalSessionManager {
     }
 
     @discardableResult
-    func createSession(name: String? = nil) -> TerminalSession? {
+    func createSession(name: String? = nil, workingDirectory: String? = nil) -> TerminalSession? {
         guard canCreateSession else {
             logWarning("Cannot create session: max limit (\(maxSessions)) reached", category: .terminal)
             return nil
@@ -55,7 +56,7 @@ final class TerminalSessionManager {
 
         let sessionName = name ?? "Session \(nextSessionNumber)"
         nextSessionNumber += 1
-        let session = TerminalSession(name: sessionName)
+        let session = TerminalSession(name: sessionName, workingDirectory: workingDirectory)
         session.lastActivity = Date()
         sessions.append(session)
 
@@ -161,6 +162,9 @@ final class TerminalSessionManager {
         }
         activeSessionId = sessionId
         logDebug("Active session set to: \(sessionId)", category: .terminal)
+
+        // Focus the terminal for immediate keyboard input
+        focusTerminal(sessionId)
     }
 
     func toggleLayoutMode() {
@@ -190,6 +194,26 @@ final class TerminalSessionManager {
     func setTerminal(_ terminal: LocalProcessTerminalView, for sessionId: UUID) {
         terminals[sessionId] = terminal
         logDebug("Set terminal for session: \(sessionId)", category: .terminal)
+
+        // Auto-focus the terminal if this is the active session
+        if sessionId == activeSessionId {
+            // Delay slightly to ensure view is in window hierarchy
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+                self?.focusTerminal(sessionId)
+            }
+        }
+    }
+
+    /// Focus the terminal for the given session, making it the first responder
+    func focusTerminal(_ sessionId: UUID) {
+        guard let terminal = terminals[sessionId] else {
+            logDebug("Cannot focus terminal: not found for session \(sessionId)", category: .terminal)
+            return
+        }
+
+        // Use SwiftTerm's makeFirstResponder method
+        terminal.window?.makeFirstResponder(terminal)
+        logDebug("Focused terminal for session: \(sessionId)", category: .terminal)
     }
 
     func coordinator(for sessionId: UUID) -> EmbeddedTerminalView.Coordinator? {
