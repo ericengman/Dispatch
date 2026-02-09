@@ -290,22 +290,25 @@ struct RunDetailView: View {
         let success = await annotationVM.copyToClipboard()
 
         if success {
-            do {
-                // Paste images first, then send prompt
-                try await TerminalService.shared.pasteFromClipboard()
-
-                // Small delay to ensure paste completes before typing
-                try await Task.sleep(nanoseconds: 200_000_000) // 200ms
-
-                try await TerminalService.shared.sendTextToActiveWindow(prompt)
-
-                // Clear state on success
-                annotationVM.handleDispatchComplete()
-
-                logInfo("Dispatched \(imageCount) images with prompt", category: .simulator)
-            } catch {
-                error.log(category: .simulator, context: "Failed to dispatch images")
+            // Dispatch prompt text to embedded terminal
+            let embeddedService = EmbeddedTerminalService.shared
+            guard embeddedService.isAvailable else {
+                logError("No embedded terminal available", category: .simulator)
+                return
             }
+
+            let dispatched = embeddedService.dispatchPrompt(prompt)
+            guard dispatched else {
+                logError("Failed to dispatch to embedded terminal", category: .simulator)
+                return
+            }
+
+            // Clear state on success
+            annotationVM.handleDispatchComplete()
+
+            logInfo("Dispatched prompt with \(imageCount) images in clipboard (paste with Cmd+V)", category: .simulator)
+        } else {
+            logError("Failed to copy images to clipboard", category: .simulator)
         }
     }
 
