@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-02-09)
 
 ## Current Position
 
-Phase: 24 of 27 (Window Capture)
-Plan: 1 of 1 in current phase
-Status: Phase complete
-Last activity: 2026-02-09 — Completed 24-01-PLAN.md
+Phase: 25 of 27 (Annotation Integration)
+Plan: 1 of 2 in current phase
+Status: In progress
+Last activity: 2026-02-09 — Completed 25-01-PLAN.md
 
-Progress: [####################] v2.0 complete | [█████░░░░░░░░░░░░░░░] 25% v3.0
+Progress: [####################] v2.0 complete | [██████░░░░░░░░░░░░░░] 30% v3.0
 
 ## Performance Metrics
 
@@ -25,7 +25,7 @@ Progress: [####################] v2.0 complete | [█████░░░░░
 - Timeline: 3 days (Feb 7-9, 2026)
 
 **v3.0:**
-- Total plans completed: 2
+- Total plans completed: 3
 - Average duration: ~3m per plan
 - Phases: 5 (23-27)
 - Requirements: 11
@@ -45,6 +45,9 @@ Recent decisions affecting current work:
 - Floating control panel with Cancel/Capture buttons for user-controlled timing [24-01]
 - Filter out Dock, SystemUI, invisible windows from detection [24-01]
 - Reuse existing AnnotationCanvasView and annotation infrastructure
+- Use static cache for QuickCapture images to avoid SwiftData persistence [25-01]
+- Value-based WindowGroup allows multiple annotation windows simultaneously [25-01]
+- CaptureCoordinator uses @Published pendingCapture for MainView observation [25-01]
 
 ### Pending Todos
 
@@ -64,9 +67,9 @@ From v2.0 (non-blocking tech debt):
 ## Session Continuity
 
 Last session: 2026-02-09
-Stopped at: Phase 24 complete, ready for Phase 25
+Stopped at: Completed 25-01-PLAN.md
 Resume file: None
 
 ---
 
-**Next step:** `/gsd:plan-phase 25` to plan Annotation Editor phase
+**Next step:** `/gsd:execute-plan 25-02` to implement session dispatch
