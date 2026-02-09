@@ -1,0 +1,79 @@
+# Requirements: Dispatch
+
+**Defined:** 2026-02-09
+**Core Value:** Users can dispatch prompts (including annotated screenshots) to Claude Code with zero friction
+
+## v3.0 Requirements
+
+Requirements for Screenshot Capture milestone. Each maps to roadmap phases.
+
+### Capture Modes
+
+- [ ] **CAPT-01**: User can invoke cross-hair region selection via native macOS screencapture
+- [ ] **CAPT-02**: User can select and capture any window via system picker (SCContentSharingPicker)
+- [ ] **CAPT-03**: User sees iOS Simulator windows prominently listed for quick capture
+- [ ] **CAPT-04**: User can re-capture recently captured windows from MRU list
+
+### Annotation Pipeline
+
+- [ ] **ANNOT-01**: Captured screenshot opens directly in annotation UI for markup
+- [ ] **ANNOT-02**: User can queue multiple screenshots before dispatching
+- [ ] **ANNOT-03**: User can select which Claude session receives the dispatched screenshot
+
+### UI Integration
+
+- [ ] **UI-01**: Quick Capture section appears in sidebar with capture action buttons
+- [ ] **UI-02**: User can trigger capture modes via keyboard shortcuts
+- [ ] **UI-03**: User sees live thumbnail previews of capturable windows in picker
+- [ ] **UI-04**: User sees recent captures strip showing last few captures in sidebar
+
+## Future Requirements
+
+Deferred to post-v3.0 release. Tracked but not in current roadmap.
+
+### Polish
+
+- **POLISH-01**: Timer/delayed capture (3-5 second countdown)
+- **POLISH-02**: Quick capture mode (skip annotation, direct to clipboard/dispatch)
+- **POLISH-03**: Fullscreen display capture
+
+## Out of Scope
+
+Explicitly excluded. Documented to prevent scope creep.
+
+| Feature | Reason |
+|---------|--------|
+| OCR/text extraction | Claude IS the OCR - sending screenshot to Claude extracts text better than local OCR |
+| Video/GIF recording | Scope creep - Dispatch is for static screenshots to Claude |
+| Scrolling capture | High complexity - Claude can handle multiple screenshots |
+| Cloud upload/sharing | Dispatch sends to Claude, not to the internet - privacy concern |
+| Background beautification | Screenshots are for debugging/development, not social media |
+| Color picker/measurements | Designer tools, not debugging tools - use Shottr for this |
+| Custom cross-hair selection UI | Native screencapture -i provides this for free with perfect UX |
+
+## Traceability
+
+Which phases cover which requirements. Updated during roadmap creation.
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| CAPT-01 | TBD | Pending |
+| CAPT-02 | TBD | Pending |
+| CAPT-03 | TBD | Pending |
+| CAPT-04 | TBD | Pending |
+| ANNOT-01 | TBD | Pending |
+| ANNOT-02 | TBD | Pending |
+| ANNOT-03 | TBD | Pending |
+| UI-01 | TBD | Pending |
+| UI-02 | TBD | Pending |
+| UI-03 | TBD | Pending |
+| UI-04 | TBD | Pending |
+
+**Coverage:**
+- v3.0 requirements: 11 total
+- Mapped to phases: 0
+- Unmapped: 11 (pending roadmap creation)
+
+---
+*Requirements defined: 2026-02-09*
+*Last updated: 2026-02-09 after initial definition*
