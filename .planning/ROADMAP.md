@@ -54,7 +54,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 18: Multi-Session UI** - Support multiple simultaneous terminal sessions with split panes
 - [x] **Phase 19: Session Persistence** - Save and resume sessions across app restarts
 - [x] **Phase 20: Service Integration** - Wire embedded terminals to queue and chain execution
-- [ ] **Phase 21: Status Display** - Parse JSONL for rich status and context window visualization
+- [x] **Phase 21: Status Display** - Parse JSONL for rich status and context window visualization
 - [ ] **Phase 22: Migration & Cleanup** - Remove Terminal.app dependency and AppleScript code
 
 ## Phase Details
@@ -177,7 +177,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 21-01-PLAN.md — Parse JSONL session files and display status/context usage
+- [x] 21-01-PLAN.md — Parse JSONL session files and display status/context usage
 
 ### Phase 22: Migration & Cleanup
 **Goal**: Terminal.app dependency fully removed, clean codebase
@@ -215,5 +215,5 @@ Phases execute in numeric order: 14 -> 14.1 -> 14.2 -> 15 -> ...
 | 18. Multi-Session UI | v2.0 | 2/2 | Complete | 2026-02-08 |
 | 19. Session Persistence | v2.0 | 2/2 | Complete | 2026-02-08 |
 | 20. Service Integration | v2.0 | 2/2 | Complete | 2026-02-08 |
-| 21. Status Display | v2.0 | 0/1 | Not started | - |
+| 21. Status Display | v2.0 | 1/1 | Complete | 2026-02-08 |
 | 22. Migration & Cleanup | v2.0 | 0/2 | Not started | - |

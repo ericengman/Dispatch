@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-07)
 
 **Core value:** Users can dispatch prompts to Claude Code with zero friction via embedded terminal sessions
-**Current focus:** Phase 21 complete — ready for Phase 22 (Refinements)
+**Current focus:** Phase 21 complete — ready for Phase 22 (Migration & Cleanup)
 
 ## Current Position
 
-Phase: 21 of 22 (Status Display)
-Plan: 1 of 1 in current phase
-Status: Phase complete
-Last activity: 2026-02-09 — Completed 21-01-PLAN.md
+Phase: 22 of 22 (Migration & Cleanup)
+Plan: 0 of TBD in current phase
+Status: Ready to plan
+Last activity: 2026-02-08 — Completed Phase 21 (Status Display)
 
-Progress: [######################] 100% (26/26 v2.0 phases complete)
+Progress: [####################] 96% (8/9 v2.0 phases complete)
 
 ## Performance Metrics
 
