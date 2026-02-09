@@ -71,6 +71,7 @@ enum LogCategory: String, CaseIterable, Sendable {
     case execution = "EXECUTION" // Execution state machine
     case network = "NETWORK" // Network operations (hook server)
     case simulator = "SIMULATOR" // Simulator screenshot operations
+    case status = "STATUS" // Session status monitoring
 
     var osLog: OSLog {
         OSLog(subsystem: "com.Eric.Dispatch", category: rawValue)
