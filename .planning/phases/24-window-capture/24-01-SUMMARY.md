@@ -2,122 +2,138 @@
 phase: 24-window-capture
 plan: 01
 subsystem: ui
-tags: [screencapture, screenkit, macos, picker, window-capture]
+tags: [screencapture, macos, window-capture, custom-ui]
 
 # Dependency graph
 requires:
   - phase: 23-region-capture
     provides: ScreenshotCaptureService with QuickCaptures directory structure
 provides:
-  - Window capture via SCContentSharingPicker (system UI)
-  - captureWindow() method in ScreenshotCaptureService
+  - Interactive window capture with hover-highlight and control panel
+  - WindowCaptureSession for managing capture flow
   - Capture Window menu item with Cmd+Shift+7 keyboard shortcut
 affects: [25-annotation-editor, capture-workflow]
 
 # Tech tracking
 tech-stack:
-  added: [ScreenCaptureKit.SCContentSharingPicker, SCScreenshotManager]
-  patterns: [SCContentSharingPickerObserver protocol, continuation-based async callbacks]
+  added: [CGWindowListCopyWindowInfo, NSPanel for control UI]
+  patterns: [Custom capture session, hover-to-highlight, floating control panel]
 
 key-files:
-  created: []
+  created:
+    - Dispatch/Services/WindowCaptureSession.swift
   modified:
     - Dispatch/Services/ScreenshotCaptureService.swift
     - Dispatch/DispatchApp.swift
 
 key-decisions:
-  - "Use SCContentSharingPicker for window selection (no Screen Recording permission required)"
-  - "Inherit from NSObject to conform to SCContentSharingPickerObserver protocol"
-  - "Use continuation pattern to bridge observer callbacks to async/await"
+  - "Use custom WindowCaptureSession instead of SCContentSharingPicker for better UX"
+  - "Hover to highlight windows, click to select, then capture when ready"
+  - "Floating control panel with Cancel/Capture buttons"
+  - "Filter out Dock, SystemUI, invisible windows from detection"
 
 patterns-established:
-  - "Observer protocol conformance for system picker callbacks"
-  - "Continuation-based bridging for non-async callback APIs"
+  - "Interactive capture sessions with user-controlled timing"
+  - "CGWindowListCopyWindowInfo for window enumeration"
+  - "Floating NSPanel for capture controls"
 
 # Metrics
-duration: 3min
+duration: 15min
 completed: 2026-02-09
 ---
 
 # Phase 24 Plan 01: Window Capture Summary
 
-**System picker-based window capture with SCScreenshotManager, saving PNG to QuickCaptures without Screen Recording permission**
+**Interactive window capture with hover-highlight, click-to-select, and floating control panel**
 
 ## Performance
 
-- **Duration:** 3 min
-- **Started:** 2026-02-09T19:56:07Z
-- **Completed:** 2026-02-09T19:59:14Z
-- **Tasks:** 2
+- **Duration:** 15 min (including UX iterations)
+- **Started:** 2026-02-09
+- **Completed:** 2026-02-09
+- **Tasks:** 2 + UX refinements
+- **Files created:** 1
 - **Files modified:** 2
 
 ## Accomplishments
-- System window picker integration via SCContentSharingPicker
-- Window capture as CGImage using SCScreenshotManager
-- PNG conversion and save to QuickCaptures directory
+- Custom WindowCaptureSession for interactive capture flow
+- Hover over windows to highlight with blue border
+- Click to select window (doesn't capture immediately)
+- Floating control panel with styled Cancel/Capture buttons
+- User can interact with selected window before capturing
+- Window filtering (excludes Dock, SystemUI, invisible windows)
+- PNG saved to QuickCaptures directory
 - Keyboard shortcut Cmd+Shift+7 for quick access
 
 ## Task Commits
 
-Each task was committed atomically:
-
-1. **Task 1: Add window capture to ScreenshotCaptureService** - `5f35314` (feat)
-2. **Task 2: Add window capture menu item** - `73b6a79` (feat)
+1. **Initial SCContentSharingPicker implementation** - `5f35314`, `73b6a79`, `71f4ace`
+2. **Switch to native screencapture -iW** - `1f67ec7`
+3. **Custom WindowCaptureSession with control panel** - `714d8b1`
 
 ## Files Created/Modified
-- `Dispatch/Services/ScreenshotCaptureService.swift` - Added captureWindow() method, SCContentSharingPickerObserver protocol conformance, NSObject inheritance, CGImage to PNG conversion
-- `Dispatch/DispatchApp.swift` - Added "Capture Window" menu item with Cmd+Shift+7 shortcut
+- `Dispatch/Services/WindowCaptureSession.swift` (NEW) - Interactive capture session with:
+  - Mouse tracking for hover-to-highlight
+  - CGWindowListCopyWindowInfo for window detection
+  - Highlight overlay window (blue border)
+  - Floating control panel with styled buttons
+  - screencapture -l for window-specific capture
+- `Dispatch/Services/ScreenshotCaptureService.swift` - Simplified to delegate to WindowCaptureSession
+- `Dispatch/DispatchApp.swift` - Capture Window menu item with Cmd+Shift+7
 
 ## Decisions Made
 
-**1. Use NSObject inheritance for observer protocol**
-- SCContentSharingPickerObserver requires NSObjectProtocol conformance
-- Class now inherits from NSObject with override init()
+**1. Custom UI over system picker**
+- SCContentSharingPicker (screen share picker) had wrong UX for screenshots
+- User wanted to interact with window before capture
+- Custom solution provides better control
 
-**2. Simplified picker configuration**
-- excludedBundleIDs and allowsRepicking properties not available in current SDK
-- Minimal configuration: only set isActive = true before presenting
+**2. Hover-highlight with click-to-select**
+- Hover highlights windows (like native screencapture)
+- Click SELECTS but doesn't capture
+- User can then prepare the window state
+- Capture button triggers actual screenshot
 
-**3. Continuation pattern for async bridging**
-- SCContentSharingPickerObserver callbacks are not async
-- Used CheckedContinuation to bridge to async/await pattern
-- Task { @MainActor } wrappers for main actor isolation
+**3. Blue-styled floating controls**
+- Transparent background
+- Blue outlined Cancel button
+- Blue filled Capture button
+- Matches highlight border color
+
+**4. Window filtering**
+- Only layer 0 (normal windows)
+- Skip Dock, Window Server, SystemUIServer
+- Skip invisible windows (alpha < 0.1)
 
 ## Deviations from Plan
 
-### Auto-fixed Issues
+### Significant Changes
 
-**1. [Rule 3 - Blocking] Fixed actor isolation for logging in observer methods**
-- **Found during:** Task 1 (ScreenshotCaptureService implementation)
-- **Issue:** nonisolated observer methods calling @MainActor logging functions synchronously
-- **Fix:** Wrapped all logging calls in `Task { @MainActor }` blocks
-- **Files modified:** Dispatch/Services/ScreenshotCaptureService.swift
-- **Verification:** Build succeeded with no actor isolation warnings
-- **Committed in:** 5f35314 (Task 1 commit)
+**1. [User feedback] Replaced SCContentSharingPicker with custom solution**
+- **Issue:** Screen share picker UX not suitable for screenshot workflow
+- **Fix:** Created WindowCaptureSession with hover-highlight and control panel
+- **Impact:** Better UX, user can interact with window before capture
 
-**2. [Rule 3 - Blocking] Removed unavailable SCContentSharingPicker properties**
-- **Found during:** Task 1 (Build phase)
-- **Issue:** excludedBundleIDs and allowsRepicking properties not available in SDK
-- **Fix:** Removed configuration lines, kept only isActive = true
-- **Files modified:** Dispatch/Services/ScreenshotCaptureService.swift
-- **Verification:** Build succeeded
-- **Committed in:** 5f35314 (Task 1 commit)
+**2. [User feedback] Replaced screencapture -iW with custom hover UI**
+- **Issue:** Native -iW captures immediately on click
+- **Fix:** Custom solution with select-then-capture flow
+- **Impact:** User can prepare window state before capturing
 
 ---
 
-**Total deviations:** 2 auto-fixed (2 blocking)
-**Impact on plan:** Both auto-fixes necessary for compilation. No scope changes.
+**Total deviations:** 2 major (both user-requested UX improvements)
+**Impact on plan:** Significantly better UX than original plan
 
 ## Issues Encountered
-None - plan executed smoothly after API adjustments.
+None after final implementation.
 
 ## User Setup Required
 None - no external service configuration required.
 
 ## Next Phase Readiness
-- Window capture functional and saving to QuickCaptures
+- Window capture functional with excellent UX
+- Images saved to QuickCaptures directory
 - Ready for annotation editor integration (Phase 25)
-- Captured images accessible for annotation workflow
 
 ---
 *Phase: 24-window-capture*

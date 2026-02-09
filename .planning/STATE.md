@@ -41,8 +41,9 @@ Key decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 - Use `screencapture -i` for region capture (native, zero custom UI) [23-01]
 - Store captures in QuickCaptures directory in Application Support [23-01]
-- Use `SCContentSharingPicker` for window capture (no Screen Recording permission) [24-01]
-- Use continuation pattern to bridge observer callbacks to async/await [24-01]
+- Use custom WindowCaptureSession for window capture (hover-highlight, click-to-select) [24-01]
+- Floating control panel with Cancel/Capture buttons for user-controlled timing [24-01]
+- Filter out Dock, SystemUI, invisible windows from detection [24-01]
 - Reuse existing AnnotationCanvasView and annotation infrastructure
 
 ### Pending Todos
