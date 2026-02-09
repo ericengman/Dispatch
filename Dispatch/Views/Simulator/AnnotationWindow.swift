@@ -134,11 +134,8 @@ struct AnnotationWindowContent: View {
             Button("OK", role: .cancel) {
                 dispatchError = nil
             }
-            Button("Open Settings") {
-                openTerminalSettings()
-            }
         } message: {
-            Text(dispatchError ?? "Failed to send to Terminal. Check automation permissions.")
+            Text(dispatchError ?? "Failed to dispatch to embedded terminal.")
         }
         .onAppear {
             setupInitialState()
@@ -381,56 +378,30 @@ struct AnnotationWindowContent: View {
         let success = await annotationVM.copyToClipboard()
 
         if success {
-            do {
-                // Paste images first, then send prompt
-                try await TerminalService.shared.pasteFromClipboard()
-
-                // Small delay to ensure paste completes before typing
-                try await Task.sleep(nanoseconds: 200_000_000) // 200ms
-
-                try await TerminalService.shared.sendTextToActiveWindow(prompt)
-
-                // Clear state on success
-                annotationVM.handleDispatchComplete()
-
-                logInfo("Dispatched \(imageCount) images with prompt", category: .simulator)
-            } catch let error as TerminalServiceError {
-                // Handle specific Terminal errors with helpful messages
-                handleDispatchError(error)
-            } catch {
-                // Generic error
-                dispatchError = error.localizedDescription
+            // Dispatch prompt text to embedded terminal
+            let embeddedService = EmbeddedTerminalService.shared
+            guard embeddedService.isAvailable else {
+                dispatchError = "No embedded terminal available. Open a terminal session first."
                 showingDispatchError = true
-                error.log(category: .simulator, context: "Failed to dispatch images")
+                return
             }
+
+            let dispatched = embeddedService.dispatchPrompt(prompt)
+            guard dispatched else {
+                dispatchError = "Failed to dispatch to embedded terminal."
+                showingDispatchError = true
+                return
+            }
+
+            // Clear state on success
+            annotationVM.handleDispatchComplete()
+
+            logInfo("Dispatched prompt with \(imageCount) images in clipboard (paste with Cmd+V)", category: .simulator)
         } else {
             // Clipboard copy failure
             dispatchError = "Failed to copy images to clipboard. Check available memory."
             showingDispatchError = true
             logError("Failed to copy images to clipboard", category: .simulator)
-        }
-    }
-
-    private func handleDispatchError(_ error: TerminalServiceError) {
-        switch error {
-        case .permissionDenied:
-            dispatchError = "Terminal automation permission denied. Grant access in System Settings > Privacy & Security > Automation."
-        case .accessibilityPermissionDenied:
-            dispatchError = "Accessibility permission denied. Grant access in System Settings > Privacy & Security > Accessibility."
-        case .terminalNotRunning:
-            dispatchError = "Terminal.app is not running. Launch Terminal and try again."
-        case .noWindowsOpen:
-            dispatchError = "No Terminal windows are open. Open a Terminal window and try again."
-        default:
-            dispatchError = error.localizedDescription
-        }
-        showingDispatchError = true
-        error.log(category: .simulator, context: "Dispatch failed")
-    }
-
-    private func openTerminalSettings() {
-        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Automation") {
-            NSWorkspace.shared.open(url)
         }
     }
 
