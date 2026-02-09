@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-07)
 
 **Core value:** Users can dispatch prompts to Claude Code with zero friction via embedded terminal sessions
-**Current focus:** Phase 20 complete — ready for Phase 21 (Status Display)
+**Current focus:** Phase 21 complete — ready for Phase 22 (Refinements)
 
 ## Current Position
 
 Phase: 21 of 22 (Status Display)
-Plan: 0 of 1 in current phase
-Status: Ready to plan
-Last activity: 2026-02-08 — Completed Phase 20 (Service Integration)
+Plan: 1 of 1 in current phase
+Status: Phase complete
+Last activity: 2026-02-09 — Completed 21-01-PLAN.md
 
-Progress: [####################] 99% (25/26 v2.0 phases complete)
+Progress: [######################] 100% (26/26 v2.0 phases complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 26 (12 v1.1, 14 v2.0)
+- Total plans completed: 27 (12 v1.1, 15 v2.0)
 - Average duration: 3.0m
-- Total execution time: 76.8m
+- Total execution time: 80.2m
 
 **By Phase:**
 
@@ -40,10 +40,11 @@ Progress: [####################] 99% (25/26 v2.0 phases complete)
 | 18 | 2 | 5m | 2.5m |
 | 19 | 2 | 7.9m | 4.0m |
 | 20 | 2 | 3.9m | 2.0m |
+| 21 | 1 | 3.4m | 3.4m |
 
 **Recent Trend:**
-- Last 5 plans: 19-01 (4.6m), 19-02 (3.3m), 20-01 (2.2m), 20-02 (1.7m)
-- Trend: Service integration averaging 2.0m per plan (logging/verification work)
+- Last 5 plans: 19-02 (3.3m), 20-01 (2.2m), 20-02 (1.7m), 21-01 (3.4m)
+- Trend: Status display plan average (file monitoring + UI work)
 
 *Updated after each plan completion*
 
@@ -103,6 +104,10 @@ Recent decisions affecting current work:
 - [20-01]: Hook completion validates executingSessionId to prevent cross-session confusion
 - [20-02]: Tracing logs at execution boundaries (queue/chain → ExecutionManager)
 - [20-02]: Info-level logs for execution flow visibility (not debug level)
+- [21-01]: DispatchSource.FileSystemObject for JSONL file monitoring (event-driven)
+- [21-01]: Tail-reading pattern with lastOffset tracking for incremental parsing
+- [21-01]: Status shown only when not idle to reduce visual noise
+- [21-01]: Remove deinit from MainActor class - rely on cancel handler for cleanup
 
 ### Pending Todos
 
@@ -116,9 +121,10 @@ None.
 
 - 20 skills still use hardcoded `/tmp` paths instead of Dispatch library
 - Phase 11 migrated only 4 skills; remaining skills need migration for complete integration
+- Status monitoring only starts for resumed sessions (not new sessions until they get claudeSessionId)
 
 ## Session Continuity
 
 Last session: 2026-02-09
-Stopped at: Completed 20-02-PLAN.md (Phase 20 complete)
+Stopped at: Completed 21-01-PLAN.md (Phase 21 complete)
 Resume file: None
