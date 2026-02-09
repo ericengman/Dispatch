@@ -34,23 +34,29 @@
 
 ---
 
-## v2.0 — In-App Claude Code (Current)
+## v2.0 — In-App Claude Code (Shipped: 2026-02-09)
 
-**Goal:** Replace Terminal.app with embedded terminal sessions
+**Delivered:** Embedded terminal sessions fully replace Terminal.app, enabling Claude Code management entirely within Dispatch.
 
-**Phases:** 14-22
+**Phases completed:** 14-22 (22 plans total)
 
-**Planned:**
-- Phase 14: SwiftTerm Integration (TERM-01, TERM-02)
-- Phase 15: Safe Terminal Wrapper (TERM-03)
-- Phase 16: Process Lifecycle (PROC-01 through PROC-05)
-- Phase 17: Claude Code Integration (TERM-04, TERM-05, TERM-06)
-- Phase 18: Multi-Session UI (SESS-01 through SESS-06)
-- Phase 19: Session Persistence (PERS-01 through PERS-05)
-- Phase 20: Service Integration (INTG-01 through INTG-05)
-- Phase 21: Status Display (TERM-07, TERM-08)
-- Phase 22: Migration & Cleanup (MIGR-01 through MIGR-04)
+**Key accomplishments:**
+- SwiftTerm integration with PTY support replaces Terminal.app dependency
+- Multi-session management (up to 4 concurrent sessions with tab bar and split panes)
+- Session persistence across app restarts with automatic resume
+- Process lifecycle with PID tracking, orphan cleanup, and graceful termination
+- Service integration wires queue/chain execution to embedded terminals
+- Terminal.app fully removed (no AppleScript or Automation permission required)
 
-**Requirements:** 33 total (all mapped)
+**Stats:**
+- 104 files modified
+- 21,035 lines of Swift
+- +17,850 / -1,628 lines net change
+- 9 phases, 22 plans
+- 3 days from start to ship
 
-**Started:** 2026-02-07
+**Git range:** `feat(14-01)` → `feat(22-07)`
+
+**What's next:** Planning v2.1 (Enhanced features, skill migration completion)
+
+---

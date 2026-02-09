@@ -2,22 +2,11 @@
 
 ## What This Is
 
-Dispatch is a native macOS application that manages, queues, and sends prompts to Claude Code. It enables prompt composition while Claude Code executes, prompt reuse with modifications, and automated prompt sequences (chains). The app includes a Simulator Screenshot Review feature for reviewing and annotating iOS simulator screenshots captured during Claude Code testing sessions.
+Dispatch is a native macOS application that manages, queues, and sends prompts to Claude Code via embedded terminal sessions. It enables prompt composition while Claude Code executes, prompt reuse with modifications, and automated prompt sequences (chains). The app includes a Simulator Screenshot Review feature for reviewing and annotating iOS simulator screenshots captured during Claude Code testing sessions.
 
 ## Core Value
 
 Users can dispatch prompts (including annotated simulator screenshots) to Claude Code with zero friction, enabling rapid iterative development.
-
-## Current Milestone: v2.0 In-App Claude Code
-
-**Goal:** Replace Terminal.app dependency with embedded terminal sessions, enabling full Claude Code management within Dispatch.
-
-**Target features:**
-- Embedded terminal via SwiftTerm with PTY support
-- Full replacement of Terminal.app (remove AppleScript dependency)
-- Multi-session support with split panes and focus mode (AgentHub pattern)
-- Session persistence across app restarts with resume capability
-- Integration with existing queue/chain execution
 
 ## Requirements
 
@@ -25,65 +14,86 @@ Users can dispatch prompts (including annotated simulator screenshots) to Claude
 
 <!-- Shipped and confirmed valuable. -->
 
-- v1.0 Core dispatch functionality
-- v1.0 Queue management
-- v1.0 Chain execution
-- v1.0 Simulator screenshot annotation
-- v1.1 Screenshot path routing via shared library
-- v1.1 SessionStart hook for Dispatch detection
-- v1.1 Auto-install library and hooks
-- v1.1 Settings UI for screenshots
-- v1.1 Annotation tooltips and error handling
+**v1.0:**
+- Core dispatch functionality
+- Queue management
+- Chain execution
+- Simulator screenshot annotation
+
+**v1.1:**
+- Screenshot path routing via shared library
+- SessionStart hook for Dispatch detection
+- Auto-install library and hooks
+- Settings UI for screenshots
+- Annotation tooltips and error handling
+
+**v2.0:**
+- ✓ SwiftTerm integration for embedded terminal — v2.0
+- ✓ PTY-based process management (LocalProcess) — v2.0
+- ✓ Thread-safe terminal data reception — v2.0
+- ✓ Claude Code process spawning with environment config — v2.0
+- ✓ PTY-based prompt dispatch — v2.0
+- ✓ Output pattern completion detection — v2.0
+- ✓ JSONL status parsing and display — v2.0
+- ✓ Context window visualization — v2.0
+- ✓ Process registry with PID tracking and persistence — v2.0
+- ✓ Orphan process cleanup on launch — v2.0
+- ✓ Graceful two-stage termination — v2.0
+- ✓ Multi-session UI with split panes — v2.0
+- ✓ Session focus/enlarge mode — v2.0
+- ✓ Session persistence and resume — v2.0
+- ✓ Project-session relationship — v2.0
+- ✓ Queue/chain execution wired to embedded terminals — v2.0
+- ✓ HookServer + pattern dual completion detection — v2.0
+- ✓ TerminalService deprecated (AppleScript removed) — v2.0
+- ✓ Terminal.app Automation permission removed — v2.0
 
 ### Active
 
 <!-- Current scope. Building toward these. -->
 
-- [ ] SwiftTerm integration for embedded terminal
-- [ ] PTY-based process management (LocalProcess)
-- [ ] Multi-session UI with split panes
-- [ ] Session focus/enlarge mode
-- [ ] Session persistence and resume
-- [ ] Remove TerminalService AppleScript dependency
-- [ ] Wire to existing queue/chain execution
+(To be defined in next milestone)
 
 ### Out of Scope
 
 <!-- Explicit boundaries. Includes reasoning to prevent re-adding. -->
 
 - Drag to reorder in send queue — adds complexity, not blocking usage
-- PromptHistory with images — requires schema changes, defer to v2.1
+- PromptHistory with images — requires schema changes, defer to v2.1+
 - Image auto-resize — only needed if we hit size limits in practice
 - Video recording of simulator — high complexity, out of scope
 - Hybrid mode (in-app + Terminal.app) — full replacement is cleaner
+- Mac App Store distribution — sandbox incompatible with forkpty()
 
 ## Context
 
-v2.0 replaces Terminal.app dependency with embedded terminals using SwiftTerm. Reference implementation: [AgentHub](https://github.com/jamesrochabrun/AgentHub) (MIT licensed).
-
-**AgentHub architecture pattern:**
-```
-SwiftUI View (EmbeddedTerminalView)
-    └── NSView Container (TerminalContainerView)
-        └── SwiftTerm TerminalView + LocalProcess (PTY)
-            └── Claude CLI spawned via bash -c
-```
-
-**Key dependencies to add:**
-- SwiftTerm (v1.2.0+) — Terminal emulation with PTY support
-- Optionally: ClaudeCodeSDK for programmatic API access
-
-Technical environment:
+**Current State (v2.0):**
 - macOS 14.0+ (Sonoma)
 - Swift 6, SwiftUI, SwiftData
-- SwiftTerm for terminal emulation (replacing AppleScript)
+- SwiftTerm 1.10.1 for embedded terminal emulation
 - HookServer runs on port 19847 by default
+- 21,035 lines of Swift across 104 files
+
+**Architecture:**
+```
+MainView (NavigationSplitView)
+├── SidebarView (Library, Projects, Chains)
+├── Content area (Prompts, History, Chains)
+└── MultiSessionTerminalView (embedded Claude Code)
+    ├── SessionTabBar
+    └── SessionPaneView(s) with EmbeddedTerminalView
+```
+
+**Tech Debt (Non-Blocking):**
+- 20 skills still use hardcoded `/tmp` paths instead of Dispatch library
+- Status monitoring only starts for resumed sessions (not new sessions)
+- Deprecated code retained for rollback safety (removal planned for v3.0)
 
 ## Constraints
 
-- **Architecture**: Follow AgentHub's proven pattern for terminal embedding
-- **Compatibility**: Existing queue/chain logic must work with new terminal backend
-- **License**: AgentHub is MIT licensed — can reference patterns freely
+- **No Sandbox**: forkpty() incompatible with App Sandbox (no Mac App Store)
+- **Multi-session limit**: 4 concurrent sessions max (resource management)
+- **Session retention**: 7-day window for persisted sessions
 
 ## Key Decisions
 
@@ -94,9 +104,12 @@ Technical environment:
 | Copy-paste to Terminal for images | Simpler than file references, works with Claude | ✓ Good |
 | Max 5 images per dispatch | Claude vision limit | ✓ Good |
 | 10 runs per project max | Storage management | ✓ Good |
-| Full Terminal.app replacement (v2.0) | Cleaner than hybrid mode | — Pending |
-| SwiftTerm + LocalProcess pattern | Proven in AgentHub, MIT licensed | — Pending |
-| Multi-session split panes | User preference, matches AgentHub UX | — Pending |
+| Full Terminal.app replacement (v2.0) | Cleaner than hybrid mode | ✓ Good |
+| SwiftTerm + LocalProcess pattern | Proven in AgentHub, MIT licensed | ✓ Good |
+| Multi-session split panes | User preference, matches AgentHub UX | ✓ Good |
+| UUID-based session registry | Cross-component lookup | ✓ Good |
+| Dual completion detection | HookServer primary, pattern fallback | ✓ Good |
+| Deprecate over delete | Rollback safety, removal in v3.0 | ✓ Good |
 
 ---
-*Last updated: 2026-02-07 after milestone v2.0 started*
+*Last updated: 2026-02-09 after v2.0 milestone*
