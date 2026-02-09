@@ -5,9 +5,9 @@
 //  ViewModel for managing the prompt execution queue
 //
 
+import Combine
 import Foundation
 import SwiftData
-import Combine
 
 // MARK: - Queue ViewModel
 
@@ -36,7 +36,7 @@ final class QueueViewModel: ObservableObject {
     }
 
     func configure(with context: ModelContext) {
-        self.modelContext = context
+        modelContext = context
         fetchItems()
     }
 
@@ -161,12 +161,12 @@ final class QueueViewModel: ObservableObject {
 
         if sourceIndex < destinationIndex {
             // Moving down
-            for i in (sourceIndex + 1)...destinationIndex {
+            for i in (sourceIndex + 1) ... destinationIndex {
                 items[i].order -= 1
             }
         } else {
             // Moving up
-            for i in destinationIndex..<sourceIndex {
+            for i in destinationIndex ..< sourceIndex {
                 items[i].order += 1
             }
         }
@@ -233,7 +233,7 @@ final class QueueViewModel: ObservableObject {
 
                 // Wait for completion
                 while isExecuting && !Task.isCancelled {
-                    try? await Task.sleep(nanoseconds: 100_000_000)  // 0.1s
+                    try? await Task.sleep(nanoseconds: 100_000_000) // 0.1s
                 }
 
                 // Check if paused
@@ -266,6 +266,8 @@ final class QueueViewModel: ObservableObject {
             fetchItems()
             return
         }
+
+        logInfo("Queue executing item: '\(item.displayTitle)' via ExecutionManager", category: .queue)
 
         isExecuting = true
         currentExecutingItem = item
@@ -318,7 +320,7 @@ final class QueueViewModel: ObservableObject {
                         context.delete(currentItem)
                     }
 
-                case .failure(let error):
+                case let .failure(error):
                     currentItem.markFailed(error: error.localizedDescription)
                     self.error = error.localizedDescription
 
