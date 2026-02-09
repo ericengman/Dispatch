@@ -174,10 +174,10 @@ Plans:
   1. Session status shows current state (thinking, executing, idle)
   2. Context window usage displays as visual indicator
   3. Status updates in near real-time as Claude Code progresses
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 21-01: Parse JSONL session files and display status/context usage
+- [ ] 21-01-PLAN.md — Parse JSONL session files and display status/context usage
 
 ### Phase 22: Migration & Cleanup
 **Goal**: Terminal.app dependency fully removed, clean codebase
