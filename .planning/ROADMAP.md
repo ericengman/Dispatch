@@ -78,7 +78,9 @@ See `milestones/v2.0-ROADMAP.md` for full archive.
   2. User can drag to select any rectangular area on any display
   3. Captured image is saved to Dispatch's screenshot directory
   4. Capture service foundation exists for subsequent phases
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 23-01-PLAN.md — ScreenshotCaptureService with region capture via screencapture CLI
 
 ### Phase 24: Window Capture
 **Goal**: User can capture entire windows via system picker with Simulator windows highlighted
@@ -144,11 +146,11 @@ See `milestones/v2.0-ROADMAP.md` for full archive.
 | 20. Service Integration | v2.0 | 2/2 | Complete | 2026-02-08 |
 | 21. Status Display | v2.0 | 1/1 | Complete | 2026-02-08 |
 | 22. Migration & Cleanup | v2.0 | 7/7 | Complete | 2026-02-09 |
-| 23. Region Capture | v3.0 | 0/? | Not started | - |
+| 23. Region Capture | v3.0 | 0/1 | Planned | - |
 | 24. Window Capture | v3.0 | 0/? | Not started | - |
 | 25. Annotation Integration | v3.0 | 0/? | Not started | - |
 | 26. Sidebar Integration | v3.0 | 0/? | Not started | - |
 | 27. Polish | v3.0 | 0/? | Not started | - |
 
 ---
-*Next: `/gsd:plan-phase 23` to begin v3.0 implementation*
+*Next: `/gsd:execute-phase 23` to implement Region Capture*
