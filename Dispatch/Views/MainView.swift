@@ -59,6 +59,7 @@ struct MainView: View {
     // MARK: - Environment
 
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.openWindow) private var openWindow
 
     // MARK: - State
 
@@ -93,6 +94,7 @@ struct MainView: View {
     @StateObject private var chainVM = ChainViewModel.shared
     @StateObject private var queueVM = QueueViewModel.shared
     @StateObject private var executionState = ExecutionStateMachine.shared
+    @ObservedObject private var captureCoordinator = CaptureCoordinator.shared
 
     // MARK: - Body
 
@@ -142,6 +144,12 @@ struct MainView: View {
             selectedSkill = nil
             selectedClaudeFile = nil
             selectedRun = nil
+        }
+        .onChange(of: captureCoordinator.pendingCapture) { _, newValue in
+            if let capture = newValue {
+                openWindow(value: capture)
+                captureCoordinator.pendingCapture = nil
+            }
         }
         .toolbar {
             toolbarContent

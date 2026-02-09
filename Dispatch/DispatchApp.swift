@@ -173,14 +173,7 @@ struct DispatchApp: App {
             Button("Capture Region") {
                 Task {
                     let result = await ScreenshotCaptureService.shared.captureRegion()
-                    switch result {
-                    case let .success(url):
-                        logInfo("Region captured: \(url.lastPathComponent)", category: .capture)
-                    case .cancelled:
-                        logInfo("Region capture cancelled", category: .capture)
-                    case let .error(error):
-                        logError("Region capture failed: \(error)", category: .capture)
-                    }
+                    await CaptureCoordinator.shared.handleCaptureResult(result)
                 }
             }
             .keyboardShortcut("6", modifiers: [.command, .shift])
@@ -188,14 +181,7 @@ struct DispatchApp: App {
             Button("Capture Window") {
                 Task {
                     let result = await ScreenshotCaptureService.shared.captureWindow()
-                    switch result {
-                    case let .success(url):
-                        logInfo("Window captured: \(url.lastPathComponent)", category: .capture)
-                    case .cancelled:
-                        logInfo("Window capture cancelled", category: .capture)
-                    case let .error(error):
-                        logError("Window capture failed: \(error)", category: .capture)
-                    }
+                    await CaptureCoordinator.shared.handleCaptureResult(result)
                 }
             }
             .keyboardShortcut("7", modifiers: [.command, .shift])
