@@ -62,6 +62,7 @@ enum TerminalServiceError: Error, LocalizedError {
 // MARK: - Terminal Service
 
 /// Actor-based service for interacting with Terminal.app
+@available(*, deprecated, message: "Use EmbeddedTerminalService instead. Terminal.app support will be removed in v3.0.")
 actor TerminalService {
     static let shared = TerminalService()
 

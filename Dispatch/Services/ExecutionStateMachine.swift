@@ -292,6 +292,7 @@ final class ExecutionStateMachine: ObservableObject {
     // MARK: - Polling Support
 
     /// Starts polling for completion (fallback when hooks not available)
+    @available(*, deprecated, message: "Polling is only used for Terminal.app fallback")
     func startPolling(windowId: String?, interval: TimeInterval = 2.0) {
         guard state == .executing else {
             logWarning("Cannot start polling from state: \(state)", category: .execution)
@@ -444,7 +445,6 @@ final class ExecutionManager: ObservableObject {
     @Published private(set) var isExecuting: Bool = false
 
     private let stateMachine = ExecutionStateMachine.shared
-    private let terminalService = TerminalService.shared
 
     private init() {
         // Observe state machine
@@ -467,8 +467,8 @@ final class ExecutionManager: ObservableObject {
         chainName: String? = nil,
         chainStepIndex: Int? = nil,
         chainTotalSteps: Int? = nil,
-        useHooks: Bool = true,
-        sendDelay: TimeInterval = 0.1
+        useHooks _: Bool = true,
+        sendDelay _: TimeInterval = 0.1
     ) async throws {
         guard !content.isEmpty else {
             throw TerminalServiceError.invalidPromptContent
@@ -496,57 +496,31 @@ final class ExecutionManager: ObservableObject {
         stateMachine.beginSending(context: context)
 
         do {
-            // Check if embedded terminal is available (preferred)
+            // Check if embedded terminal is available
             let embeddedService = EmbeddedTerminalService.shared
 
-            if embeddedService.isAvailable {
-                // Use embedded terminal (PTY dispatch)
-                logInfo("Dispatching via embedded terminal", category: .execution)
+            guard embeddedService.isAvailable else {
+                throw ExecutionError.noTerminalAvailable
+            }
 
-                let dispatched = embeddedService.dispatchPrompt(content)
-                guard dispatched else {
-                    throw TerminalServiceError.scriptExecutionFailed("Embedded terminal dispatch failed")
-                }
+            // Use embedded terminal (PTY dispatch)
+            logInfo("Dispatching via embedded terminal", category: .execution)
 
-                // Track session for completion validation (INTG-04)
-                stateMachine.setExecutingSession(embeddedService.activeSessionId)
+            let dispatched = embeddedService.dispatchPrompt(content)
+            guard dispatched else {
+                throw TerminalServiceError.scriptExecutionFailed("Embedded terminal dispatch failed")
+            }
 
-                // Transition to executing
-                stateMachine.beginExecuting()
+            // Track session for completion validation (INTG-04)
+            stateMachine.setExecutingSession(embeddedService.activeSessionId)
 
-                // Start embedded terminal monitoring for completion
-                if let sessionId = embeddedService.activeSessionId,
-                   let terminal = embeddedService.getTerminal(for: sessionId) {
-                    stateMachine.startEmbeddedTerminalMonitoring(terminal: terminal)
-                }
-            } else {
-                // Fall back to Terminal.app (AppleScript)
-                logInfo("Dispatching via Terminal.app (fallback)", category: .execution)
+            // Transition to executing
+            stateMachine.beginExecuting()
 
-                let isRunning = await terminalService.isTerminalRunning()
-                if !isRunning {
-                    try await terminalService.launchTerminal()
-                }
-
-                // Send the prompt
-                try await terminalService.sendPrompt(
-                    content,
-                    toWindowId: targetWindowId,
-                    delay: sendDelay
-                )
-
-                // Transition to executing
-                stateMachine.beginExecuting()
-
-                // Start completion detection (only for Terminal.app path)
-                if useHooks {
-                    // Hook server will call handleHookCompletion when done
-                    // Also start polling as fallback
-                    stateMachine.startPolling(windowId: targetWindowId, interval: 2.0)
-                } else {
-                    // Only use polling
-                    stateMachine.startPolling(windowId: targetWindowId, interval: 2.0)
-                }
+            // Start embedded terminal monitoring for completion
+            if let sessionId = embeddedService.activeSessionId,
+               let terminal = embeddedService.getTerminal(for: sessionId) {
+                stateMachine.startEmbeddedTerminalMonitoring(terminal: terminal)
             }
 
         } catch {
@@ -579,6 +553,7 @@ enum ExecutionError: Error, LocalizedError {
     case queueEmpty
     case chainEmpty
     case chainItemInvalid
+    case noTerminalAvailable
 
     var errorDescription: String? {
         switch self {
@@ -590,6 +565,8 @@ enum ExecutionError: Error, LocalizedError {
             return "The chain has no items"
         case .chainItemInvalid:
             return "Chain item has no valid content"
+        case .noTerminalAvailable:
+            return "No embedded terminal session available. Create a session to dispatch prompts."
         }
     }
 }
