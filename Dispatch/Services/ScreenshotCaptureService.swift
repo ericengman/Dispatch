@@ -43,71 +43,14 @@ final class ScreenshotCaptureService {
 
     // MARK: - Window Capture
 
-    /// Captures a window selected by the user using native macOS window picker
-    /// User hovers over windows, clicks to capture, or presses Escape to cancel
+    /// Captures a window selected by the user with interactive session
+    /// Flow: Hover to highlight → Click to select → Interact with window → Capture or Cancel
     /// - Returns: CaptureResult indicating success, cancellation, or error
     func captureWindow() async -> CaptureResult {
-        logDebug("Starting window capture", category: .capture)
+        logDebug("Starting window capture session", category: .capture)
 
-        // 1. Ensure QuickCaptures directory exists
-        do {
-            try ensureCapturesDirectoryExists()
-        } catch {
-            logError("Failed to create captures directory: \(error)", category: .capture)
-            return .error(error)
-        }
-
-        // 2. Generate unique filename: {UUID}.png
-        let filename = "\(UUID().uuidString).png"
-        let outputPath = capturesDirectory.appendingPathComponent(filename)
-
-        logDebug("Window capture output path: \(outputPath.path)", category: .capture)
-
-        // 3. Invoke screencapture -iW -x {path}
-        // -i = interactive mode
-        // -W = start in window selection mode (hover to highlight, click to capture)
-        // -x = no sound
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
-        process.arguments = [
-            "-i", // Interactive mode
-            "-W", // Window selection mode
-            "-x", // No sound
-            outputPath.path // Output path
-        ]
-
-        do {
-            logDebug("Launching screencapture in window mode", category: .capture)
-            try process.run()
-            process.waitUntilExit()
-
-            logDebug("screencapture terminated with status: \(process.terminationStatus)", category: .capture)
-
-            // 4. Check Process.terminationStatus and file existence
-            if process.terminationStatus == 0 {
-                // Check if file was created
-                if FileManager.default.fileExists(atPath: outputPath.path) {
-                    logInfo("Window captured successfully: \(filename)", category: .capture)
-                    return .success(outputPath)
-                } else {
-                    // Status 0 but no file = user pressed Escape
-                    logInfo("Window capture cancelled by user", category: .capture)
-                    return .cancelled
-                }
-            } else {
-                // Non-zero status = error
-                let error = NSError(
-                    domain: "ScreenshotCaptureService",
-                    code: Int(process.terminationStatus),
-                    userInfo: [NSLocalizedDescriptionKey: "screencapture exited with status \(process.terminationStatus)"]
-                )
-                logError("Window capture failed with status \(process.terminationStatus)", category: .capture)
-                return .error(error)
-            }
-        } catch {
-            logError("Failed to launch screencapture: \(error)", category: .capture)
-            return .error(error)
-        }
+        let session = WindowCaptureSession()
+        return await session.start()
     }
 
     // MARK: - Region Capture
