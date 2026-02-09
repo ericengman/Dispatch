@@ -159,7 +159,7 @@ struct DispatchApp: App {
             .keyboardShortcut("s", modifiers: [.command, .shift])
         }
 
-        // Capture Menu (temporary for Phase 23)
+        // Capture Menu (temporary for Phase 23-24)
         CommandMenu("Capture") {
             Button("Capture Region") {
                 Task {
@@ -175,6 +175,21 @@ struct DispatchApp: App {
                 }
             }
             .keyboardShortcut("6", modifiers: [.command, .shift])
+
+            Button("Capture Window") {
+                Task {
+                    let result = await ScreenshotCaptureService.shared.captureWindow()
+                    switch result {
+                    case let .success(url):
+                        logInfo("Window captured: \(url.lastPathComponent)", category: .capture)
+                    case .cancelled:
+                        logInfo("Window capture cancelled", category: .capture)
+                    case let .error(error):
+                        logError("Window capture failed: \(error)", category: .capture)
+                    }
+                }
+            }
+            .keyboardShortcut("7", modifiers: [.command, .shift])
         }
     }
 
