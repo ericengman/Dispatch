@@ -15,6 +15,7 @@ struct QuickCaptureAnnotationView: View {
     @StateObject private var annotationVM = AnnotationViewModel()
     @State private var showingError = false
     @State private var errorMessage: String?
+    @State private var selectedSessionId: UUID?
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -37,6 +38,8 @@ struct QuickCaptureAnnotationView: View {
         }
         .onAppear {
             loadCapture()
+            // Auto-select active session
+            selectedSessionId = TerminalSessionManager.shared.activeSessionId
         }
         .onKeyPress(keys: [.escape]) { _ in
             dismiss()
@@ -85,11 +88,9 @@ struct QuickCaptureAnnotationView: View {
 
             Spacer()
 
-            // Placeholder for session picker (added in 25-02)
-            Text("Session selection coming in next plan")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-                .padding()
+            // Session picker
+            SessionPickerView(selectedSessionId: $selectedSessionId)
+                .padding(.horizontal)
 
             Divider()
 
@@ -119,9 +120,15 @@ struct QuickCaptureAnnotationView: View {
         .padding()
     }
 
+    private var canDispatch: Bool {
+        annotationVM.hasQueuedImages &&
+            !annotationVM.promptText.isEmpty &&
+            selectedSessionId != nil
+    }
+
     private var dispatchButton: some View {
         Button {
-            // Dispatch implemented in 25-02
+            Task { await dispatch() }
         } label: {
             HStack(spacing: 6) {
                 Image(systemName: "paperplane.fill")
@@ -131,7 +138,7 @@ struct QuickCaptureAnnotationView: View {
             .padding(.vertical, 8)
         }
         .buttonStyle(.borderedProminent)
-        .disabled(true) // Enabled in 25-02 with session picker
+        .disabled(!canDispatch)
         .keyboardShortcut(.return, modifiers: .command)
     }
 
@@ -153,5 +160,44 @@ struct QuickCaptureAnnotationView: View {
         annotationVM.loadAnnotatedImage(annotatedImage)
 
         logInfo("Loaded QuickCapture into annotation view: \(capture.fileURL.lastPathComponent)", category: .capture)
+    }
+
+    private func dispatch() async {
+        guard let sessionId = selectedSessionId else {
+            errorMessage = "Please select a target Claude Code session"
+            showingError = true
+            return
+        }
+
+        // Copy images to clipboard
+        // Verified: copyToClipboard() async -> Bool exists at SimulatorViewModel.swift:514-516
+        let success = await annotationVM.copyToClipboard()
+
+        guard success else {
+            errorMessage = "Failed to copy images to clipboard"
+            showingError = true
+            return
+        }
+
+        // Dispatch to selected session
+        // Verified: dispatchPrompt(_:to:) exists at EmbeddedTerminalService.swift:59-65
+        let dispatched = EmbeddedTerminalService.shared.dispatchPrompt(
+            annotationVM.promptText,
+            to: sessionId
+        )
+
+        guard dispatched else {
+            errorMessage = "Failed to dispatch to session. Session may have closed."
+            showingError = true
+            return
+        }
+
+        // Clear state on success
+        annotationVM.handleDispatchComplete()
+
+        logInfo("Dispatched \(annotationVM.queueCount) images to session \(sessionId)", category: .capture)
+
+        // Close window after successful dispatch
+        dismiss()
     }
 }
