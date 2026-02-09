@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-07)
 ## Current Position
 
 Phase: 22 of 22 (Migration & Cleanup)
-Plan: 6 of 6 in current phase (22-01, 22-02, 22-03, 22-04, 22-05, and 22-06 complete)
+Plan: 7 of 7 in current phase (22-01, 22-02, 22-03, 22-04, 22-05, 22-06, and 22-07 complete)
 Status: Phase complete
-Last activity: 2026-02-09 — Completed 22-06-PLAN.md
+Last activity: 2026-02-09 — Completed 22-05-PLAN.md
 
 Progress: [####################] 100% (9/9 v2.0 phases complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 31 (12 v1.1, 19 v2.0)
-- Average duration: 2.9m
-- Total execution time: 88.2m
+- Total plans completed: 32 (12 v1.1, 20 v2.0)
+- Average duration: 2.8m
+- Total execution time: 91.2m
 
 **By Phase:**
 
@@ -41,10 +41,10 @@ Progress: [####################] 100% (9/9 v2.0 phases complete)
 | 19 | 2 | 7.9m | 4.0m |
 | 20 | 2 | 3.9m | 2.0m |
 | 21 | 1 | 3.4m | 3.4m |
-| 22 | 6 | 12.0m | 2.0m |
+| 22 | 7 | 15.0m | 2.1m |
 
 **Recent Trend:**
-- Last 5 plans: 22-02 (2.0m), 22-03 (1.0m), 22-04 (1.0m), 22-05 (2.0m), 22-06 (2.0m)
+- Last 5 plans: 22-03 (1.0m), 22-04 (1.0m), 22-05 (3.0m), 22-06 (2.0m), 22-07 (2.0m)
 - Trend: Migration cleanup complete, v2.0 finished
 
 *Updated after each plan completion*
@@ -117,6 +117,8 @@ Recent decisions affecting current work:
 - [22-03]: Simplify history creation with nil windowId/windowName
 - [22-04]: Mark deprecated rather than remove for backward compatibility until v3.0
 - [22-04]: Clear deprecation message directs to embedded terminal dispatch
+- [22-05]: Clipboard images + dispatchPrompt() workflow for image annotation dispatch
+- [22-05]: Images remain in clipboard for manual paste (Cmd+V) - automatic paste not supported in embedded terminal
 - [22-06]: Remove Terminal.app permission alerts (no longer relevant with embedded terminal)
 - [22-06]: Remove Terminal.app window loading and matching (obsolete with session-based targeting)
 
@@ -137,5 +139,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-09
-Stopped at: Completed 22-06-PLAN.md (Phase 22 and v2.0 complete)
+Stopped at: Completed 22-05-PLAN.md
 Resume file: None
