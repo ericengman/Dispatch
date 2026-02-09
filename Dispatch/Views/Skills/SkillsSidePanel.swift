@@ -40,7 +40,6 @@ struct SkillsSidePanel: View {
 
     // Terminal state (shared across all skill cards)
     @State private var matchingTerminals: [TerminalWindow] = []
-    @State private var isLoadingTerminals = false
 
     // Grid columns for 2xN layout
     private let columns = [
@@ -72,7 +71,6 @@ struct SkillsSidePanel: View {
         .background(Color(nsColor: .windowBackgroundColor))
         .onAppear {
             loadSkills()
-            loadTerminals()
             loadClaudeFiles()
             fetchRuns()
             startWatchingRunsDirectory()
@@ -89,7 +87,6 @@ struct SkillsSidePanel: View {
                     await skillManager.loadProjectSkills(for: nil)
                     await claudeFileManager.loadFiles(for: nil)
                 }
-                await loadTerminalsAsync()
                 fetchRuns()
             }
         }
@@ -472,55 +469,6 @@ struct SkillsSidePanel: View {
     private func loadClaudeFiles() {
         Task {
             await claudeFileManager.loadFiles(for: project?.pathURL)
-        }
-    }
-
-    private func loadTerminals() {
-        Task {
-            await loadTerminalsAsync()
-        }
-    }
-
-    private func loadTerminalsAsync() async {
-        guard !projectName.isEmpty else {
-            await MainActor.run { matchingTerminals = [] }
-            return
-        }
-
-        isLoadingTerminals = true
-
-        do {
-            let allTerminals = try await TerminalService.shared.getWindows(forceRefresh: true)
-
-            let matching = allTerminals.filter { terminal in
-                let name = terminal.name.lowercased()
-                let tabTitle = terminal.tabTitle?.lowercased() ?? ""
-                let projectLower = projectName.lowercased()
-                return name.contains(projectLower) || tabTitle.contains(projectLower)
-            }
-
-            await MainActor.run {
-                matchingTerminals = matching
-                isLoadingTerminals = false
-            }
-        } catch TerminalServiceError.permissionDenied {
-            logWarning("Automation permission denied when loading terminals", category: .terminal)
-            await MainActor.run {
-                matchingTerminals = []
-                isLoadingTerminals = false
-            }
-        } catch TerminalServiceError.accessibilityPermissionDenied {
-            logWarning("Accessibility permission denied when loading terminals", category: .terminal)
-            await MainActor.run {
-                matchingTerminals = []
-                isLoadingTerminals = false
-            }
-        } catch {
-            logError("Failed to load terminals: \(error)", category: .terminal)
-            await MainActor.run {
-                matchingTerminals = []
-                isLoadingTerminals = false
-            }
         }
     }
 }
