@@ -104,7 +104,10 @@ Plans:
   2. User can capture additional screenshots while annotation UI is open (queue)
   3. User can select target Claude session before dispatching annotated screenshot
   4. Existing annotation tools (arrows, boxes, text) work on captured screenshots
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 25-01-PLAN.md — QuickCapture model, WindowGroup, auto-open wiring
+- [ ] 25-02-PLAN.md — Session picker and dispatch integration
 
 ### Phase 26: Sidebar Integration
 **Goal**: Quick Capture UI section in sidebar with recent captures and window thumbnails
@@ -150,9 +153,9 @@ Plans:
 | 22. Migration & Cleanup | v2.0 | 7/7 | Complete | 2026-02-09 |
 | 23. Region Capture | v3.0 | 1/1 | Complete | 2026-02-09 |
 | 24. Window Capture | v3.0 | 1/1 | Complete | 2026-02-09 |
-| 25. Annotation Integration | v3.0 | 0/? | Not started | - |
+| 25. Annotation Integration | v3.0 | 0/2 | Planned | - |
 | 26. Sidebar Integration | v3.0 | 0/? | Not started | - |
 | 27. Polish | v3.0 | 0/? | Not started | - |
 
 ---
-*Next: `/gsd:plan-phase 25` to plan Annotation Integration*
+*Next: `/gsd:execute-phase 25` to execute Annotation Integration*
