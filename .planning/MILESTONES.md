@@ -59,25 +59,29 @@
 
 ---
 
-## v3.0 — Screenshot Capture (In Progress)
+## v3.0 — Screenshot Capture (Shipped: 2026-02-10)
 
-**Goal:** Add quick screenshot capture with annotation and dispatch to Claude sessions.
+**Delivered:** Quick screenshot capture from anywhere with annotation and dispatch to Claude sessions.
 
-**Phases:** 23-27 (5 phases)
+**Phases completed:** 23-27 (7 plans total)
 
-**Target features:**
-- Cross-hair region selection via native macOS screencapture
-- Window capture via SCContentSharingPicker (no Screen Recording permission needed)
-- Simulator-aware window listing
-- Direct annotation pipeline with session targeting
-- Quick Capture sidebar section with MRU and thumbnails
-- Keyboard shortcuts
+**Key accomplishments:**
+- Native cross-hair region capture via screencapture CLI (zero custom UI)
+- Interactive window capture with hover-highlight and click-to-select UX
+- Annotation UI reuse with QuickCapture model and multi-window support
+- Session picker for targeted dispatch to any Claude Code session
+- Quick Capture sidebar section with MRU thumbnails and re-capture
+- Global keyboard shortcuts (Ctrl+Cmd+1/2) from any application
 
-**Requirements:** 11 total
-- Capture Modes: CAPT-01 through CAPT-04
-- Annotation Pipeline: ANNOT-01 through ANNOT-03
-- UI Integration: UI-01 through UI-04
+**Stats:**
+- 39 files changed
+- 23,676 lines of Swift
+- +6,939 / -129 lines net change
+- 5 phases, 7 plans
+- 1 day from start to ship
 
-**Started:** 2026-02-09
+**Git range:** `feat(23-01)` → `feat(27-01)`
+
+**Requirements:** 10/11 satisfied (UI-03 deferred — hover-highlight provides equivalent value)
 
 ---

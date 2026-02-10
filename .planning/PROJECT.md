@@ -48,18 +48,21 @@ Users can dispatch prompts (including annotated simulator screenshots) to Claude
 - ✓ TerminalService deprecated (AppleScript removed) — v2.0
 - ✓ Terminal.app Automation permission removed — v2.0
 
+**v3.0:**
+- ✓ Cross-hair region capture via native screencapture CLI — v3.0
+- ✓ Window capture with interactive hover-highlight UX — v3.0
+- ✓ iOS Simulator windows prominently visible (system UI filtered) — v3.0
+- ✓ Annotation UI reuse with QuickCapture multi-window support — v3.0
+- ✓ Session picker for targeted dispatch — v3.0
+- ✓ Quick Capture sidebar section with MRU thumbnails — v3.0
+- ✓ Global keyboard shortcuts (Ctrl+Cmd+1/2) — v3.0
+- ✓ Re-capture from MRU list — v3.0
+
 ### Active
 
 <!-- Current scope. Building toward these. -->
 
-**v3.0 Screenshot Capture:**
-- [ ] Cross-hair region screenshot capture (native macOS style)
-- [ ] Full window screenshot capture with app selection
-- [ ] Live preview of recent/open applications for quick capture
-- [ ] iOS Simulator detection and listing
-- [ ] Shared annotation/markup system (refactored from Screenshot Runs)
-- [ ] Screenshot queue with multi-screenshot support
-- [ ] Session targeting for dispatch
+(No active requirements — awaiting next milestone definition)
 
 ### Out of Scope
 
@@ -74,27 +77,32 @@ Users can dispatch prompts (including annotated simulator screenshots) to Claude
 
 ## Context
 
-**Current State (v2.0):**
+**Current State (v3.0):**
 - macOS 14.0+ (Sonoma)
 - Swift 6, SwiftUI, SwiftData
 - SwiftTerm 1.10.1 for embedded terminal emulation
 - HookServer runs on port 19847 by default
-- 21,035 lines of Swift across 104 files
+- 23,676 lines of Swift across 114 files
 
 **Architecture:**
 ```
 MainView (NavigationSplitView)
-├── SidebarView (Library, Projects, Chains)
+├── SidebarView (Library, Projects, Chains, Quick Capture)
 ├── Content area (Prompts, History, Chains)
 └── MultiSessionTerminalView (embedded Claude Code)
     ├── SessionTabBar
     └── SessionPaneView(s) with EmbeddedTerminalView
+
+QuickCaptureAnnotationView (separate WindowGroup per capture)
+├── AnnotationCanvasView (reused from Screenshot Runs)
+├── AnnotationToolbar
+└── SessionPickerView + Dispatch button
 ```
 
 **Tech Debt (Non-Blocking):**
 - 20 skills still use hardcoded `/tmp` paths instead of Dispatch library
 - Status monitoring only starts for resumed sessions (not new sessions)
-- Deprecated code retained for rollback safety (removal planned for v3.0)
+- 40 actor isolation warnings in pre-v3.0 code
 
 ## Constraints
 
@@ -117,17 +125,27 @@ MainView (NavigationSplitView)
 | UUID-based session registry | Cross-component lookup | ✓ Good |
 | Dual completion detection | HookServer primary, pattern fallback | ✓ Good |
 | Deprecate over delete | Rollback safety, removal in v3.0 | ✓ Good |
+| Native screencapture CLI (v3.0) | Zero custom UI, perfect cross-hair UX | ✓ Good |
+| Custom WindowCaptureSession (v3.0) | Better than system picker, hover-highlight UX | ✓ Good |
+| Static cache for QuickCapture images (v3.0) | Avoid SwiftData for transient screenshots | ✓ Good |
+| Value-based WindowGroup (v3.0) | Multiple annotation windows simultaneously | ✓ Good |
+| UserDefaults for MRU (v3.0) | Lightweight, no SwiftData needed | ✓ Good |
+| Global shortcuts Ctrl+Cmd+1/2 (v3.0) | Avoid system/menu conflicts | ✓ Good |
 
-## Current Milestone: v3.0 Screenshot Capture
+## Most Recent Milestone: v3.0 Screenshot Capture (Shipped)
 
-**Goal:** Enable quick screenshot capture from anywhere with annotation and dispatch to Claude sessions.
+**Delivered:** Quick screenshot capture from anywhere with annotation and dispatch to Claude sessions.
 
-**Target features:**
-- Cross-hair region selection (native macOS screenshot UX)
-- Full window capture with application picker
-- Live preview of capturable windows (recent apps, simulators)
-- Reusable annotation/markup system
-- Multi-screenshot queuing with session targeting
+**Shipped features:**
+- Cross-hair region selection via native screencapture CLI
+- Window capture with interactive hover-highlight UX
+- iOS Simulator windows prominently visible
+- Annotation UI reuse with multi-window support
+- Session picker for targeted dispatch
+- Quick Capture sidebar section with MRU thumbnails
+- Global keyboard shortcuts (Ctrl+Cmd+1/2)
+
+See `.planning/MILESTONES.md` for full history.
 
 ---
-*Last updated: 2026-02-09 after v3.0 milestone started*
+*Last updated: 2026-02-10 after v3.0 milestone shipped*
