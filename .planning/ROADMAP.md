@@ -65,7 +65,7 @@ See `milestones/v2.0-ROADMAP.md` for full archive.
 - [x] **Phase 24: Window Capture** - Interactive window capture with hover-highlight
 - [x] **Phase 25: Annotation Integration** - Connect capture pipeline to annotation UI
 - [x] **Phase 26: Sidebar Integration** - Quick Capture section with MRU and thumbnails
-- [ ] **Phase 27: Polish** - Keyboard shortcuts for capture modes
+- [x] **Phase 27: Polish** - Keyboard shortcuts for capture modes
 
 ## Phase Details
 
@@ -132,7 +132,7 @@ Plans:
   3. Shortcuts are displayed in settings (sensible defaults)
 **Plans**: 1 plan
 Plans:
-- [ ] 27-01-PLAN.md — Multi-hotkey manager, capture shortcuts, settings UI
+- [x] 27-01-PLAN.md — Multi-hotkey manager, capture shortcuts, settings UI
 
 ## Progress
 
@@ -158,7 +158,7 @@ Plans:
 | 24. Window Capture | v3.0 | 1/1 | Complete | 2026-02-09 |
 | 25. Annotation Integration | v3.0 | 2/2 | Complete | 2026-02-09 |
 | 26. Sidebar Integration | v3.0 | 1/1 | Complete | 2026-02-10 |
-| 27. Polish | v3.0 | 0/1 | Not started | - |
+| 27. Polish | v3.0 | 1/1 | Complete | 2026-02-10 |
 
 ---
-*Next: `/gsd:execute-phase 27` to implement keyboard shortcuts*
+*Milestone complete! Run `/gsd:audit-milestone` to verify v3.0*

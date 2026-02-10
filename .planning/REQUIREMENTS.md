@@ -23,7 +23,7 @@ Requirements for Screenshot Capture milestone. Each maps to roadmap phases.
 ### UI Integration
 
 - [x] **UI-01**: Quick Capture section appears in sidebar with capture action buttons
-- [ ] **UI-02**: User can trigger capture modes via keyboard shortcuts
+- [x] **UI-02**: User can trigger capture modes via keyboard shortcuts
 - [ ] **UI-03**: User sees live thumbnail previews of capturable windows in picker
 - [x] **UI-04**: User sees recent captures strip showing last few captures in sidebar
 
@@ -65,7 +65,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ANNOT-02 | Phase 25 | Complete |
 | ANNOT-03 | Phase 25 | Complete |
 | UI-01 | Phase 26 | Complete |
-| UI-02 | Phase 27 | Pending |
+| UI-02 | Phase 27 | Complete |
 | UI-03 | Phase 26 | Pending |
 | UI-04 | Phase 26 | Complete |
 
@@ -76,4 +76,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-02-09*
-*Last updated: 2026-02-10 after Phase 26 completion*
+*Last updated: 2026-02-10 after Phase 27 completion*
