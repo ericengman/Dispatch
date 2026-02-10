@@ -5,10 +5,18 @@
 //  Global hotkey registration and management
 //
 
-import Foundation
-import Combine
-import Carbon.HIToolbox
 import AppKit
+import Carbon.HIToolbox
+import Combine
+import Foundation
+
+// MARK: - Hotkey ID
+
+enum HotkeyID: Int {
+    case appToggle = 1
+    case regionCapture = 2
+    case windowCapture = 3
+}
 
 // MARK: - Hotkey Manager
 
@@ -25,33 +33,26 @@ final class HotkeyManager: ObservableObject {
     // MARK: - Private Properties
 
     private var eventHandler: EventHandlerRef?
-    private var hotkeyId: EventHotKeyID
-    private var hotkeyRef: EventHotKeyRef?
-    private var onHotkeyPressed: (() -> Void)?
+    private var hotkeys: [Int: (ref: EventHotKeyRef, handler: () -> Void)] = [:]
+    private var hotkeyIDs: [Int: EventHotKeyID] = [:]
 
     // MARK: - Initialization
 
-    private init() {
-        self.hotkeyId = EventHotKeyID(signature: OSType(0x44495350), id: 1)  // "DISP"
-    }
+    private init() {}
 
     // Note: deinit removed - this is a singleton that lives for the app's lifetime
-    // Cleanup is handled explicitly via unregister() in AppDelegate.applicationWillTerminate
+    // Cleanup is handled explicitly via unregisterAll() in AppDelegate.applicationWillTerminate
 
     // MARK: - Registration
 
-    /// Registers a global hotkey
-    func register(keyCode: Int, modifiers: Int, handler: @escaping () -> Void) -> Bool {
-        // Unregister existing hotkey first
-        if isRegistered {
-            unregister()
+    /// Registers a global hotkey with a unique ID
+    func register(id: Int, keyCode: Int, modifiers: Int, handler: @escaping () -> Void) -> Bool {
+        // Unregister existing hotkey with this ID first
+        if hotkeys[id] != nil {
+            unregister(id: id)
         }
 
-        logInfo("Registering hotkey: keyCode=\(keyCode), modifiers=\(modifiers)", category: .hotkey)
-
-        self.onHotkeyPressed = handler
-        self.currentKeyCode = keyCode
-        self.currentModifiers = modifiers
+        logInfo("Registering hotkey id=\(id): keyCode=\(keyCode), modifiers=\(modifiers)", category: .hotkey)
 
         // Convert modifiers to Carbon format
         var carbonModifiers: UInt32 = 0
@@ -60,93 +61,160 @@ final class HotkeyManager: ObservableObject {
         if modifiers & Int(optionKey) != 0 { carbonModifiers |= UInt32(optionKey) }
         if modifiers & Int(controlKey) != 0 { carbonModifiers |= UInt32(controlKey) }
 
-        // Install event handler
-        var eventType = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
+        // Install event handler if this is the first hotkey
+        if eventHandler == nil {
+            var eventType = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
 
-        let handlerResult = InstallEventHandler(
-            GetApplicationEventTarget(),
-            { (_, event, userData) -> OSStatus in
-                guard let userData = userData else { return OSStatus(eventNotHandledErr) }
-                let manager = Unmanaged<HotkeyManager>.fromOpaque(userData).takeUnretainedValue()
+            let handlerResult = InstallEventHandler(
+                GetApplicationEventTarget(),
+                { _, event, userData -> OSStatus in
+                    guard let userData = userData else { return OSStatus(eventNotHandledErr) }
+                    let manager = Unmanaged<HotkeyManager>.fromOpaque(userData).takeUnretainedValue()
 
-                Task { @MainActor in
-                    manager.handleHotkeyPressed()
-                }
+                    // Extract hotkey ID from event
+                    var hotkeyID = EventHotKeyID()
+                    let status = GetEventParameter(
+                        event,
+                        EventParamName(kEventParamDirectObject),
+                        EventParamType(typeEventHotKeyID),
+                        nil,
+                        MemoryLayout<EventHotKeyID>.size,
+                        nil,
+                        &hotkeyID
+                    )
 
-                return noErr
-            },
-            1,
-            &eventType,
-            Unmanaged.passUnretained(self).toOpaque(),
-            &eventHandler
-        )
+                    guard status == noErr else { return OSStatus(eventNotHandledErr) }
 
-        guard handlerResult == noErr else {
-            logError("Failed to install event handler: \(handlerResult)", category: .hotkey)
-            return false
+                    Task { @MainActor in
+                        manager.handleHotkeyPressed(id: Int(hotkeyID.id))
+                    }
+
+                    return noErr
+                },
+                1,
+                &eventType,
+                Unmanaged.passUnretained(self).toOpaque(),
+                &eventHandler
+            )
+
+            guard handlerResult == noErr else {
+                logError("Failed to install event handler: \(handlerResult)", category: .hotkey)
+                return false
+            }
         }
 
+        // Create hotkey ID
+        let hotkeyID = EventHotKeyID(signature: OSType(0x4449_5350), id: UInt32(id)) // "DISP"
+        hotkeyIDs[id] = hotkeyID
+
         // Register the hotkey
+        var hotkeyRef: EventHotKeyRef?
         let registerResult = RegisterEventHotKey(
             UInt32(keyCode),
             carbonModifiers,
-            hotkeyId,
+            hotkeyID,
             GetApplicationEventTarget(),
             0,
             &hotkeyRef
         )
 
-        guard registerResult == noErr else {
+        guard registerResult == noErr, let ref = hotkeyRef else {
             logError("Failed to register hotkey: \(registerResult)", category: .hotkey)
-            RemoveEventHandler(eventHandler)
-            eventHandler = nil
+            if hotkeys.isEmpty {
+                if let handler = eventHandler {
+                    RemoveEventHandler(handler)
+                }
+                eventHandler = nil
+            }
             return false
         }
 
-        isRegistered = true
-        logInfo("Hotkey registered successfully", category: .hotkey)
+        // Store hotkey
+        hotkeys[id] = (ref: ref, handler: handler)
+
+        // Update legacy properties if this is the app toggle hotkey
+        if id == HotkeyID.appToggle.rawValue {
+            isRegistered = true
+            currentKeyCode = keyCode
+            currentModifiers = modifiers
+        }
+
+        logInfo("Hotkey id=\(id) registered successfully", category: .hotkey)
         return true
     }
 
-    /// Unregisters the current hotkey
-    func unregister() {
-        guard isRegistered else { return }
+    /// Unregisters a specific hotkey by ID
+    func unregister(id: Int) {
+        guard let entry = hotkeys[id] else { return }
 
-        logInfo("Unregistering hotkey", category: .hotkey)
+        logInfo("Unregistering hotkey id=\(id)", category: .hotkey)
 
-        if let hotkeyRef = hotkeyRef {
-            UnregisterEventHotKey(hotkeyRef)
-            self.hotkeyRef = nil
+        UnregisterEventHotKey(entry.ref)
+        hotkeys.removeValue(forKey: id)
+        hotkeyIDs.removeValue(forKey: id)
+
+        // Update legacy properties if this is the app toggle hotkey
+        if id == HotkeyID.appToggle.rawValue {
+            isRegistered = false
+            currentKeyCode = nil
+            currentModifiers = nil
         }
 
-        if let eventHandler = eventHandler {
-            RemoveEventHandler(eventHandler)
-            self.eventHandler = nil
+        // Remove event handler if no hotkeys remain
+        if hotkeys.isEmpty, let handler = eventHandler {
+            RemoveEventHandler(handler)
+            eventHandler = nil
+        }
+
+        logDebug("Hotkey id=\(id) unregistered", category: .hotkey)
+    }
+
+    /// Unregisters all hotkeys
+    func unregisterAll() {
+        guard !hotkeys.isEmpty else { return }
+
+        logInfo("Unregistering all hotkeys", category: .hotkey)
+
+        for (id, entry) in hotkeys {
+            UnregisterEventHotKey(entry.ref)
+            logDebug("Unregistered hotkey id=\(id)", category: .hotkey)
+        }
+
+        hotkeys.removeAll()
+        hotkeyIDs.removeAll()
+
+        if let handler = eventHandler {
+            RemoveEventHandler(handler)
+            eventHandler = nil
         }
 
         isRegistered = false
         currentKeyCode = nil
         currentModifiers = nil
-        onHotkeyPressed = nil
 
-        logDebug("Hotkey unregistered", category: .hotkey)
+        logDebug("All hotkeys unregistered", category: .hotkey)
     }
 
-    /// Updates the hotkey with new key combination
+    /// Legacy unregister method (maintained for backward compatibility)
+    func unregister() {
+        unregister(id: HotkeyID.appToggle.rawValue)
+    }
+
+    /// Updates the hotkey with new key combination (legacy method for app toggle)
     func update(keyCode: Int, modifiers: Int) -> Bool {
-        guard let handler = onHotkeyPressed else {
-            logWarning("No handler registered, cannot update hotkey", category: .hotkey)
+        guard let entry = hotkeys[HotkeyID.appToggle.rawValue] else {
+            logWarning("App toggle hotkey not registered, cannot update", category: .hotkey)
             return false
         }
 
-        return register(keyCode: keyCode, modifiers: modifiers, handler: handler)
+        return register(id: HotkeyID.appToggle.rawValue, keyCode: keyCode, modifiers: modifiers, handler: entry.handler)
     }
 
     // MARK: - Handler
 
-    private func handleHotkeyPressed() {
-        logDebug("Hotkey pressed", category: .hotkey)
-        onHotkeyPressed?()
+    private func handleHotkeyPressed(id: Int) {
+        logDebug("Hotkey pressed: id=\(id)", category: .hotkey)
+        hotkeys[id]?.handler()
     }
 
     // MARK: - Default Registration
@@ -155,12 +223,13 @@ final class HotkeyManager: ObservableObject {
     func registerFromSettings() {
         guard let settings = SettingsManager.shared.settings,
               let keyCode = settings.globalHotkeyKeyCode,
-              let modifiers = settings.globalHotkeyModifiers else {
+              let modifiers = settings.globalHotkeyModifiers
+        else {
             logDebug("No hotkey configured in settings", category: .hotkey)
             return
         }
 
-        _ = register(keyCode: keyCode, modifiers: modifiers) {
+        _ = register(id: HotkeyID.appToggle.rawValue, keyCode: keyCode, modifiers: modifiers) {
             HotkeyManager.shared.handleDefaultHotkeyAction()
         }
     }
@@ -181,6 +250,50 @@ final class HotkeyManager: ObservableObject {
             }
         }
     }
+
+    // MARK: - Capture Hotkeys
+
+    /// Registers capture hotkeys from settings
+    func registerCaptureHotkeys() {
+        guard let settings = SettingsManager.shared.settings else {
+            logWarning("Settings not available, cannot register capture hotkeys", category: .hotkey)
+            return
+        }
+
+        // Register region capture hotkey
+        if let keyCode = settings.regionCaptureKeyCode,
+           let modifiers = settings.regionCaptureModifiers {
+            let success = register(id: HotkeyID.regionCapture.rawValue, keyCode: keyCode, modifiers: modifiers) {
+                Task { @MainActor in
+                    logInfo("Region capture hotkey triggered", category: .hotkey)
+                    let result = await ScreenshotCaptureService.shared.captureRegion()
+                    CaptureCoordinator.shared.handleCaptureResult(result)
+                }
+            }
+            if success {
+                logInfo("Region capture hotkey registered", category: .hotkey)
+            } else {
+                logError("Failed to register region capture hotkey", category: .hotkey)
+            }
+        }
+
+        // Register window capture hotkey
+        if let keyCode = settings.windowCaptureKeyCode,
+           let modifiers = settings.windowCaptureModifiers {
+            let success = register(id: HotkeyID.windowCapture.rawValue, keyCode: keyCode, modifiers: modifiers) {
+                Task { @MainActor in
+                    logInfo("Window capture hotkey triggered", category: .hotkey)
+                    let result = await ScreenshotCaptureService.shared.captureWindow()
+                    CaptureCoordinator.shared.handleCaptureResult(result)
+                }
+            }
+            if success {
+                logInfo("Window capture hotkey registered", category: .hotkey)
+            } else {
+                logError("Failed to register window capture hotkey", category: .hotkey)
+            }
+        }
+    }
 }
 
 // MARK: - Hotkey Conflict Detection
@@ -197,11 +310,11 @@ extension HotkeyManager {
             (kVK_ANSI_H, Int(cmdKey), "Hide Application"),
             (kVK_ANSI_M, Int(cmdKey), "Minimize Window"),
             (kVK_Tab, Int(cmdKey), "Switch Applications"),
-            (kVK_Space, Int(cmdKey), "Spotlight"),
+            (kVK_Space, Int(cmdKey), "Spotlight")
         ]
 
         for shortcut in systemShortcuts {
-            if keyCode == shortcut.keyCode && modifiers == shortcut.modifiers {
+            if keyCode == shortcut.keyCode, modifiers == shortcut.modifiers {
                 conflicts.append(shortcut.name)
             }
         }

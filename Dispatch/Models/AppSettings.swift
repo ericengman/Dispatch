@@ -15,6 +15,10 @@ import SwiftData
 enum AppSettingsDefaults {
     static let globalHotkeyKeyCode: Int = .init(kVK_ANSI_D) // 'D' key
     static let globalHotkeyModifiers: Int = .init(cmdKey | shiftKey) // ⌘⇧
+    static let regionCaptureKeyCode: Int = .init(kVK_ANSI_1) // '1' key
+    static let regionCaptureModifiers: Int = .init(cmdKey | controlKey) // ⌘⌃
+    static let windowCaptureKeyCode: Int = .init(kVK_ANSI_2) // '2' key
+    static let windowCaptureModifiers: Int = .init(cmdKey | controlKey) // ⌘⌃
     static let showInMenuBar: Bool = false
     static let showDockIcon: Bool = true
     static let autoDetectActiveTerminal: Bool = true
@@ -49,6 +53,18 @@ final class AppSettings {
 
     /// Whether to send clipboard as prompt when hotkey triggered with additional modifier
     var sendClipboardOnHotkey: Bool
+
+    /// Key code for region capture hotkey
+    var regionCaptureKeyCode: Int?
+
+    /// Modifier flags for region capture hotkey
+    var regionCaptureModifiers: Int?
+
+    /// Key code for window capture hotkey
+    var windowCaptureKeyCode: Int?
+
+    /// Modifier flags for window capture hotkey
+    var windowCaptureModifiers: Int?
 
     // MARK: - Window & Display
 
@@ -129,6 +145,10 @@ final class AppSettings {
         globalHotkeyKeyCode: Int? = AppSettingsDefaults.globalHotkeyKeyCode,
         globalHotkeyModifiers: Int? = AppSettingsDefaults.globalHotkeyModifiers,
         sendClipboardOnHotkey: Bool = false,
+        regionCaptureKeyCode: Int? = AppSettingsDefaults.regionCaptureKeyCode,
+        regionCaptureModifiers: Int? = AppSettingsDefaults.regionCaptureModifiers,
+        windowCaptureKeyCode: Int? = AppSettingsDefaults.windowCaptureKeyCode,
+        windowCaptureModifiers: Int? = AppSettingsDefaults.windowCaptureModifiers,
         showInMenuBar: Bool = AppSettingsDefaults.showInMenuBar,
         showDockIcon: Bool = AppSettingsDefaults.showDockIcon,
         launchAtLogin: Bool = AppSettingsDefaults.launchAtLogin,
@@ -153,6 +173,10 @@ final class AppSettings {
         self.globalHotkeyKeyCode = globalHotkeyKeyCode
         self.globalHotkeyModifiers = globalHotkeyModifiers
         self.sendClipboardOnHotkey = sendClipboardOnHotkey
+        self.regionCaptureKeyCode = regionCaptureKeyCode
+        self.regionCaptureModifiers = regionCaptureModifiers
+        self.windowCaptureKeyCode = windowCaptureKeyCode
+        self.windowCaptureModifiers = windowCaptureModifiers
         self.showInMenuBar = showInMenuBar
         self.showDockIcon = showDockIcon
         self.launchAtLogin = launchAtLogin
@@ -211,6 +235,56 @@ final class AppSettings {
         sendDelayMs / 1000.0
     }
 
+    /// Returns region capture hotkey description for display
+    var regionCaptureDescription: String {
+        guard let keyCode = regionCaptureKeyCode,
+              let modifiers = regionCaptureModifiers
+        else {
+            return "Not Set"
+        }
+
+        var parts: [String] = []
+
+        if modifiers & Int(controlKey) != 0 { parts.append("⌃") }
+        if modifiers & Int(optionKey) != 0 { parts.append("⌥") }
+        if modifiers & Int(shiftKey) != 0 { parts.append("⇧") }
+        if modifiers & Int(cmdKey) != 0 { parts.append("⌘") }
+
+        if let keyName = Self.keyCodeToString(keyCode) {
+            parts.append(keyName)
+        }
+
+        return parts.joined()
+    }
+
+    /// Returns window capture hotkey description for display
+    var windowCaptureDescription: String {
+        guard let keyCode = windowCaptureKeyCode,
+              let modifiers = windowCaptureModifiers
+        else {
+            return "Not Set"
+        }
+
+        var parts: [String] = []
+
+        if modifiers & Int(controlKey) != 0 { parts.append("⌃") }
+        if modifiers & Int(optionKey) != 0 { parts.append("⌥") }
+        if modifiers & Int(shiftKey) != 0 { parts.append("⇧") }
+        if modifiers & Int(cmdKey) != 0 { parts.append("⌘") }
+
+        if let keyName = Self.keyCodeToString(keyCode) {
+            parts.append(keyName)
+        }
+
+        return parts.joined()
+    }
+
+    /// Whether capture shortcuts are configured
+    var hasCaptureShortcuts: Bool {
+        (regionCaptureKeyCode != nil && regionCaptureModifiers != nil) ||
+            (windowCaptureKeyCode != nil && windowCaptureModifiers != nil)
+    }
+
     // MARK: - Methods
 
     /// Updates the global hotkey
@@ -267,6 +341,10 @@ final class AppSettings {
         globalHotkeyKeyCode = AppSettingsDefaults.globalHotkeyKeyCode
         globalHotkeyModifiers = AppSettingsDefaults.globalHotkeyModifiers
         sendClipboardOnHotkey = false
+        regionCaptureKeyCode = AppSettingsDefaults.regionCaptureKeyCode
+        regionCaptureModifiers = AppSettingsDefaults.regionCaptureModifiers
+        windowCaptureKeyCode = AppSettingsDefaults.windowCaptureKeyCode
+        windowCaptureModifiers = AppSettingsDefaults.windowCaptureModifiers
         showInMenuBar = AppSettingsDefaults.showInMenuBar
         showDockIcon = AppSettingsDefaults.showDockIcon
         launchAtLogin = AppSettingsDefaults.launchAtLogin
