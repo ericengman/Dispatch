@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-09)
 ## Current Position
 
 Phase: 25 of 27 (Annotation Integration)
-Plan: 1 of 2 in current phase
-Status: In progress
-Last activity: 2026-02-09 — Completed 25-01-PLAN.md
+Plan: 2 of 2 in current phase
+Status: Phase complete
+Last activity: 2026-02-09 — Completed 25-02-PLAN.md
 
-Progress: [####################] v2.0 complete | [██████░░░░░░░░░░░░░░] 30% v3.0
+Progress: [####################] v2.0 complete | [████████░░░░░░░░░░░░] 40% v3.0
 
 ## Performance Metrics
 
@@ -25,7 +25,7 @@ Progress: [####################] v2.0 complete | [██████░░░░
 - Timeline: 3 days (Feb 7-9, 2026)
 
 **v3.0:**
-- Total plans completed: 3
+- Total plans completed: 5
 - Average duration: ~3m per plan
 - Phases: 5 (23-27)
 - Requirements: 11
@@ -48,6 +48,9 @@ Recent decisions affecting current work:
 - Use static cache for QuickCapture images to avoid SwiftData persistence [25-01]
 - Value-based WindowGroup allows multiple annotation windows simultaneously [25-01]
 - CaptureCoordinator uses @Published pendingCapture for MainView observation [25-01]
+- Auto-select active session as default for convenience [25-02]
+- Disable dispatch button until all conditions met (images + prompt + session) [25-02]
+- Close annotation window automatically after successful dispatch [25-02]
 
 ### Pending Todos
 
@@ -67,9 +70,9 @@ From v2.0 (non-blocking tech debt):
 ## Session Continuity
 
 Last session: 2026-02-09
-Stopped at: Completed 25-01-PLAN.md
+Stopped at: Completed 25-02-PLAN.md (Phase 25 complete)
 Resume file: None
 
 ---
 
-**Next step:** `/gsd:execute-plan 25-02` to implement session dispatch
+**Next step:** Phase 25 complete. All QuickCapture annotation features implemented.
