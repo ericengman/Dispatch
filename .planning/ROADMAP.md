@@ -64,7 +64,7 @@ See `milestones/v2.0-ROADMAP.md` for full archive.
 - [x] **Phase 23: Region Capture** - Cross-hair region selection via native screencapture
 - [x] **Phase 24: Window Capture** - Interactive window capture with hover-highlight
 - [x] **Phase 25: Annotation Integration** - Connect capture pipeline to annotation UI
-- [ ] **Phase 26: Sidebar Integration** - Quick Capture section with MRU and thumbnails
+- [x] **Phase 26: Sidebar Integration** - Quick Capture section with MRU and thumbnails
 - [ ] **Phase 27: Polish** - Keyboard shortcuts for capture modes
 
 ## Phase Details
@@ -129,8 +129,10 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. User can invoke region capture via keyboard shortcut
   2. User can invoke window capture via keyboard shortcut
-  3. Shortcuts are configurable in settings (or use sensible defaults)
-**Plans**: TBD
+  3. Shortcuts are displayed in settings (sensible defaults)
+**Plans**: 1 plan
+Plans:
+- [ ] 27-01-PLAN.md — Multi-hotkey manager, capture shortcuts, settings UI
 
 ## Progress
 
@@ -156,7 +158,7 @@ Plans:
 | 24. Window Capture | v3.0 | 1/1 | Complete | 2026-02-09 |
 | 25. Annotation Integration | v3.0 | 2/2 | Complete | 2026-02-09 |
 | 26. Sidebar Integration | v3.0 | 1/1 | Complete | 2026-02-10 |
-| 27. Polish | v3.0 | 0/? | Not started | - |
+| 27. Polish | v3.0 | 0/1 | Not started | - |
 
 ---
-*Next: `/gsd:discuss-phase 27` to plan Keyboard Shortcuts*
+*Next: `/gsd:execute-phase 27` to implement keyboard shortcuts*
