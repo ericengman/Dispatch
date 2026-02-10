@@ -221,6 +221,30 @@ struct HotkeySettingsView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+
+            Section("Capture Shortcuts") {
+                HStack {
+                    Text("Region capture:")
+                    Spacer()
+                    Text(settingsManager.settings?.regionCaptureDescription ?? "Not Set")
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(.quaternary, in: RoundedRectangle(cornerRadius: 6))
+                }
+
+                HStack {
+                    Text("Window capture:")
+                    Spacer()
+                    Text(settingsManager.settings?.windowCaptureDescription ?? "Not Set")
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(.quaternary, in: RoundedRectangle(cornerRadius: 6))
+                }
+
+                Text("Capture shortcuts work from any application. Press the shortcut to start capture selection.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
         .formStyle(.grouped)
         .padding()

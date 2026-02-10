@@ -223,6 +223,9 @@ struct DispatchApp: App {
         // Register global hotkey
         hotkeyManager.registerFromSettings()
 
+        // Register capture hotkeys
+        hotkeyManager.registerCaptureHotkeys()
+
         // Install/update external files and refresh hook status
         Task {
             logInfo("Installing/updating external files...", category: .hooks)
@@ -282,8 +285,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             await HookServerManager.shared.stop()
         }
 
-        // Unregister hotkey
-        HotkeyManager.shared.unregister()
+        // Unregister all hotkeys
+        HotkeyManager.shared.unregisterAll()
 
         // Clear queue if configured
         if SettingsManager.shared.settings?.autoClearQueueOnQuit == true {
