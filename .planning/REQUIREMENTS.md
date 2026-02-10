@@ -16,9 +16,9 @@ Requirements for Screenshot Capture milestone. Each maps to roadmap phases.
 
 ### Annotation Pipeline
 
-- [ ] **ANNOT-01**: Captured screenshot opens directly in annotation UI for markup
-- [ ] **ANNOT-02**: User can queue multiple screenshots before dispatching
-- [ ] **ANNOT-03**: User can select which Claude session receives the dispatched screenshot
+- [x] **ANNOT-01**: Captured screenshot opens directly in annotation UI for markup
+- [x] **ANNOT-02**: User can queue multiple screenshots before dispatching
+- [x] **ANNOT-03**: User can select which Claude session receives the dispatched screenshot
 
 ### UI Integration
 
@@ -61,9 +61,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CAPT-02 | Phase 24 | Complete |
 | CAPT-03 | Phase 24 | Complete |
 | CAPT-04 | Phase 26 | Pending |
-| ANNOT-01 | Phase 25 | Pending |
-| ANNOT-02 | Phase 25 | Pending |
-| ANNOT-03 | Phase 25 | Pending |
+| ANNOT-01 | Phase 25 | Complete |
+| ANNOT-02 | Phase 25 | Complete |
+| ANNOT-03 | Phase 25 | Complete |
 | UI-01 | Phase 26 | Pending |
 | UI-02 | Phase 27 | Pending |
 | UI-03 | Phase 26 | Pending |
@@ -76,4 +76,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-02-09*
-*Last updated: 2026-02-09 after Phase 24 completion*
+*Last updated: 2026-02-09 after Phase 25 completion*

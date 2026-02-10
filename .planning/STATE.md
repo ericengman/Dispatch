@@ -5,7 +5,7 @@
 See: .planning/PROJECT.md (updated 2026-02-09)
 
 **Core value:** Users can dispatch prompts (including annotated screenshots) to Claude Code with zero friction
-**Current focus:** Phase 24 - Window Capture
+**Current focus:** Phase 26 - Sidebar Integration
 
 ## Current Position
 
@@ -75,4 +75,4 @@ Resume file: None
 
 ---
 
-**Next step:** Phase 25 complete. All QuickCapture annotation features implemented.
+**Next step:** `/gsd:discuss-phase 26` to plan Sidebar Integration
