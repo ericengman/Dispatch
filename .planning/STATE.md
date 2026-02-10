@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-02-09)
 
 ## Current Position
 
-Phase: 26 of 27 (Sidebar Integration)
+Phase: 27 of 27 (Polish)
 Plan: 1 of 1 in current phase
-Status: Phase complete
-Last activity: 2026-02-10 — Completed 26-01-PLAN.md
+Status: In progress
+Last activity: 2026-02-10 — Completed 27-01-PLAN.md
 
-Progress: [####################] v2.0 complete | [████████████████░░░░] 80% v3.0
+Progress: [####################] v2.0 complete | [█████████████████░░░] 85% v3.0
 
 ## Performance Metrics
 
@@ -25,7 +25,7 @@ Progress: [####################] v2.0 complete | [██████████
 - Timeline: 3 days (Feb 7-9, 2026)
 
 **v3.0:**
-- Total plans completed: 6
+- Total plans completed: 7
 - Average duration: ~4m per plan
 - Phases: 5 (23-27)
 - Requirements: 11
@@ -55,6 +55,8 @@ Recent decisions affecting current work:
 - Actor-based ThumbnailCache for thread-safe caching [26-01]
 - CGImageSource for fast thumbnail generation [26-01]
 - Quick Capture section at top of sidebar for prominence [26-01]
+- Default shortcuts Ctrl+Cmd+1/2 avoid system conflicts [27-01]
+- Read-only capture shortcuts display in v3.0 (customization deferred) [27-01]
 
 ### Pending Todos
 
@@ -74,9 +76,9 @@ From v2.0 (non-blocking tech debt):
 ## Session Continuity
 
 Last session: 2026-02-10
-Stopped at: Completed 26-01-PLAN.md (Phase 26 complete)
+Stopped at: Completed 27-01-PLAN.md
 Resume file: None
 
 ---
 
-**Next step:** `/gsd:discuss-phase 27` to plan Keyboard Shortcuts
+**Next step:** Phase 27 complete - v3.0 feature development finished!
