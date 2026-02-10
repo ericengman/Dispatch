@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-02-09)
 
 ## Current Position
 
-Phase: 25 of 27 (Annotation Integration)
-Plan: 2 of 2 in current phase
+Phase: 26 of 27 (Sidebar Integration)
+Plan: 1 of 1 in current phase
 Status: Phase complete
-Last activity: 2026-02-09 — Completed 25-02-PLAN.md
+Last activity: 2026-02-10 — Completed 26-01-PLAN.md
 
-Progress: [####################] v2.0 complete | [████████░░░░░░░░░░░░] 40% v3.0
+Progress: [####################] v2.0 complete | [██████████░░░░░░░░░░] 50% v3.0
 
 ## Performance Metrics
 
@@ -25,8 +25,8 @@ Progress: [####################] v2.0 complete | [████████░░
 - Timeline: 3 days (Feb 7-9, 2026)
 
 **v3.0:**
-- Total plans completed: 5
-- Average duration: ~3m per plan
+- Total plans completed: 6
+- Average duration: ~4m per plan
 - Phases: 5 (23-27)
 - Requirements: 11
 
@@ -51,6 +51,10 @@ Recent decisions affecting current work:
 - Auto-select active session as default for convenience [25-02]
 - Disable dispatch button until all conditions met (images + prompt + session) [25-02]
 - Close annotation window automatically after successful dispatch [25-02]
+- UserDefaults for MRU persistence (lightweight, no SwiftData needed) [26-01]
+- Actor-based ThumbnailCache for thread-safe caching [26-01]
+- CGImageSource for fast thumbnail generation [26-01]
+- Quick Capture section at top of sidebar for prominence [26-01]
 
 ### Pending Todos
 
@@ -69,10 +73,10 @@ From v2.0 (non-blocking tech debt):
 
 ## Session Continuity
 
-Last session: 2026-02-09
-Stopped at: Completed 25-02-PLAN.md (Phase 25 complete)
+Last session: 2026-02-10
+Stopped at: Completed 26-01-PLAN.md (Phase 26 complete)
 Resume file: None
 
 ---
 
-**Next step:** `/gsd:discuss-phase 26` to plan Sidebar Integration
+**Next step:** `/gsd:execute-phase 27` to implement Keyboard Shortcuts
