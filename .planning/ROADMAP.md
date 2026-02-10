@@ -63,7 +63,7 @@ See `milestones/v2.0-ROADMAP.md` for full archive.
 
 - [x] **Phase 23: Region Capture** - Cross-hair region selection via native screencapture
 - [x] **Phase 24: Window Capture** - Interactive window capture with hover-highlight
-- [ ] **Phase 25: Annotation Integration** - Connect capture pipeline to annotation UI
+- [x] **Phase 25: Annotation Integration** - Connect capture pipeline to annotation UI
 - [ ] **Phase 26: Sidebar Integration** - Quick Capture section with MRU and thumbnails
 - [ ] **Phase 27: Polish** - Keyboard shortcuts for capture modes
 
@@ -112,14 +112,15 @@ Plans:
 ### Phase 26: Sidebar Integration
 **Goal**: Quick Capture UI section in sidebar with recent captures and window thumbnails
 **Depends on**: Phase 25
-**Requirements**: UI-01, UI-03, UI-04, CAPT-04
+**Requirements**: UI-01, UI-04, CAPT-04 (UI-03 partially via hover-highlight)
 **Success Criteria** (what must be TRUE):
   1. Quick Capture section appears in sidebar with Region and Window buttons
   2. Recent captures strip shows last 3-5 captures as clickable thumbnails
-  3. Window picker shows live thumbnail previews of capturable windows
-  4. User can re-capture previously captured windows from MRU list
-  5. Clicking a recent capture opens it in annotation UI
-**Plans**: TBD
+  3. User can re-capture previously captured windows from MRU list
+  4. Clicking a recent capture opens it in annotation UI
+**Plans**: 1 plan
+Plans:
+- [ ] 26-01-PLAN.md — QuickCaptureManager, ThumbnailCache, and sidebar section
 
 ### Phase 27: Polish
 **Goal**: Keyboard shortcuts enable rapid capture workflows
@@ -154,8 +155,8 @@ Plans:
 | 23. Region Capture | v3.0 | 1/1 | Complete | 2026-02-09 |
 | 24. Window Capture | v3.0 | 1/1 | Complete | 2026-02-09 |
 | 25. Annotation Integration | v3.0 | 2/2 | Complete | 2026-02-09 |
-| 26. Sidebar Integration | v3.0 | 0/? | Not started | - |
+| 26. Sidebar Integration | v3.0 | 0/1 | Not started | - |
 | 27. Polish | v3.0 | 0/? | Not started | - |
 
 ---
-*Next: `/gsd:plan-phase 26` to plan Sidebar Integration*
+*Next: `/gsd:execute-phase 26` to execute Sidebar Integration*
