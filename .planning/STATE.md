@@ -5,7 +5,7 @@
 See: .planning/PROJECT.md (updated 2026-02-09)
 
 **Core value:** Users can dispatch prompts (including annotated screenshots) to Claude Code with zero friction
-**Current focus:** Phase 26 - Sidebar Integration
+**Current focus:** Phase 27 - Polish (Keyboard Shortcuts)
 
 ## Current Position
 
@@ -14,7 +14,7 @@ Plan: 1 of 1 in current phase
 Status: Phase complete
 Last activity: 2026-02-10 — Completed 26-01-PLAN.md
 
-Progress: [####################] v2.0 complete | [██████████░░░░░░░░░░] 50% v3.0
+Progress: [####################] v2.0 complete | [████████████████░░░░] 80% v3.0
 
 ## Performance Metrics
 
@@ -79,4 +79,4 @@ Resume file: None
 
 ---
 
-**Next step:** `/gsd:execute-phase 27` to implement Keyboard Shortcuts
+**Next step:** `/gsd:discuss-phase 27` to plan Keyboard Shortcuts

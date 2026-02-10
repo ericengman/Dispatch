@@ -12,7 +12,7 @@ Requirements for Screenshot Capture milestone. Each maps to roadmap phases.
 - [x] **CAPT-01**: User can invoke cross-hair region selection via native macOS screencapture
 - [x] **CAPT-02**: User can select and capture any window via interactive hover-highlight
 - [x] **CAPT-03**: User sees iOS Simulator windows prominently (system UI filtered out)
-- [ ] **CAPT-04**: User can re-capture recently captured windows from MRU list
+- [x] **CAPT-04**: User can re-capture recently captured windows from MRU list
 
 ### Annotation Pipeline
 
@@ -22,10 +22,10 @@ Requirements for Screenshot Capture milestone. Each maps to roadmap phases.
 
 ### UI Integration
 
-- [ ] **UI-01**: Quick Capture section appears in sidebar with capture action buttons
+- [x] **UI-01**: Quick Capture section appears in sidebar with capture action buttons
 - [ ] **UI-02**: User can trigger capture modes via keyboard shortcuts
 - [ ] **UI-03**: User sees live thumbnail previews of capturable windows in picker
-- [ ] **UI-04**: User sees recent captures strip showing last few captures in sidebar
+- [x] **UI-04**: User sees recent captures strip showing last few captures in sidebar
 
 ## Future Requirements
 
@@ -60,14 +60,14 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CAPT-01 | Phase 23 | Complete |
 | CAPT-02 | Phase 24 | Complete |
 | CAPT-03 | Phase 24 | Complete |
-| CAPT-04 | Phase 26 | Pending |
+| CAPT-04 | Phase 26 | Complete |
 | ANNOT-01 | Phase 25 | Complete |
 | ANNOT-02 | Phase 25 | Complete |
 | ANNOT-03 | Phase 25 | Complete |
-| UI-01 | Phase 26 | Pending |
+| UI-01 | Phase 26 | Complete |
 | UI-02 | Phase 27 | Pending |
 | UI-03 | Phase 26 | Pending |
-| UI-04 | Phase 26 | Pending |
+| UI-04 | Phase 26 | Complete |
 
 **Coverage:**
 - v3.0 requirements: 11 total
@@ -76,4 +76,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-02-09*
-*Last updated: 2026-02-09 after Phase 25 completion*
+*Last updated: 2026-02-10 after Phase 26 completion*

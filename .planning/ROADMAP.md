@@ -120,7 +120,7 @@ Plans:
   4. Clicking a recent capture opens it in annotation UI
 **Plans**: 1 plan
 Plans:
-- [ ] 26-01-PLAN.md — QuickCaptureManager, ThumbnailCache, and sidebar section
+- [x] 26-01-PLAN.md — QuickCaptureManager, ThumbnailCache, and sidebar section
 
 ### Phase 27: Polish
 **Goal**: Keyboard shortcuts enable rapid capture workflows
@@ -155,8 +155,8 @@ Plans:
 | 23. Region Capture | v3.0 | 1/1 | Complete | 2026-02-09 |
 | 24. Window Capture | v3.0 | 1/1 | Complete | 2026-02-09 |
 | 25. Annotation Integration | v3.0 | 2/2 | Complete | 2026-02-09 |
-| 26. Sidebar Integration | v3.0 | 0/1 | Not started | - |
+| 26. Sidebar Integration | v3.0 | 1/1 | Complete | 2026-02-10 |
 | 27. Polish | v3.0 | 0/? | Not started | - |
 
 ---
-*Next: `/gsd:execute-phase 26` to execute Sidebar Integration*
+*Next: `/gsd:discuss-phase 27` to plan Keyboard Shortcuts*
