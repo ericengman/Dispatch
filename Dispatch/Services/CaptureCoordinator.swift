@@ -25,7 +25,12 @@ final class CaptureCoordinator: ObservableObject {
                 logError("Capture file not found: \(url.path)", category: .capture)
                 return
             }
-            pendingCapture = QuickCapture(fileURL: url)
+            let capture = QuickCapture(fileURL: url)
+            pendingCapture = capture
+
+            // Add to MRU list for sidebar
+            QuickCaptureManager.shared.addRecent(capture)
+
             logInfo("Capture ready for annotation: \(url.lastPathComponent)", category: .capture)
 
         case .cancelled:

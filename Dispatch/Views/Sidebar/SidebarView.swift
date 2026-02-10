@@ -30,6 +30,10 @@ struct SidebarView: View {
 
     var body: some View {
         List(selection: $selection) {
+            // MARK: - Quick Capture Section
+
+            QuickCaptureSidebarSection()
+
             // MARK: - Projects Section
 
             Section {
