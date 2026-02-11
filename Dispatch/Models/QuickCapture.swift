@@ -15,12 +15,18 @@ struct QuickCapture: Hashable, Codable, Identifiable {
     let filePath: String
     let timestamp: Date
     var label: String?
+    var projectId: UUID?
+    var sourceAppName: String?
+    var sourceWindowTitle: String?
 
-    init(fileURL: URL) {
+    init(fileURL: URL, projectId: UUID? = nil, sourceAppName: String? = nil, sourceWindowTitle: String? = nil) {
         id = UUID()
         filePath = fileURL.path
         timestamp = Date()
         label = nil
+        self.projectId = projectId
+        self.sourceAppName = sourceAppName
+        self.sourceWindowTitle = sourceWindowTitle
     }
 
     var fileURL: URL {

@@ -17,6 +17,10 @@ final class TerminalSession {
     var claudeSessionId: String? // Claude session ID if resuming
     var workingDirectory: String? // Project path for Claude Code
 
+    // MARK: - Transient State
+
+    @Transient var wasRestoredFromPersistence = false
+
     // MARK: - Relationships
 
     var project: Project?
@@ -45,13 +49,33 @@ final class TerminalSession {
 
     /// Computed launch mode based on session configuration
     var launchMode: TerminalLaunchMode {
+        logInfo("RESUME-DBG launchMode called for session '\(name)' (id=\(id))", category: .terminal)
+        logInfo("RESUME-DBG   claudeSessionId=\(claudeSessionId ?? "nil")", category: .terminal)
+        logInfo("RESUME-DBG   workingDirectory=\(workingDirectory ?? "nil")", category: .terminal)
+        logInfo("RESUME-DBG   wasRestoredFromPersistence=\(wasRestoredFromPersistence)", category: .terminal)
+        logInfo("RESUME-DBG   lastActivity=\(lastActivity), createdAt=\(createdAt), lastActivity > createdAt = \(lastActivity > createdAt)", category: .terminal)
+
         if let sessionId = claudeSessionId {
+            logInfo("RESUME-DBG   -> DECISION: .claudeCodeResume with sessionId=\(sessionId)", category: .terminal)
             return .claudeCodeResume(
                 sessionId: sessionId,
                 workingDirectory: workingDirectory,
                 skipPermissions: true
             )
         }
+        // Restored from persistence but lost session ID (validation cleared it) — start fresh
+        // Don't use --continue which could pick up the wrong session
+        if wasRestoredFromPersistence {
+            logInfo("RESUME-DBG   -> DECISION: .claudeCode (fresh) because wasRestoredFromPersistence=true and claudeSessionId=nil", category: .terminal)
+            return .claudeCode(workingDirectory: workingDirectory, skipPermissions: true)
+        }
+        // If we have a working directory and prior activity, use --continue to resume
+        // the most recent session instead of starting fresh
+        if workingDirectory != nil, lastActivity > createdAt {
+            logInfo("RESUME-DBG   -> DECISION: .claudeCodeContinue (--continue flag)", category: .terminal)
+            return .claudeCodeContinue(workingDirectory: workingDirectory, skipPermissions: true)
+        }
+        logInfo("RESUME-DBG   -> DECISION: .claudeCode (fresh, no special conditions)", category: .terminal)
         return .claudeCode(workingDirectory: workingDirectory, skipPermissions: true)
     }
 

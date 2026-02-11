@@ -45,8 +45,8 @@ final class EmbeddedTerminalService {
     /// Dispatch prompt to active session
     /// Updates session activity timestamp on successful dispatch
     @discardableResult
-    func dispatchPrompt(_ content: String) -> Bool {
-        let result = bridge.dispatchPrompt(content)
+    func dispatchPrompt(_ content: String) async -> Bool {
+        let result = await bridge.dispatchPrompt(content)
         if result, let sessionId = sessionManager.activeSessionId {
             sessionManager.updateSessionActivity(sessionId)
         }
@@ -56,8 +56,8 @@ final class EmbeddedTerminalService {
     /// Dispatch prompt to specific session
     /// Updates session activity timestamp on successful dispatch
     @discardableResult
-    func dispatchPrompt(_ content: String, to sessionId: UUID) -> Bool {
-        let result = bridge.dispatchPrompt(content, to: sessionId)
+    func dispatchPrompt(_ content: String, to sessionId: UUID) async -> Bool {
+        let result = await bridge.dispatchPrompt(content, to: sessionId)
         if result {
             sessionManager.updateSessionActivity(sessionId)
         }

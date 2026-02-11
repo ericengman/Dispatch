@@ -31,7 +31,6 @@ enum AppSettingsDefaults {
     static let compactRowHeight: Bool = false
     static let editorFontSize: Int = 14
     static let launchAtLogin: Bool = false
-    static let autoClearQueueOnQuit: Bool = false
     static let autoRefreshTerminalList: Bool = true
     static let defaultAnnotationColor: String = "red"
     static let maxRunsPerProject: Int = 10
@@ -119,9 +118,6 @@ final class AppSettings {
     /// Number of days to retain history
     var historyRetentionDays: Int
 
-    /// Auto-clear queue when app quits
-    var autoClearQueueOnQuit: Bool
-
     // MARK: - Screenshot Settings
 
     /// Custom screenshot directory path (nil = use default)
@@ -164,7 +160,6 @@ final class AppSettings {
         pollingIntervalSeconds: Double = AppSettingsDefaults.pollingIntervalSeconds,
         defaultProjectId: UUID? = nil,
         historyRetentionDays: Int = AppSettingsDefaults.historyRetentionDays,
-        autoClearQueueOnQuit: Bool = AppSettingsDefaults.autoClearQueueOnQuit,
         screenshotDirectory: String? = nil,
         defaultAnnotationColor: String = AppSettingsDefaults.defaultAnnotationColor,
         maxRunsPerProject: Int = AppSettingsDefaults.maxRunsPerProject
@@ -192,7 +187,6 @@ final class AppSettings {
         self.pollingIntervalSeconds = pollingIntervalSeconds
         self.defaultProjectId = defaultProjectId
         self.historyRetentionDays = historyRetentionDays
-        self.autoClearQueueOnQuit = autoClearQueueOnQuit
         self.screenshotDirectory = screenshotDirectory
         self.defaultAnnotationColor = defaultAnnotationColor
         self.maxRunsPerProject = maxRunsPerProject
@@ -360,7 +354,6 @@ final class AppSettings {
         pollingIntervalSeconds = AppSettingsDefaults.pollingIntervalSeconds
         defaultProjectId = nil
         historyRetentionDays = AppSettingsDefaults.historyRetentionDays
-        autoClearQueueOnQuit = AppSettingsDefaults.autoClearQueueOnQuit
         screenshotDirectory = nil
         defaultAnnotationColor = AppSettingsDefaults.defaultAnnotationColor
         maxRunsPerProject = AppSettingsDefaults.maxRunsPerProject

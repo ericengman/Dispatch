@@ -11,7 +11,7 @@ import os.log
 // MARK: - Log Level
 
 /// Severity levels for log messages
-enum LogLevel: Int, Comparable, Sendable {
+nonisolated enum LogLevel: Int, Comparable, Sendable {
     case debug = 0 // Detailed debugging information
     case info = 1 // General informational messages
     case warning = 2 // Potential issues that don't prevent operation
@@ -56,11 +56,10 @@ enum LogLevel: Int, Comparable, Sendable {
 // MARK: - Log Category
 
 /// Categories for organizing log messages by subsystem
-enum LogCategory: String, CaseIterable, Sendable {
+nonisolated enum LogCategory: String, CaseIterable, Sendable {
     case app = "APP" // App lifecycle, general
     case data = "DATA" // SwiftData operations, persistence
     case terminal = "TERMINAL" // Terminal integration, AppleScript
-    case queue = "QUEUE" // Queue operations
     case chain = "CHAIN" // Chain execution
     case hooks = "HOOKS" // Hook server, completion detection
     case hotkey = "HOTKEY" // Global hotkey
@@ -82,7 +81,7 @@ enum LogCategory: String, CaseIterable, Sendable {
 // MARK: - Log Entry
 
 /// Represents a single log entry with all metadata
-struct LogEntry: Sendable {
+nonisolated struct LogEntry: Sendable {
     let timestamp: Date
     let level: LogLevel
     let category: LogCategory
@@ -117,7 +116,7 @@ struct LogEntry: Sendable {
 // MARK: - Log Filter
 
 /// Configuration for filtering log output
-struct LogFilter: Sendable {
+nonisolated struct LogFilter: Sendable {
     var minimumLevel: LogLevel = .debug
     var enabledCategories: Set<LogCategory> = Set(LogCategory.allCases)
     var disabledCategories: Set<LogCategory> = []
@@ -134,17 +133,17 @@ struct LogFilter: Sendable {
 
 /// Protocol for log output destinations
 protocol LogDestination: Sendable {
-    func write(_ entry: LogEntry)
+    nonisolated func write(_ entry: LogEntry)
 }
 
 // MARK: - Console Destination
 
 /// Outputs logs to the console/standard output
-final class ConsoleLogDestination: LogDestination, @unchecked Sendable {
+final nonisolated class ConsoleLogDestination: LogDestination, @unchecked Sendable {
     private let queue = DispatchQueue(label: "com.dispatch.logging.console", qos: .utility)
     private let useOSLog: Bool
 
-    init(useOSLog: Bool = true) {
+    nonisolated init(useOSLog: Bool = true) {
         self.useOSLog = useOSLog
     }
 
@@ -162,13 +161,13 @@ final class ConsoleLogDestination: LogDestination, @unchecked Sendable {
 // MARK: - File Destination
 
 /// Outputs logs to a file for persistent storage
-final class FileLogDestination: LogDestination, @unchecked Sendable {
+final nonisolated class FileLogDestination: LogDestination, @unchecked Sendable {
     private let queue = DispatchQueue(label: "com.dispatch.logging.file", qos: .utility)
     private let fileURL: URL
     private let fileHandle: FileHandle?
     private let maxFileSize: UInt64
 
-    init?(directory: URL? = nil, fileName: String = "dispatch.log", maxSizeMB: Double = 10) {
+    nonisolated init?(directory: URL? = nil, fileName: String = "dispatch.log", maxSizeMB: Double = 10) {
         let logDirectory = directory ?? FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
             .appendingPathComponent("com.Eric.Dispatch/Logs", isDirectory: true)
 
@@ -344,7 +343,7 @@ actor LoggingService {
 /// Convenience functions for logging from any context
 /// These are the primary interface for logging throughout the app
 
-func logDebug(
+nonisolated func logDebug(
     _ message: String,
     category: LogCategory = .app,
     file: String = #file,
@@ -356,7 +355,7 @@ func logDebug(
     }
 }
 
-func logInfo(
+nonisolated func logInfo(
     _ message: String,
     category: LogCategory = .app,
     file: String = #file,
@@ -368,7 +367,7 @@ func logInfo(
     }
 }
 
-func logWarning(
+nonisolated func logWarning(
     _ message: String,
     category: LogCategory = .app,
     file: String = #file,
@@ -380,7 +379,7 @@ func logWarning(
     }
 }
 
-func logError(
+nonisolated func logError(
     _ message: String,
     category: LogCategory = .app,
     file: String = #file,
@@ -392,7 +391,7 @@ func logError(
     }
 }
 
-func logCritical(
+nonisolated func logCritical(
     _ message: String,
     category: LogCategory = .app,
     file: String = #file,
@@ -407,7 +406,7 @@ func logCritical(
 // MARK: - Error Logging Extension
 
 extension Error {
-    func log(
+    nonisolated func log(
         as level: LogLevel = .error,
         category: LogCategory = .app,
         context: String = "",
@@ -433,7 +432,7 @@ final class PerformanceLogger: @unchecked Sendable {
     private let function: String
     private let line: Int
 
-    init(
+    nonisolated init(
         _ name: String,
         category: LogCategory = .app,
         file: String = #file,
@@ -459,7 +458,7 @@ final class PerformanceLogger: @unchecked Sendable {
         }
     }
 
-    func end() {
+    nonisolated func end() {
         let duration = CFAbsoluteTimeGetCurrent() - startTime
         let formattedDuration = String(format: "%.3f", duration * 1000)
 
@@ -475,7 +474,7 @@ final class PerformanceLogger: @unchecked Sendable {
         }
     }
 
-    func checkpoint(_ label: String) {
+    nonisolated func checkpoint(_ label: String) {
         let duration = CFAbsoluteTimeGetCurrent() - startTime
         let formattedDuration = String(format: "%.3f", duration * 1000)
 
@@ -493,7 +492,7 @@ final class PerformanceLogger: @unchecked Sendable {
 }
 
 /// Convenience function for scoped performance measurement
-func measurePerformance<T>(
+nonisolated func measurePerformance<T>(
     _ name: String,
     category: LogCategory = .app,
     operation: () throws -> T
@@ -503,7 +502,7 @@ func measurePerformance<T>(
     return try operation()
 }
 
-func measurePerformance<T>(
+nonisolated func measurePerformance<T>(
     _ name: String,
     category: LogCategory = .app,
     operation: () async throws -> T

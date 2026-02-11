@@ -12,15 +12,14 @@ import ScreenCaptureKit
 // MARK: - Window Capture Session
 
 /// Manages an interactive window capture session
-/// Flow: Hover to highlight → Click to select → Interact with window → Capture or Cancel
+/// Flow: Hover to highlight window and show controls → Capture or Cancel
 @MainActor
 final class WindowCaptureSession {
     // MARK: - Types
 
     enum SessionState {
         case idle
-        case selecting // User is hovering/selecting a window
-        case selected // Window is selected, showing controls
+        case selecting // User is hovering over windows
         case capturing // Taking the screenshot
         case completed // Session ended
     }
@@ -36,11 +35,13 @@ final class WindowCaptureSession {
     // MARK: - Properties
 
     private var state: SessionState = .idle
-    private var selectedWindow: WindowInfo?
+    private var hoveredWindow: WindowInfo?
     private var highlightWindow: NSWindow?
     private var controlPanel: NSWindow?
     private var mouseMonitor: Any?
+    private var localMouseMonitor: Any?
     private var keyMonitor: Any?
+    private var localKeyMonitor: Any?
 
     private var continuation: CheckedContinuation<CaptureResult, Never>?
 
@@ -69,66 +70,34 @@ final class WindowCaptureSession {
 
     private func startMouseTracking() {
         // Monitor mouse movement globally
-        mouseMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.mouseMoved, .leftMouseDown]) { [weak self] event in
+        mouseMonitor = NSEvent.addGlobalMonitorForEvents(matching: .mouseMoved) { [weak self] _ in
             Task { @MainActor in
-                self?.handleMouseEvent(event)
+                guard let self, self.state == .selecting else { return }
+                self.updateHighlight(at: NSEvent.mouseLocation)
             }
         }
 
         // Also monitor local events (when Dispatch is focused)
-        let localMonitor = NSEvent.addLocalMonitorForEvents(matching: [.mouseMoved, .leftMouseDown]) { [weak self] event in
+        localMouseMonitor = NSEvent.addLocalMonitorForEvents(matching: .mouseMoved) { [weak self] event in
             Task { @MainActor in
-                self?.handleMouseEvent(event)
+                guard let self, self.state == .selecting else { return }
+                self.updateHighlight(at: NSEvent.mouseLocation)
             }
             return event
-        }
-
-        // Store for cleanup (simplified - just use global for now)
-        _ = localMonitor
-    }
-
-    private func handleMouseEvent(_ event: NSEvent) {
-        guard state == .selecting else { return }
-
-        let mouseLocation = NSEvent.mouseLocation
-
-        if event.type == .mouseMoved {
-            // Update highlight based on window under cursor
-            updateHighlight(at: mouseLocation)
-        } else if event.type == .leftMouseDown {
-            // Select the window under cursor
-            selectWindow(at: mouseLocation)
         }
     }
 
     private func updateHighlight(at point: NSPoint) {
         guard let windowInfo = getWindowInfo(at: point) else {
             hideHighlight()
+            hideControlPanel()
+            hoveredWindow = nil
             return
         }
 
+        hoveredWindow = windowInfo
         showHighlight(for: windowInfo)
-    }
-
-    private func selectWindow(at point: NSPoint) {
-        guard let windowInfo = getWindowInfo(at: point) else {
-            logDebug("No window found at click location", category: .capture)
-            return
-        }
-
-        logInfo("Window selected: \(windowInfo.ownerName) - \(windowInfo.title)", category: .capture)
-
-        selectedWindow = windowInfo
-        state = .selected
-
-        // Stop mouse tracking
-        stopMouseTracking()
-
-        // Show control panel
         showControlPanel(for: windowInfo)
-
-        // Keep highlight visible
-        showHighlight(for: windowInfo)
     }
 
     // MARK: - Key Monitoring
@@ -142,8 +111,7 @@ final class WindowCaptureSession {
             }
         }
 
-        // Also local monitor
-        _ = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+        localKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             if event.keyCode == 53 { // Escape key
                 Task { @MainActor in
                     self?.cancel()
@@ -167,9 +135,7 @@ final class WindowCaptureSession {
             return nil
         }
 
-        // Find the topmost window containing the point (excluding our own windows)
-        let dispatchPID = ProcessInfo.processInfo.processIdentifier
-
+        // Find the topmost window containing the point
         for windowDict in windowList {
             guard let windowID = windowDict[kCGWindowNumber as String] as? CGWindowID,
                   let ownerPID = windowDict[kCGWindowOwnerPID as String] as? pid_t,
@@ -179,9 +145,10 @@ final class WindowCaptureSession {
                 continue
             }
 
-            // Skip our own windows and non-normal window layers
+            // Skip non-normal window layers (menu bar, overlays, etc.)
             // Layer 0 = normal windows, negative = menu bar, positive = overlays
-            if ownerPID == dispatchPID || layer != 0 {
+            // Note: We intentionally allow capturing Dispatch's own windows
+            if layer != 0 {
                 continue
             }
 
@@ -262,6 +229,7 @@ final class WindowCaptureSession {
         window.level = .floating
         window.ignoresMouseEvents = true
         window.hasShadow = false
+        window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient]
 
         // Create border view
         let borderView = HighlightBorderView()
@@ -279,9 +247,9 @@ final class WindowCaptureSession {
 
         guard let panel = controlPanel else { return }
 
-        // Position at top-left of the selected window
-        let panelWidth: CGFloat = 200
-        let panelHeight: CGFloat = 50
+        // Position at top-left of the hovered window
+        let panelWidth: CGFloat = 240
+        let panelHeight: CGFloat = 56
         let padding: CGFloat = 10
 
         let panelOrigin = CGPoint(
@@ -299,7 +267,7 @@ final class WindowCaptureSession {
 
     private func createControlPanel() {
         let panel = NSPanel(
-            contentRect: CGRect(x: 0, y: 0, width: 220, height: 44),
+            contentRect: CGRect(x: 0, y: 0, width: 240, height: 56),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
@@ -308,7 +276,19 @@ final class WindowCaptureSession {
         panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.level = .floating
-        panel.hasShadow = false
+        panel.hasShadow = true
+        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient]
+
+        // Blur background
+        let visualEffect = NSVisualEffectView(frame: panel.contentView!.bounds)
+        visualEffect.autoresizingMask = [.width, .height]
+        visualEffect.material = .hudWindow
+        visualEffect.blendingMode = .behindWindow
+        visualEffect.state = .active
+        visualEffect.wantsLayer = true
+        visualEffect.layer?.cornerRadius = 12
+        visualEffect.layer?.masksToBounds = true
+        panel.contentView?.addSubview(visualEffect)
 
         // Create buttons with blue styling
         let stackView = NSStackView()
@@ -328,11 +308,11 @@ final class WindowCaptureSession {
         stackView.addArrangedSubview(cancelButton)
         stackView.addArrangedSubview(captureButton)
 
-        panel.contentView?.addSubview(stackView)
+        visualEffect.addSubview(stackView)
 
         NSLayoutConstraint.activate([
-            stackView.centerXAnchor.constraint(equalTo: panel.contentView!.centerXAnchor),
-            stackView.centerYAnchor.constraint(equalTo: panel.contentView!.centerYAnchor)
+            stackView.centerXAnchor.constraint(equalTo: visualEffect.centerXAnchor),
+            stackView.centerYAnchor.constraint(equalTo: visualEffect.centerYAnchor)
         ])
 
         controlPanel = panel
@@ -359,14 +339,14 @@ final class WindowCaptureSession {
             button.contentTintColor = blueColor
         }
 
-        button.layer?.cornerRadius = 6
-        button.font = NSFont.systemFont(ofSize: 13, weight: .medium)
+        button.layer?.cornerRadius = 8
+        button.font = NSFont.systemFont(ofSize: 14, weight: .medium)
 
-        // Set minimum size
+        // Full-sized tap targets covering entire button bounds
         button.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
-            button.widthAnchor.constraint(greaterThanOrEqualToConstant: 90),
-            button.heightAnchor.constraint(equalToConstant: 32)
+            button.widthAnchor.constraint(greaterThanOrEqualToConstant: 100),
+            button.heightAnchor.constraint(equalToConstant: 38)
         ])
 
         return button
@@ -390,28 +370,30 @@ final class WindowCaptureSession {
     }
 
     private func capture() {
-        guard let windowInfo = selectedWindow else {
-            logError("No window selected for capture", category: .capture)
+        guard let windowInfo = hoveredWindow else {
+            logError("No window under cursor for capture", category: .capture)
             cancel()
             return
         }
 
         state = .capturing
+        stopMouseTracking()
         hideControlPanel()
         hideHighlight()
 
         logDebug("Capturing window ID: \(windowInfo.windowID)", category: .capture)
 
         // Capture using screencapture -l <windowID>
+        let source = CaptureSource(appName: windowInfo.ownerName, windowTitle: windowInfo.title)
         Task {
-            let result = await captureWindow(windowID: windowInfo.windowID)
+            let result = await captureWindow(windowID: windowInfo.windowID, source: source)
             cleanup()
             continuation?.resume(returning: result)
             continuation = nil
         }
     }
 
-    private func captureWindow(windowID: CGWindowID) async -> CaptureResult {
+    private func captureWindow(windowID: CGWindowID, source: CaptureSource) async -> CaptureResult {
         // Ensure captures directory exists
         let capturesDirectory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
             .appendingPathComponent("Dispatch/QuickCaptures", isDirectory: true)
@@ -441,7 +423,7 @@ final class WindowCaptureSession {
 
             if process.terminationStatus == 0 && FileManager.default.fileExists(atPath: outputPath.path) {
                 logInfo("Window captured: \(filename)", category: .capture)
-                return .success(outputPath)
+                return .success(outputPath, source)
             } else {
                 let error = NSError(
                     domain: "WindowCaptureSession",
@@ -463,12 +445,20 @@ final class WindowCaptureSession {
             NSEvent.removeMonitor(monitor)
             mouseMonitor = nil
         }
+        if let monitor = localMouseMonitor {
+            NSEvent.removeMonitor(monitor)
+            localMouseMonitor = nil
+        }
     }
 
     private func stopKeyMonitoring() {
         if let monitor = keyMonitor {
             NSEvent.removeMonitor(monitor)
             keyMonitor = nil
+        }
+        if let monitor = localKeyMonitor {
+            NSEvent.removeMonitor(monitor)
+            localKeyMonitor = nil
         }
     }
 
@@ -480,7 +470,7 @@ final class WindowCaptureSession {
         hideControlPanel()
         highlightWindow = nil
         controlPanel = nil
-        selectedWindow = nil
+        hoveredWindow = nil
     }
 }
 

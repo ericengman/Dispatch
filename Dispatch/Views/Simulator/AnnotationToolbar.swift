@@ -152,7 +152,7 @@ struct ToolButton: View {
                 Image(systemName: tool.iconName)
                     .font(.system(size: 14))
 
-                Text(String(tool.shortcutKey).uppercased())
+                Text(tool.shortcutDisplay)
                     .font(.system(size: 8, weight: .medium, design: .monospaced))
                     .foregroundStyle(.secondary)
             }
@@ -171,15 +171,15 @@ struct ToolButton: View {
     private var tooltipText: String {
         switch tool {
         case .crop:
-            return "Crop image to selected region (C)"
+            return "Crop image to selected region (⌘1)"
         case .freehand:
-            return "Draw freehand annotations (D)"
+            return "Draw freehand annotations (⌘2)"
         case .arrow:
-            return "Draw arrow to point at specific area (A)"
+            return "Draw arrow to point at specific area (⌘3)"
         case .rectangle:
-            return "Draw rectangle to highlight region (R)"
+            return "Draw rectangle to highlight region (⌘4)"
         case .text:
-            return "Add text annotation (T)"
+            return "Add text annotation (⌘5)"
         }
     }
 }
@@ -213,7 +213,7 @@ struct ColorButton: View {
             .frame(width: 28, height: 28)
         }
         .buttonStyle(.plain)
-        .help("\(color.rawValue.capitalized) color (\(color.shortcutNumber))")
+        .help("\(color.rawValue.capitalized) color")
     }
 }
 

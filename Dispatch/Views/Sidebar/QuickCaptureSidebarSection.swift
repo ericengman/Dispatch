@@ -2,26 +2,28 @@
 //  QuickCaptureSidebarSection.swift
 //  Dispatch
 //
-//  Collapsible sidebar section with capture buttons and recent captures thumbnail grid.
+//  Collapsible sidebar section showing capture targets (previously captured apps)
+//  for quick re-capture.
 //
 
 import SwiftUI
 
-/// Quick Capture section for the sidebar with capture buttons and recent captures.
+/// Quick Capture section for the sidebar showing re-capturable app targets.
 struct QuickCaptureSidebarSection: View {
     // MARK: - Properties
 
     @ObservedObject private var captureManager = QuickCaptureManager.shared
+    @AppStorage("quickCapture_lastTool") private var lastTool: String = "region"
     @Environment(\.openWindow) private var openWindow
 
     // MARK: - Body
 
     var body: some View {
         Section {
-            if captureManager.recentCaptures.isEmpty {
+            if captureManager.captureTargets.isEmpty {
                 emptyState
             } else {
-                recentCapturesGrid
+                targetsList
             }
         } header: {
             sectionHeader
@@ -39,20 +41,22 @@ struct QuickCaptureSidebarSection: View {
             HStack(spacing: 8) {
                 // Region capture button
                 Button {
+                    lastTool = "region"
                     triggerRegionCapture()
                 } label: {
                     Image(systemName: "viewfinder.rectangular")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(lastTool == "region" ? Color.accentColor : .secondary)
                 }
                 .buttonStyle(.borderless)
                 .help("Capture region (crosshair selection)")
 
                 // Window capture button
                 Button {
+                    lastTool = "window"
                     triggerWindowCapture()
                 } label: {
                     Image(systemName: "macwindow")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(lastTool == "window" ? Color.accentColor : .secondary)
                 }
                 .buttonStyle(.borderless)
                 .help("Capture window (hover and click)")
@@ -68,11 +72,11 @@ struct QuickCaptureSidebarSection: View {
                 .font(.title2)
                 .foregroundStyle(.tertiary)
 
-            Text("No recent captures")
+            Text("No capture targets")
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
-            Text("Use the buttons above to capture")
+            Text("Capture a window to add it here")
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
         }
@@ -80,24 +84,18 @@ struct QuickCaptureSidebarSection: View {
         .padding(.vertical, 12)
     }
 
-    // MARK: - Recent Captures Grid
+    // MARK: - Targets List
 
-    private var recentCapturesGrid: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            LazyHGrid(rows: [GridItem(.fixed(80))], spacing: 8) {
-                ForEach(captureManager.recentCaptures) { capture in
-                    QuickCaptureThumbnailCell(
-                        capture: capture,
-                        onSelect: {
-                            selectCapture(capture)
-                        },
-                        onRecapture: {
-                            recaptureWindow(from: capture)
-                        }
-                    )
-                }
+    private var targetsList: some View {
+        VStack(spacing: 2) {
+            ForEach(captureManager.captureTargets) { target in
+                CaptureTargetCell(
+                    target: target,
+                    onRecapture: {
+                        recaptureTarget(target)
+                    }
+                )
             }
-            .padding(.horizontal, 4)
         }
     }
 
@@ -106,32 +104,29 @@ struct QuickCaptureSidebarSection: View {
     private func triggerRegionCapture() {
         Task {
             let result = await ScreenshotCaptureService.shared.captureRegion()
-            handleCaptureResult(result)
+            CaptureCoordinator.shared.handleCaptureResult(result)
         }
     }
 
     private func triggerWindowCapture() {
         Task {
             let result = await ScreenshotCaptureService.shared.captureWindow()
-            handleCaptureResult(result)
+            CaptureCoordinator.shared.handleCaptureResult(result)
         }
     }
 
-    private func handleCaptureResult(_ result: CaptureResult) {
-        // Use CaptureCoordinator to handle result consistently
-        // This also adds to MRU list
-        CaptureCoordinator.shared.handleCaptureResult(result)
-    }
-
-    private func selectCapture(_ capture: QuickCapture) {
-        logInfo("Opening capture from sidebar: \(capture.id)", category: .capture)
-        openWindow(value: capture)
-    }
-
-    private func recaptureWindow(from _: QuickCapture) {
-        // For now, just trigger a new window capture
-        // Future: Could restore window selection based on stored metadata
-        triggerWindowCapture()
+    private func recaptureTarget(_ target: CaptureTarget) {
+        Task {
+            let result = await captureManager.recapture(target: target)
+            switch result {
+            case .success:
+                CaptureCoordinator.shared.handleCaptureResult(result)
+            case .error:
+                logError("Failed to re-capture \(target.appName)", category: .capture)
+            case .cancelled:
+                break
+            }
+        }
     }
 }
 

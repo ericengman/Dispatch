@@ -5,23 +5,23 @@
 //  Service for parsing and resolving template placeholders in prompts
 //
 
-import Foundation
 import AppKit
+import Foundation
 
 // MARK: - Placeholder Types
 
 /// Represents a placeholder found in prompt text
-struct Placeholder: Identifiable, Hashable, Sendable {
+nonisolated struct Placeholder: Identifiable, Hashable, Sendable {
     let id: String
     let name: String
     let isBuiltIn: Bool
     let requiresUserInput: Bool
 
     init(name: String) {
-        self.id = name.lowercased()
+        id = name.lowercased()
         self.name = name
-        self.isBuiltIn = BuiltInPlaceholder.allCases.contains { $0.name.lowercased() == name.lowercased() }
-        self.requiresUserInput = !isBuiltIn || BuiltInPlaceholder(rawValue: name.lowercased())?.requiresInput ?? true
+        isBuiltIn = BuiltInPlaceholder.allCases.contains { $0.name.lowercased() == name.lowercased() }
+        requiresUserInput = !isBuiltIn || BuiltInPlaceholder(rawValue: name.lowercased())?.requiresInput ?? true
     }
 
     var displayName: String {
@@ -36,7 +36,7 @@ struct Placeholder: Identifiable, Hashable, Sendable {
 // MARK: - Built-in Placeholders
 
 /// Built-in placeholders that can be auto-filled
-enum BuiltInPlaceholder: String, CaseIterable, Sendable {
+nonisolated enum BuiltInPlaceholder: String, CaseIterable, Sendable {
     case clipboard
     case date
     case time
@@ -104,7 +104,7 @@ enum BuiltInPlaceholder: String, CaseIterable, Sendable {
             return formatter.string(from: Date())
 
         case .filename, .path, .selection:
-            return nil  // Requires user input
+            return nil // Requires user input
         }
     }
 }
@@ -129,8 +129,7 @@ struct PlaceholderResolutionResult: Sendable {
 actor PlaceholderResolver {
     static let shared = PlaceholderResolver()
 
-    private init() {
-    }
+    private init() {}
 
     // MARK: - Parsing
 

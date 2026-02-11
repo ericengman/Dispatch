@@ -24,6 +24,10 @@ final class EmbeddedTerminalBridge: ObservableObject {
     /// Session-aware terminal registry (keyed by session UUID)
     private var sessionTerminals: [UUID: LocalProcessTerminalView] = [:]
 
+    /// Registration identity tracking (sessionId → registrationId)
+    /// Prevents old coordinator deinit from unregistering a newer coordinator
+    private var registrationIds: [UUID: UUID] = [:]
+
     // MARK: - Legacy Single-Session Support
 
     /// Currently registered coordinator (nil if no terminal open)
@@ -46,15 +50,29 @@ final class EmbeddedTerminalBridge: ObservableObject {
     func register(sessionId: UUID, coordinator: EmbeddedTerminalView.Coordinator, terminal: LocalProcessTerminalView) {
         sessionCoordinators[sessionId] = coordinator
         sessionTerminals[sessionId] = terminal
-        logInfo("Embedded terminal registered for session: \(sessionId)", category: .terminal)
+        registrationIds[sessionId] = coordinator.registrationId
+        logInfo("Embedded terminal registered for session: \(sessionId) (reg: \(coordinator.registrationId))", category: .terminal)
     }
 
-    /// Unregister a terminal coordinator for a specific session
-    /// - Parameter sessionId: The session UUID
-    func unregister(sessionId: UUID) {
+    /// Unregister a terminal coordinator for a specific session, only if the registrationId matches.
+    /// This prevents a stale coordinator's deinit from unregistering a newer coordinator.
+    func unregister(sessionId: UUID, registrationId: UUID) {
+        guard registrationIds[sessionId] == registrationId else {
+            logDebug("Skipping unregister for session \(sessionId): registrationId mismatch (stale coordinator deinit)", category: .terminal)
+            return
+        }
         sessionCoordinators.removeValue(forKey: sessionId)
         sessionTerminals.removeValue(forKey: sessionId)
+        registrationIds.removeValue(forKey: sessionId)
         logInfo("Embedded terminal unregistered for session: \(sessionId)", category: .terminal)
+    }
+
+    /// Force-unregister a session (used by closeSession cleanup)
+    func forceUnregister(sessionId: UUID) {
+        sessionCoordinators.removeValue(forKey: sessionId)
+        sessionTerminals.removeValue(forKey: sessionId)
+        registrationIds.removeValue(forKey: sessionId)
+        logInfo("Embedded terminal force-unregistered for session: \(sessionId)", category: .terminal)
     }
 
     /// Check if a specific session is available for dispatch
@@ -76,14 +94,14 @@ final class EmbeddedTerminalBridge: ObservableObject {
     ///   - prompt: The prompt text to send
     ///   - sessionId: The session UUID to dispatch to
     /// - Returns: true if dispatched, false if session unavailable
-    func dispatchPrompt(_ prompt: String, to sessionId: UUID) -> Bool {
+    func dispatchPrompt(_ prompt: String, to sessionId: UUID) async -> Bool {
         guard let coordinator = sessionCoordinators[sessionId] else {
             logDebug("Cannot dispatch: session \(sessionId) not found", category: .terminal)
             return false
         }
 
         logDebug("Dispatching to session: \(sessionId)", category: .terminal)
-        return coordinator.dispatchPrompt(prompt)
+        return await coordinator.dispatchPrompt(prompt)
     }
 
     // MARK: - Legacy Single-Session API (Backward Compatibility)
@@ -106,14 +124,16 @@ final class EmbeddedTerminalBridge: ObservableObject {
 
     /// Unregister when terminal closes (legacy API)
     /// Called by Coordinator.deinit
-    func unregister() {
-        // Clear legacy properties
-        activeCoordinator = nil
-        activeTerminal = nil
+    func unregister(registrationId: UUID) {
+        // Only clear legacy properties if this coordinator is still the active one
+        if activeCoordinator?.registrationId == registrationId {
+            activeCoordinator = nil
+            activeTerminal = nil
+        }
 
-        // If there's an active session, unregister it too
+        // If there's an active session, unregister it too (with identity check)
         if let sessionId = TerminalSessionManager.shared.activeSessionId {
-            unregister(sessionId: sessionId)
+            unregister(sessionId: sessionId, registrationId: registrationId)
         }
 
         logInfo("Embedded terminal unregistered (legacy mode)", category: .terminal)
@@ -128,10 +148,10 @@ final class EmbeddedTerminalBridge: ObservableObject {
     /// Dispatches to activeSessionId if available, otherwise uses legacy activeCoordinator
     /// - Parameter prompt: The prompt text to send
     /// - Returns: true if dispatched, false if no terminal available
-    func dispatchPrompt(_ prompt: String) -> Bool {
+    func dispatchPrompt(_ prompt: String) async -> Bool {
         // Try session-aware dispatch first
         if let sessionId = TerminalSessionManager.shared.activeSessionId {
-            return dispatchPrompt(prompt, to: sessionId)
+            return await dispatchPrompt(prompt, to: sessionId)
         }
 
         // Fallback to legacy behavior
@@ -140,6 +160,6 @@ final class EmbeddedTerminalBridge: ObservableObject {
             return false
         }
 
-        return coordinator.dispatchPrompt(prompt)
+        return await coordinator.dispatchPrompt(prompt)
     }
 }

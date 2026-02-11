@@ -27,7 +27,7 @@ enum SkillScope: String, Sendable, Identifiable, CaseIterable {
 
 // MARK: - Skill
 
-struct Skill: Identifiable, Hashable, Sendable {
+nonisolated struct Skill: Identifiable, Hashable, Sendable {
     let id: UUID
     let name: String
     let description: String
@@ -245,9 +245,6 @@ actor SkillDiscoveryService {
             } else if let firstNonEmptyLine = lines.first(where: { !$0.trimmingCharacters(in: .whitespaces).isEmpty }) {
                 description = String(firstNonEmptyLine.prefix(80))
             }
-
-            // Get the command name from the skill folder or filename
-            let commandName = skillName ?? url.deletingPathExtension().lastPathComponent
 
             return Skill(
                 name: name,

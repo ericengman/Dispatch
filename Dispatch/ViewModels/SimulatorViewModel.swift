@@ -265,8 +265,14 @@ final class AnnotationViewModel: ObservableObject {
 
     @Published var activeImage: AnnotatedImage?
     @Published var sendQueue: [AnnotatedImage] = []
-    @Published var currentTool: AnnotationTool = .crop
-    @Published var currentColor: AnnotationColor = .red
+    @Published var currentTool: AnnotationTool {
+        didSet { UserDefaults.standard.set(currentTool.rawValue, forKey: "lastAnnotationTool") }
+    }
+
+    @Published var currentColor: AnnotationColor {
+        didSet { UserDefaults.standard.set(currentColor.rawValue, forKey: "lastAnnotationColor") }
+    }
+
     @Published var promptText: String = ""
     @Published var isDrawing: Bool = false
 
@@ -282,6 +288,23 @@ final class AnnotationViewModel: ObservableObject {
 
     private let undoManager = AnnotationUndoManager()
     private let maxQueueSize = 5
+
+    // MARK: - Init
+
+    init() {
+        if let savedTool = UserDefaults.standard.string(forKey: "lastAnnotationTool"),
+           let tool = AnnotationTool(rawValue: savedTool) {
+            currentTool = tool
+        } else {
+            currentTool = .arrow
+        }
+        if let savedColor = UserDefaults.standard.string(forKey: "lastAnnotationColor"),
+           let color = AnnotationColor(rawValue: savedColor) {
+            currentColor = color
+        } else {
+            currentColor = .red
+        }
+    }
 
     // MARK: - Computed Properties
 
@@ -486,7 +509,7 @@ final class AnnotationViewModel: ObservableObject {
         zoomLevel = 1.0
         panOffset = .zero
         cropRect = nil
-        isCropping = false
+        isCropping = (currentTool == .crop)
         undoManager.clear()
     }
 

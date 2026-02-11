@@ -40,16 +40,6 @@ enum AnnotationType: String, Codable, Sendable, CaseIterable, Identifiable {
         case .text: return "character.textbox"
         }
     }
-
-    /// Keyboard shortcut key
-    var shortcutKey: Character {
-        switch self {
-        case .freehand: return "d"
-        case .arrow: return "a"
-        case .rectangle: return "r"
-        case .text: return "t"
-        }
-    }
 }
 
 // MARK: - AnnotationTool
@@ -86,14 +76,14 @@ enum AnnotationTool: String, Codable, Sendable, CaseIterable, Identifiable {
         }
     }
 
-    /// Keyboard shortcut key
-    var shortcutKey: Character {
+    /// Keyboard shortcut display string
+    var shortcutDisplay: String {
         switch self {
-        case .crop: return "c"
-        case .freehand: return "d"
-        case .arrow: return "a"
-        case .rectangle: return "r"
-        case .text: return "t"
+        case .crop: return "⌘1"
+        case .freehand: return "⌘2"
+        case .arrow: return "⌘3"
+        case .rectangle: return "⌘4"
+        case .text: return "⌘5"
         }
     }
 
@@ -147,24 +137,6 @@ enum AnnotationColor: String, Codable, Sendable, CaseIterable, Identifiable {
         case .white: return .white
         case .black: return .black
         }
-    }
-
-    /// Keyboard shortcut (1-7)
-    var shortcutNumber: Int {
-        switch self {
-        case .red: return 1
-        case .orange: return 2
-        case .yellow: return 3
-        case .green: return 4
-        case .blue: return 5
-        case .white: return 6
-        case .black: return 7
-        }
-    }
-
-    /// Get color by shortcut number
-    static func fromShortcut(_ number: Int) -> AnnotationColor? {
-        allCases.first { $0.shortcutNumber == number }
     }
 }
 

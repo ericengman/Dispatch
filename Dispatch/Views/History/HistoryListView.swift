@@ -5,14 +5,13 @@
 //  View for displaying prompt history
 //
 
-import SwiftUI
 import SwiftData
+import SwiftUI
 
 struct HistoryListView: View {
     // MARK: - Environment
 
     @EnvironmentObject private var historyVM: HistoryViewModel
-    @EnvironmentObject private var queueVM: QueueViewModel
 
     // MARK: - State
 
@@ -103,14 +102,6 @@ struct HistoryListView: View {
         } label: {
             Label("Resend", systemImage: "paperplane")
         }
-
-        Button {
-            historyVM.addToQueue(entry)
-        } label: {
-            Label("Add to Queue", systemImage: "plus.circle")
-        }
-
-        Divider()
 
         Button {
             historyVM.copyToClipboard(entry)
@@ -209,5 +200,4 @@ struct HistoryRowView: View {
 #Preview {
     HistoryListView()
         .environmentObject(HistoryViewModel.shared)
-        .environmentObject(QueueViewModel.shared)
 }

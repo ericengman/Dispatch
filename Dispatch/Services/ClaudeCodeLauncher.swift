@@ -58,7 +58,8 @@ class ClaudeCodeLauncher {
             let claudePaths = [
                 "\(NSHomeDirectory())/.local/bin", // npm global install location
                 "\(NSHomeDirectory())/.claude/local/bin",
-                "/usr/local/bin"
+                "/usr/local/bin",
+                "/opt/homebrew/bin" // Homebrew on Apple Silicon
             ]
 
             for claudePath in claudePaths where !path.contains(claudePath) {
@@ -91,11 +92,13 @@ class ClaudeCodeLauncher {
     ///   - workingDirectory: Optional working directory for the terminal process
     ///   - skipPermissions: Whether to pass --dangerously-skip-permissions flag
     ///   - resumeSessionId: Optional session ID to resume (uses --resume flag)
+    ///   - continueLastSession: If true, appends --continue to resume most recent session
     func launchClaudeCode(
         in terminal: LocalProcessTerminalView,
         workingDirectory: String? = nil,
         skipPermissions: Bool = true,
-        resumeSessionId: String? = nil
+        resumeSessionId: String? = nil,
+        continueLastSession: Bool = false
     ) {
         let claudePath = findClaudeCLI()
         let environment = buildEnvironment()
@@ -110,9 +113,16 @@ class ClaudeCodeLauncher {
             args.append("--resume")
             args.append(sessionId)
             logInfo("Resuming session: \(sessionId)", category: .terminal)
+        } else if continueLastSession {
+            args.append("--continue")
+            logInfo("Continuing most recent session in directory", category: .terminal)
         }
 
-        logInfo("Launching Claude Code with args: \(args), workingDirectory: \(workingDirectory ?? "nil")", category: .terminal)
+        logInfo("RESUME-DBG ClaudeCodeLauncher.launchClaudeCode: executable=\(claudePath)", category: .terminal)
+        logInfo("RESUME-DBG ClaudeCodeLauncher.launchClaudeCode: args=\(args)", category: .terminal)
+        logInfo("RESUME-DBG ClaudeCodeLauncher.launchClaudeCode: resumeSessionId=\(resumeSessionId ?? "nil"), continueLastSession=\(continueLastSession)", category: .terminal)
+        logInfo("RESUME-DBG ClaudeCodeLauncher.launchClaudeCode: workingDirectory=\(workingDirectory ?? "nil")", category: .terminal)
+        logInfo("RESUME-DBG ClaudeCodeLauncher.launchClaudeCode: full command = \(claudePath) \(args.joined(separator: " "))", category: .terminal)
 
         terminal.startProcess(
             executable: claudePath,

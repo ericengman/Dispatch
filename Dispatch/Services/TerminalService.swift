@@ -11,7 +11,7 @@ import Foundation
 // MARK: - Terminal Window Info
 
 /// Represents a Terminal.app window
-struct TerminalWindow: Identifiable, Hashable, Sendable {
+nonisolated struct TerminalWindow: Identifiable, Hashable, Sendable {
     let id: String
     let name: String
     let tabTitle: String?
@@ -27,7 +27,7 @@ struct TerminalWindow: Identifiable, Hashable, Sendable {
 
 // MARK: - Terminal Service Errors
 
-enum TerminalServiceError: Error, LocalizedError {
+nonisolated enum TerminalServiceError: Error, LocalizedError {
     case terminalNotRunning
     case noWindowsOpen
     case windowNotFound(id: String)

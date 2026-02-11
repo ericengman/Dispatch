@@ -11,7 +11,7 @@ import Network
 
 // MARK: - Hook Server Configuration
 
-struct HookServerConfig: Sendable {
+nonisolated struct HookServerConfig: Sendable {
     let port: UInt16
     let host: String
 
@@ -28,7 +28,7 @@ struct HookServerConfig: Sendable {
 // MARK: - Hook Payload
 
 /// Payload received from Claude Code stop hook
-struct HookPayload: Codable, Sendable {
+nonisolated struct HookPayload: Codable, Sendable {
     let session: String?
     let timestamp: String?
 
@@ -41,31 +41,31 @@ struct HookPayload: Codable, Sendable {
 // MARK: - Screenshot Request/Response Types
 
 /// Request to create a new screenshot run
-struct CreateScreenshotRunRequest: Codable, Sendable {
+nonisolated struct CreateScreenshotRunRequest: Codable, Sendable {
     let project: String
     let name: String
     let device: String?
 }
 
 /// Response with new run details
-struct CreateScreenshotRunResponse: Codable, Sendable {
+nonisolated struct CreateScreenshotRunResponse: Codable, Sendable {
     let runId: String
     let path: String
 }
 
 /// Request to mark a run as complete
-struct CompleteScreenshotRunRequest: Codable, Sendable {
+nonisolated struct CompleteScreenshotRunRequest: Codable, Sendable {
     let runId: String
 }
 
 /// Response with screenshot save location
-struct ScreenshotLocationResponse: Codable, Sendable {
+nonisolated struct ScreenshotLocationResponse: Codable, Sendable {
     let path: String
 }
 
 // MARK: - Hook Server State
 
-enum HookServerState: Sendable {
+nonisolated enum HookServerState: Sendable {
     case stopped
     case starting
     case running
@@ -552,7 +552,7 @@ actor HookServer {
 
 // MARK: - Hook Server Errors
 
-enum HookServerError: Error, LocalizedError {
+nonisolated enum HookServerError: Error, LocalizedError {
     case startFailed(String)
     case portInUse
     case invalidPort

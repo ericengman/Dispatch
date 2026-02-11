@@ -19,7 +19,6 @@ struct DispatchApp: App {
             PromptHistory.self,
             PromptChain.self,
             ChainItem.self,
-            QueueItem.self,
             AppSettings.self,
             SimulatorRun.self,
             Screenshot.self,
@@ -63,6 +62,7 @@ struct DispatchApp: App {
                     setupApp()
                 }
         }
+        .defaultSize(width: 1200, height: 800)
         .modelContainer(sharedModelContainer)
         .commands {
             appCommands
@@ -101,6 +101,13 @@ struct DispatchApp: App {
                 NotificationCenter.default.post(name: .createNewChain, object: nil)
             }
             .keyboardShortcut("n", modifiers: [.command, .shift])
+
+            Divider()
+
+            Button("New Terminal Session") {
+                NotificationCenter.default.post(name: .createNewTerminalSession, object: nil)
+            }
+            .keyboardShortcut("t", modifiers: .command)
         }
 
         // View Menu
@@ -123,36 +130,6 @@ struct DispatchApp: App {
             .keyboardShortcut("3", modifiers: .command)
         }
 
-        // Queue Menu
-        CommandMenu("Queue") {
-            Button("Add Selected to Queue") {
-                NotificationCenter.default.post(name: .addToQueue, object: nil)
-            }
-            .keyboardShortcut("q", modifiers: [.command, .shift])
-
-            Divider()
-
-            Button("Run Next") {
-                Task {
-                    await QueueViewModel.shared.runNext()
-                }
-            }
-            .keyboardShortcut("r", modifiers: .command)
-
-            Button("Run All") {
-                Task {
-                    await QueueViewModel.shared.runAll()
-                }
-            }
-            .keyboardShortcut("r", modifiers: [.command, .shift])
-
-            Divider()
-
-            Button("Clear Queue") {
-                QueueViewModel.shared.clearQueue()
-            }
-        }
-
         // Prompt Menu
         CommandMenu("Prompt") {
             Button("Send Selected") {
@@ -173,7 +150,7 @@ struct DispatchApp: App {
             Button("Capture Region") {
                 Task {
                     let result = await ScreenshotCaptureService.shared.captureRegion()
-                    await CaptureCoordinator.shared.handleCaptureResult(result)
+                    CaptureCoordinator.shared.handleCaptureResult(result)
                 }
             }
             .keyboardShortcut("6", modifiers: [.command, .shift])
@@ -181,7 +158,7 @@ struct DispatchApp: App {
             Button("Capture Window") {
                 Task {
                     let result = await ScreenshotCaptureService.shared.captureWindow()
-                    await CaptureCoordinator.shared.handleCaptureResult(result)
+                    CaptureCoordinator.shared.handleCaptureResult(result)
                 }
             }
             .keyboardShortcut("7", modifiers: [.command, .shift])
@@ -199,8 +176,9 @@ struct DispatchApp: App {
         // Configure settings manager
         SettingsManager.shared.configure(with: sharedModelContainer.mainContext)
 
-        // Configure terminal session manager
+        // Configure terminal session manager and restore persisted sessions
         TerminalSessionManager.shared.configure(modelContext: sharedModelContainer.mainContext)
+        TerminalSessionManager.shared.restoreAllPersistedSessions()
 
         // Configure screenshot watcher
         screenshotWatcherManager.configure(with: sharedModelContainer.mainContext)
@@ -273,12 +251,78 @@ struct DispatchApp: App {
 // MARK: - App Delegate
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    private var closeTabMonitor: Any?
+    private var cycleSessionMonitor: Any?
+
     func applicationDidFinishLaunching(_: Notification) {
         logInfo("Application did finish launching", category: .app)
+
+        // Clear stale manual frame autosave that conflicts with SwiftUI's built-in
+        // window frame persistence. SwiftUI's WindowGroup handles save/restore automatically.
+        UserDefaults.standard.removeObject(forKey: "NSWindow Frame DispatchMainWindow")
+
+        // Intercept Cmd+] (forward) / Cmd+[ (backward) to cycle terminal sessions
+        cycleSessionMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+            guard modifiers == .command,
+                  let chars = event.charactersIgnoringModifiers
+            else { return event }
+
+            let forward: Bool
+            if chars == "]" {
+                forward = true
+            } else if chars == "[" {
+                forward = false
+            } else {
+                return event
+            }
+
+            MainActor.assumeIsolated {
+                TerminalSessionManager.shared.cycleActiveSession(forward: forward)
+            }
+            return nil // Consume the event
+        }
+
+        // Intercept Cmd+W to close terminal sessions before closing the window
+        closeTabMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            // Only match Cmd+W with no other modifiers (Shift, Option, Control)
+            guard event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
+                  event.charactersIgnoringModifiers == "w"
+            else {
+                return event
+            }
+
+            let manager = MainActor.assumeIsolated { TerminalSessionManager.shared }
+            let activeId = MainActor.assumeIsolated { manager.activeSessionId }
+            let hasSessions = MainActor.assumeIsolated { !manager.sessions.isEmpty }
+
+            guard hasSessions, let sessionId = activeId else {
+                return event // No sessions — let standard Cmd+W close the window
+            }
+
+            MainActor.assumeIsolated {
+                logInfo("Cmd+W closing active terminal session", category: .terminal)
+                manager.closeSession(sessionId)
+            }
+            return nil // Consume the event — window stays open
+        }
     }
 
     func applicationWillTerminate(_: Notification) {
         logInfo("Application will terminate", category: .app)
+
+        // Remove event monitors
+        if let monitor = closeTabMonitor {
+            NSEvent.removeMonitor(monitor)
+            closeTabMonitor = nil
+        }
+        if let monitor = cycleSessionMonitor {
+            NSEvent.removeMonitor(monitor)
+            cycleSessionMonitor = nil
+        }
+
+        // Save all terminal sessions before anything else - ensures session data persists
+        TerminalSessionManager.shared.saveAllSessions()
 
         // Stop hook server
         Task {
@@ -287,11 +331,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Unregister all hotkeys
         HotkeyManager.shared.unregisterAll()
-
-        // Clear queue if configured
-        if SettingsManager.shared.settings?.autoClearQueueOnQuit == true {
-            QueueViewModel.shared.clearQueue()
-        }
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_: NSApplication) -> Bool {
@@ -318,7 +357,7 @@ extension Notification.Name {
     static let showAllPrompts = Notification.Name("showAllPrompts")
     static let showStarred = Notification.Name("showStarred")
     static let showHistory = Notification.Name("showHistory")
-    static let addToQueue = Notification.Name("addToQueue")
     static let sendSelectedPrompt = Notification.Name("sendSelectedPrompt")
     static let toggleStar = Notification.Name("toggleStar")
+    static let createNewTerminalSession = Notification.Name("createNewTerminalSession")
 }

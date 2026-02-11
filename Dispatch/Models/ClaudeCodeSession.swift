@@ -9,7 +9,7 @@
 import Foundation
 
 /// Represents a Claude Code session that can be resumed
-struct ClaudeCodeSession: Identifiable, Hashable, Codable {
+nonisolated struct ClaudeCodeSession: Identifiable, Hashable, Codable {
     let id: UUID
     let sessionId: String // Claude's session UUID string
     let projectPath: String // Original project path (e.g., "/Users/eric/Dispatch")
@@ -113,7 +113,7 @@ struct ClaudeCodeSession: Identifiable, Hashable, Codable {
 // MARK: - Sessions Index JSON Structure
 
 /// Root structure for sessions-index.json
-struct ClaudeSessionsIndex: Codable {
+nonisolated struct ClaudeSessionsIndex: Codable {
     let version: Int
     let entries: [ClaudeCodeSession]
 }

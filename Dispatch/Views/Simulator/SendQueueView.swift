@@ -165,20 +165,16 @@ struct QueueItemView: View {
     private func loadThumbnail() {
         guard thumbnail == nil else { return }
 
-        Task.detached(priority: .userInitiated) {
+        Task {
             // Try to render with annotations
             if let rendered = await AnnotationRenderer.shared.render(image) {
                 // Scale down for thumbnail
                 let thumb = scaledThumbnail(from: rendered)
-                await MainActor.run {
-                    self.thumbnail = thumb
-                }
+                self.thumbnail = thumb
             } else {
                 // Fall back to original
                 let thumb = image.screenshot.thumbnail
-                await MainActor.run {
-                    self.thumbnail = thumb
-                }
+                self.thumbnail = thumb
             }
         }
     }

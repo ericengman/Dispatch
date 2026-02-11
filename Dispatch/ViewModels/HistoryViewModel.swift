@@ -126,16 +126,6 @@ final class HistoryViewModel: ObservableObject {
         addEntry(from: entry)
     }
 
-    /// Adds entry to queue
-    func addToQueue(_ entry: PromptHistory) {
-        QueueViewModel.shared.addInlineToQueue(
-            content: entry.content,
-            targetWindowId: entry.terminalWindowId,
-            targetWindowName: entry.terminalWindowName
-        )
-        logInfo("Added history entry to queue", category: .history)
-    }
-
     /// Deletes a history entry
     func deleteEntry(_ entry: PromptHistory) {
         guard let context = modelContext else { return }

@@ -27,6 +27,7 @@ final class AnnotationWindowController: ObservableObject {
     // MARK: - Private Properties
 
     private var window: NSWindow?
+    private var windowDelegate: WindowDelegate?
 
     private init() {}
 
@@ -73,7 +74,9 @@ final class AnnotationWindowController: ObservableObject {
         window.minSize = NSSize(width: 1000, height: 700)
         window.center()
         window.isReleasedWhenClosed = false
-        window.delegate = WindowDelegate(controller: self)
+        let delegate = WindowDelegate(controller: self)
+        windowDelegate = delegate
+        window.delegate = delegate
 
         self.window = window
     }
@@ -101,13 +104,31 @@ struct AnnotationWindowContent: View {
     @EnvironmentObject private var windowController: AnnotationWindowController
     @EnvironmentObject private var annotationVM: AnnotationViewModel
 
+    // MARK: - Focus
+
+    private enum FocusField: Hashable {
+        case prompt
+    }
+
+    @FocusState private var focusedField: FocusField?
+
     // MARK: - State
 
+    @State private var isSessionPickerExpanded = false
     @State private var selectedScreenshot: Screenshot?
+    @State private var selectedSessionId: UUID?
     @State private var dispatchError: String?
     @State private var showingDispatchError = false
     @State private var libraryInstalled = false
     @State private var hookInstalled = false
+
+    private var sessionManager: TerminalSessionManager { TerminalSessionManager.shared }
+    private var bridge: EmbeddedTerminalBridge { EmbeddedTerminalBridge.shared }
+
+    /// All sessions with an available terminal
+    private var availableSessions: [TerminalSession] {
+        sessionManager.sessions.filter { bridge.isAvailable(sessionId: $0.id) }
+    }
 
     // MARK: - Body
 
@@ -140,20 +161,36 @@ struct AnnotationWindowContent: View {
         .onAppear {
             setupInitialState()
             checkIntegrationStatus()
+            // Auto-select session: prefer active, fall back to first available
+            let available = sessionManager.sessions.filter { sessionManager.terminal(for: $0.id) != nil }
+            if let activeId = sessionManager.activeSessionId,
+               available.contains(where: { $0.id == activeId }) {
+                selectedSessionId = activeId
+            } else {
+                selectedSessionId = available.first?.id
+            }
+            focusedField = .prompt
         }
         .onKeyPress(keys: [.escape]) { _ in
             windowController.close()
             return .handled
         }
+        .onKeyPress(keys: [.return]) { press in
+            guard press.modifiers.contains(.command),
+                  let sessionId = selectedSessionId,
+                  annotationVM.hasQueuedImages,
+                  !annotationVM.promptText.isEmpty
+            else { return .ignored }
+            Task { await dispatch(to: sessionId) }
+            return .handled
+        }
         .onKeyPress(keys: [.delete, .deleteForward]) { _ in
             handleDeleteKey()
         }
-        .onKeyPress(characters: CharacterSet(charactersIn: "cdartzCDART")) { press in
-            handleToolShortcut(press.characters)
-        }
-        .onKeyPress(characters: CharacterSet(charactersIn: "1234567")) { press in
-            handleColorShortcut(press.characters)
-        }
+        .onKeyPress(characters: CharacterSet(charactersIn: "12345"), phases: .down, action: { press in
+            guard press.modifiers.contains(.command) else { return .ignored }
+            return handleToolShortcut(press.characters)
+        })
     }
 
     // MARK: - Left Panel
@@ -222,59 +259,34 @@ struct AnnotationWindowContent: View {
                         RoundedRectangle(cornerRadius: 8)
                             .strokeBorder(Color.secondary.opacity(0.3), lineWidth: 1)
                     )
+                    .focused($focusedField, equals: .prompt)
+                    .onKeyPress(.tab) {
+                        isSessionPickerExpanded = true
+                        return .handled
+                    }
             }
             .padding()
 
             Spacer()
 
-            // Dispatch button
-            dispatchSection
-                .padding()
+            // Integration status + dispatch button
+            VStack(spacing: 12) {
+                integrationStatusView
+
+                CaptureDispatchButton(
+                    selectedSessionId: $selectedSessionId,
+                    isExpanded: $isSessionPickerExpanded,
+                    sessions: availableSessions,
+                    isDisabled: !annotationVM.hasQueuedImages || annotationVM.promptText.isEmpty,
+                    onDispatch: { sessionId in
+                        await dispatch(to: sessionId)
+                    },
+                    onNewSession: createNewSession
+                )
+            }
+            .padding()
         }
         .background(Color(nsColor: .controlBackgroundColor).opacity(0.5))
-    }
-
-    // MARK: - Dispatch Section
-
-    private var dispatchSection: some View {
-        VStack(spacing: 12) {
-            // Integration status
-            integrationStatusView
-
-            // Keyboard shortcut hint
-            HStack {
-                Spacer()
-                Text("Press")
-                    .foregroundStyle(.secondary)
-                Text("⌘⏎")
-                    .font(.system(.caption, design: .monospaced))
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(Color.secondary.opacity(0.2))
-                    .clipShape(RoundedRectangle(cornerRadius: 4))
-                Text("to dispatch")
-                    .foregroundStyle(.secondary)
-                Spacer()
-            }
-            .font(.caption)
-
-            // Dispatch button
-            Button {
-                Task {
-                    await dispatch()
-                }
-            } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: "paperplane.fill")
-                    Text("Dispatch to Terminal")
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 8)
-            }
-            .buttonStyle(.borderedProminent)
-            .disabled(!canDispatch)
-            .keyboardShortcut(.return, modifiers: .command)
-        }
     }
 
     @ViewBuilder
@@ -326,10 +338,6 @@ struct AnnotationWindowContent: View {
 
     // MARK: - Computed Properties
 
-    private var canDispatch: Bool {
-        annotationVM.hasQueuedImages && !annotationVM.promptText.isEmpty
-    }
-
     private var statusIcon: String {
         switch (libraryInstalled, hookInstalled) {
         case (true, true): return "checkmark.circle.fill"
@@ -367,42 +375,92 @@ struct AnnotationWindowContent: View {
         annotationVM.loadScreenshot(screenshot)
     }
 
-    private func dispatch() async {
-        guard canDispatch else { return }
-
-        // Capture count before dispatch
-        let imageCount = annotationVM.queueCount
-        let prompt = annotationVM.promptText
-
-        // Copy images to clipboard
-        let success = await annotationVM.copyToClipboard()
-
-        if success {
-            // Dispatch prompt text to embedded terminal
-            let embeddedService = EmbeddedTerminalService.shared
-            guard embeddedService.isAvailable else {
-                dispatchError = "No embedded terminal available. Open a terminal session first."
-                showingDispatchError = true
-                return
-            }
-
-            let dispatched = embeddedService.dispatchPrompt(prompt)
-            guard dispatched else {
-                dispatchError = "Failed to dispatch to embedded terminal."
-                showingDispatchError = true
-                return
-            }
-
-            // Clear state on success
-            annotationVM.handleDispatchComplete()
-
-            logInfo("Dispatched prompt with \(imageCount) images in clipboard (paste with Cmd+V)", category: .simulator)
-        } else {
-            // Clipboard copy failure
-            dispatchError = "Failed to copy images to clipboard. Check available memory."
-            showingDispatchError = true
-            logError("Failed to copy images to clipboard", category: .simulator)
+    private func createNewSession() {
+        guard let project = windowController.currentRun?.project else {
+            logWarning("Cannot create session: no project associated with current run", category: .simulator)
+            return
         }
+
+        let session = sessionManager.createSession(
+            name: project.name,
+            workingDirectory: project.path
+        )
+
+        if let session {
+            selectedSessionId = session.id
+            logInfo("Created new session '\(session.name)' from annotation window", category: .simulator)
+        }
+    }
+
+    private func dispatch(to sessionId: UUID) async {
+        // Verify session is still available for dispatch
+        guard bridge.isAvailable(sessionId: sessionId) else {
+            dispatchError = "Session is no longer available. Select a different session or open a new terminal."
+            showingDispatchError = true
+            return
+        }
+
+        // Render annotated images and save to temp files for Claude Code to read
+        let imagePaths = await saveRenderedImages()
+
+        guard !imagePaths.isEmpty else {
+            dispatchError = "Failed to render images for dispatch"
+            showingDispatchError = true
+            return
+        }
+
+        // Build prompt with image file references so Claude Code can see them
+        var fullPrompt = annotationVM.promptText
+        let pathList = imagePaths.map { $0.path }.joined(separator: " ")
+        fullPrompt = "\(pathList)\n\n\(fullPrompt)"
+
+        // Dispatch to selected session
+        let dispatched = await EmbeddedTerminalService.shared.dispatchPrompt(fullPrompt, to: sessionId)
+        guard dispatched else {
+            dispatchError = "Failed to dispatch to embedded terminal."
+            showingDispatchError = true
+            return
+        }
+
+        let imageCount = imagePaths.count
+        // Clear state on success
+        annotationVM.handleDispatchComplete()
+
+        logInfo("Dispatched \(imageCount) images to session \(sessionId)", category: .simulator)
+
+        // Activate the dispatched session and bring main window to front
+        sessionManager.setActiveSession(sessionId)
+        NSApp.activate(ignoringOtherApps: true)
+        if let window = NSApp.windows.first(where: { $0.canBecomeMain }) {
+            window.makeKeyAndOrderFront(nil)
+        }
+    }
+
+    /// Renders all queued annotated images and saves them to temp files.
+    /// Returns the file URLs of the saved images.
+    private func saveRenderedImages() async -> [URL] {
+        let renderer = AnnotationRenderer.shared
+        let rendered = await renderer.renderBatch(annotationVM.sendQueue)
+
+        var urls: [URL] = []
+        let tempDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("DispatchCaptures", isDirectory: true)
+        try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+
+        for (index, image) in rendered.enumerated() {
+            guard let pngData = renderer.pngData(from: image) else { continue }
+            let filename = "dispatch_\(UUID().uuidString.prefix(8))_\(index).png"
+            let url = tempDir.appendingPathComponent(filename)
+            do {
+                try pngData.write(to: url)
+                urls.append(url)
+                logDebug("Saved rendered image: \(url.path)", category: .simulator)
+            } catch {
+                logError("Failed to save rendered image: \(error)", category: .simulator)
+            }
+        }
+
+        return urls
     }
 
     private func checkIntegrationStatus() {
@@ -441,34 +499,22 @@ struct AnnotationWindowContent: View {
     }
 
     private func handleToolShortcut(_ characters: String) -> KeyPress.Result {
-        guard let char = characters.lowercased().first else { return .ignored }
+        guard let char = characters.first else { return .ignored }
 
         switch char {
-        case "c":
+        case "1":
             annotationVM.selectTool(.crop)
-        case "d":
+        case "2":
             annotationVM.selectTool(.freehand)
-        case "a":
+        case "3":
             annotationVM.selectTool(.arrow)
-        case "r":
+        case "4":
             annotationVM.selectTool(.rectangle)
-        case "t":
+        case "5":
             annotationVM.selectTool(.text)
         default:
             return .ignored
         }
-        return .handled
-    }
-
-    private func handleColorShortcut(_ characters: String) -> KeyPress.Result {
-        guard let char = characters.first,
-              let number = Int(String(char)),
-              let color = AnnotationColor.fromShortcut(number)
-        else {
-            return .ignored
-        }
-
-        annotationVM.selectColor(color)
         return .handled
     }
 }

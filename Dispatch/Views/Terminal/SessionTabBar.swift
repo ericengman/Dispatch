@@ -2,13 +2,14 @@
 //  SessionTabBar.swift
 //  Dispatch
 //
-//  Tab bar for session switching with new session button
+//  Safari-like tab bar for session switching with new session button
 //
 
 import SwiftUI
 
 struct SessionTabBar: View {
-    @State private var sessionManager = TerminalSessionManager.shared
+    @Bindable var sessionManager: TerminalSessionManager
+    @Bindable private var brewController = BrewModeController.shared
     @State private var showResumePicker = false
     @State private var recentSessions: [ClaudeCodeSession] = []
     @State private var availableSessions: [ClaudeCodeSession] = []
@@ -16,25 +17,32 @@ struct SessionTabBar: View {
     // Project path for session discovery (defaults to current directory)
     var projectPath: String?
 
+    /// Sessions belonging to the current project
+    private var projectSessions: [TerminalSession] {
+        guard let projectPath else { return sessionManager.sessions }
+        return sessionManager.sessionsForProject(id: nil, path: projectPath)
+    }
+
     var body: some View {
-        HStack(spacing: 0) {
-            // Session tabs
-            ForEach(sessionManager.sessions) { session in
-                SessionTab(session: session)
+        HStack(spacing: 6) {
+            // Session tabs (filtered to current project)
+            ForEach(projectSessions) { session in
+                SessionTab(session: session, sessionManager: sessionManager)
             }
 
-            // Session switcher - shows available Claude sessions not currently open
-            if !availableSessions.isEmpty && sessionManager.canCreateSession {
-                Menu {
+            // New session button (click = new session, long-press = resume menu)
+            Menu {
+                if !availableSessions.isEmpty {
+                    Text("Resume Session")
+
                     ForEach(availableSessions.prefix(5)) { session in
                         Button {
                             _ = sessionManager.createResumeSession(claudeSession: session)
-                            // Refresh available sessions
                             Task { await loadAvailableSessions() }
                         } label: {
                             VStack(alignment: .leading) {
                                 Text(session.displayPrompt)
-                                Text("\(session.messageCount) msgs • \(session.relativeModified)")
+                                Text("\(session.messageCount) msgs \u{00B7} \(session.relativeModified)")
                                     .font(.caption)
                             }
                         }
@@ -49,55 +57,82 @@ struct SessionTabBar: View {
                             }
                         }
                     }
-                } label: {
-                    HStack(spacing: 2) {
-                        Image(systemName: "clock.arrow.circlepath")
-                            .font(.caption2)
-                        Text("\(availableSessions.count)")
-                            .font(.caption2)
-                    }
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(Color.accentColor.opacity(0.1))
-                    .clipShape(Capsule())
-                }
-                .menuStyle(.borderlessButton)
-                .menuIndicator(.hidden)
-                .fixedSize()
-                .help("Resume another session")
-            }
-
-            Spacer()
-
-            // New session menu
-            Menu {
-                Button("New Session", systemImage: "plus") {
-                    _ = sessionManager.createSession(workingDirectory: projectPath)
-                }
-
-                Divider()
-
-                Button("Resume Previous...", systemImage: "clock.arrow.circlepath") {
-                    Task {
-                        await loadRecentSessions()
-                        showResumePicker = true
+                } else {
+                    Button("Resume Previous...", systemImage: "clock.arrow.circlepath") {
+                        Task {
+                            await loadRecentSessions()
+                            showResumePicker = true
+                        }
                     }
                 }
             } label: {
                 Image(systemName: "plus")
-                    .font(.caption)
+                    .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(.secondary)
+                    .frame(width: 24, height: 24)
+                    .contentShape(Rectangle())
+            } primaryAction: {
+                _ = sessionManager.createSession(workingDirectory: projectPath)
             }
             .menuStyle(.borderlessButton)
             .menuIndicator(.hidden)
             .fixedSize()
             .disabled(!sessionManager.canCreateSession)
             .opacity(sessionManager.canCreateSession ? 1.0 : 0.5)
-            .help(sessionManager.canCreateSession ? "New Session" : "Max sessions reached")
-            .padding(.horizontal, 8)
+            .help(sessionManager.canCreateSession ? "New Session (click) / Resume (long-press)" : "Max sessions reached")
+
+            Spacer()
+
+            // Resize presets (visible when 2+ sessions in project)
+            if projectSessions.count >= 2 {
+                ResizePresetButton(
+                    systemImage: "rectangle.compress.vertical",
+                    help: "Fit All on Screen"
+                ) {
+                    let sessions = projectSessions
+                    let areaHeight = sessionManager.terminalAreaHeight
+                    guard areaHeight > 0 else { return }
+                    let count = sessions.count
+                    let perSession: CGFloat
+                    if count <= 2 {
+                        perSession = areaHeight / CGFloat(count)
+                    } else if count == 3 {
+                        perSession = areaHeight / 3
+                    } else {
+                        perSession = areaHeight * 2 / 5
+                    }
+                    let clamped = max(150, perSession)
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        for session in sessions {
+                            sessionManager.sessionHeights[session.id] = clamped
+                        }
+                    }
+                    sessionManager.saveSessionHeights()
+                }
+
+                ResizePresetButton(
+                    systemImage: "rectangle.expand.vertical",
+                    help: "Maximize All"
+                ) {
+                    let sessions = projectSessions
+                    let areaHeight = sessionManager.terminalAreaHeight
+                    guard areaHeight > 0 else { return }
+                    let expandedHeight = max(150, areaHeight * 0.85)
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        for session in sessions {
+                            sessionManager.sessionHeights[session.id] = expandedHeight
+                        }
+                    }
+                    sessionManager.saveSessionHeights()
+                }
+            }
+
+            // Brew mode toggle (always visible)
+            BrewModeToggle(isEnabled: $brewController.isBrewModeEnabled)
+                .padding(.trailing, 8)
         }
-        .frame(height: 28)
+        .padding(.leading, 8)
+        .frame(height: 34)
         .background(Color(nsColor: .controlBackgroundColor))
         .task {
             await loadAvailableSessions()
@@ -109,7 +144,6 @@ struct SessionTabBar: View {
                 } else {
                     _ = sessionManager.createSession(workingDirectory: projectPath)
                 }
-                // Refresh available sessions
                 Task { await loadAvailableSessions() }
             }
         }
@@ -140,7 +174,8 @@ struct SessionTabBar: View {
 
 private struct SessionTab: View {
     let session: TerminalSession
-    @State private var sessionManager = TerminalSessionManager.shared
+    @Bindable var sessionManager: TerminalSessionManager
+    @State private var isHovered = false
 
     private var isActive: Bool {
         sessionManager.activeSessionId == session.id
@@ -153,8 +188,8 @@ private struct SessionTab: View {
     var body: some View {
         HStack(spacing: 4) {
             Text(session.name)
-                .font(.caption)
-                .fontWeight(isActive ? .semibold : .regular)
+                .font(.system(size: 12))
+                .fontWeight(isActive ? .medium : .regular)
                 .foregroundStyle(isActive ? .primary : .secondary)
                 .lineLimit(1)
 
@@ -163,30 +198,110 @@ private struct SessionTab: View {
                 SessionStatusView(status: monitor.status)
             }
 
+            // Close button: visible on hover or when active
             Button {
                 sessionManager.closeSession(session.id)
             } label: {
                 Image(systemName: "xmark")
-                    .font(.caption2)
+                    .font(.system(size: 8, weight: .bold))
                     .foregroundStyle(.secondary)
+                    .frame(width: 16, height: 16)
+                    .background(isHovered ? Color.primary.opacity(0.1) : Color.clear)
+                    .clipShape(Circle())
             }
             .buttonStyle(.plain)
-            .opacity(0.6)
+            .opacity(isHovered || isActive ? 0.8 : 0)
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(isActive ? Color.accentColor.opacity(0.2) : Color.clear)
-        .clipShape(RoundedRectangle(cornerRadius: 4))
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .background(
+            Group {
+                if isActive {
+                    Color(nsColor: .selectedContentBackgroundColor).opacity(0.15)
+                } else if isHovered {
+                    Color.primary.opacity(0.05)
+                } else {
+                    Color.clear
+                }
+            }
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 8))
         .contentShape(Rectangle())
+        .onHover { hovering in
+            isHovered = hovering
+        }
         .onTapGesture {
             sessionManager.setActiveSession(session.id)
         }
+        .animation(.easeInOut(duration: 0.15), value: isHovered)
+        .animation(.easeInOut(duration: 0.15), value: isActive)
+    }
+}
+
+private struct BrewModeToggle: View {
+    @Binding var isEnabled: Bool
+    @State private var isHovered = false
+
+    var body: some View {
+        Button {
+            isEnabled.toggle()
+        } label: {
+            Image(systemName: "cup.and.saucer.fill")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(isEnabled ? Color.accentColor : .secondary)
+                .frame(width: 26, height: 22)
+                .background(
+                    RoundedRectangle(cornerRadius: 5)
+                        .fill(
+                            isEnabled
+                                ? Color.accentColor.opacity(0.15)
+                                : isHovered
+                                ? Color.primary.opacity(0.08)
+                                : Color.clear
+                        )
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 5))
+        }
+        .buttonStyle(.plain)
+        .help(isEnabled ? "Brew Mode On" : "Brew Mode Off")
+        .onHover { hovering in
+            isHovered = hovering
+        }
+        .animation(.easeInOut(duration: 0.15), value: isHovered)
+        .animation(.easeInOut(duration: 0.15), value: isEnabled)
+    }
+}
+
+private struct ResizePresetButton: View {
+    let systemImage: String
+    let help: String
+    let action: () -> Void
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(.secondary)
+                .frame(width: 26, height: 22)
+                .background(
+                    RoundedRectangle(cornerRadius: 5)
+                        .fill(isHovered ? Color.primary.opacity(0.08) : Color.clear)
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 5))
+        }
+        .buttonStyle(.plain)
+        .help(help)
+        .onHover { hovering in
+            isHovered = hovering
+        }
+        .animation(.easeInOut(duration: 0.15), value: isHovered)
     }
 }
 
 #Preview {
     VStack {
-        SessionTabBar()
+        SessionTabBar(sessionManager: TerminalSessionManager.shared)
     }
     .frame(width: 600)
 }

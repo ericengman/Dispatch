@@ -9,6 +9,7 @@ import AppKit
 import Combine
 import Foundation
 import SwiftData
+import UniformTypeIdentifiers
 
 // MARK: - Project ViewModel
 
@@ -38,6 +39,7 @@ final class ProjectViewModel: ObservableObject {
         // Automatically discover and sync Claude Code projects on startup
         Task {
             await discoverAndSyncProjects()
+            await discoverProjectIcons()
         }
     }
 
@@ -59,7 +61,6 @@ final class ProjectViewModel: ObservableObject {
 
         // Get existing project paths to avoid duplicates
         let existingPaths = Set(projects.compactMap { $0.path })
-        let existingNames = Set(projects.map { $0.name.lowercased() })
 
         var addedCount = 0
 
@@ -295,6 +296,102 @@ final class ProjectViewModel: ObservableObject {
         } else {
             logError("Failed to create terminal session for project: \(project.name)", category: .data)
         }
+    }
+
+    // MARK: - Icon Management
+
+    /// Discovers app icons for all projects with file paths
+    func discoverProjectIcons() async {
+        let projectsToScan = projects.filter { $0.path != nil && !$0.isCustomIcon }
+
+        guard !projectsToScan.isEmpty else { return }
+
+        logInfo("Discovering icons for \(projectsToScan.count) projects", category: .data)
+
+        for project in projectsToScan {
+            guard let path = project.path else { continue }
+
+            let iconData = await AppIconDiscoveryService.shared.discoverIcon(at: path)
+            if let iconData {
+                project.iconData = iconData
+                logDebug("Set auto-discovered icon for '\(project.name)'", category: .data)
+            }
+        }
+
+        saveContext()
+        objectWillChange.send()
+    }
+
+    /// Opens a file picker to set a custom icon for a project
+    func setCustomIcon(for project: Project) {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.png, .jpeg, .icns]
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.message = "Choose an icon for \"\(project.name)\""
+
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+
+        guard let image = NSImage(contentsOf: url) else {
+            logWarning("Failed to load image from: \(url.path)", category: .data)
+            return
+        }
+
+        guard let pngData = resizeImageToPNG(image, size: NSSize(width: 128, height: 128)) else {
+            logWarning("Failed to resize image for project icon", category: .data)
+            return
+        }
+
+        project.iconData = pngData
+        project.isCustomIcon = true
+        saveContext()
+        objectWillChange.send()
+
+        logInfo("Set custom icon for project '\(project.name)'", category: .data)
+    }
+
+    /// Clears a custom icon and re-runs auto-discovery
+    func clearCustomIcon(for project: Project) {
+        project.iconData = nil
+        project.isCustomIcon = false
+        saveContext()
+        objectWillChange.send()
+
+        logInfo("Cleared custom icon for project '\(project.name)'", category: .data)
+
+        // Re-run discovery for this project
+        Task {
+            guard let path = project.path else { return }
+            let iconData = await AppIconDiscoveryService.shared.discoverIcon(at: path)
+            if let iconData {
+                project.iconData = iconData
+                saveContext()
+                objectWillChange.send()
+            }
+        }
+    }
+
+    /// Resizes an image to the target size and returns PNG data
+    private func resizeImageToPNG(_ image: NSImage, size: NSSize) -> Data? {
+        let resized = NSImage(size: size)
+        resized.lockFocus()
+        NSGraphicsContext.current?.imageInterpolation = .high
+        image.draw(
+            in: NSRect(origin: .zero, size: size),
+            from: NSRect(origin: .zero, size: image.size),
+            operation: .copy,
+            fraction: 1.0
+        )
+        resized.unlockFocus()
+
+        guard let tiffData = resized.tiffRepresentation,
+              let bitmap = NSBitmapImageRep(data: tiffData),
+              let pngData = bitmap.representation(using: .png, properties: [:])
+        else {
+            return nil
+        }
+
+        return pngData
     }
 
     // MARK: - Computed Properties

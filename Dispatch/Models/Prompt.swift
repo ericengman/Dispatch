@@ -27,9 +27,6 @@ final class Prompt {
     @Relationship(deleteRule: .nullify, inverse: \ChainItem.prompt)
     var chainItems: [ChainItem] = []
 
-    @Relationship(deleteRule: .nullify, inverse: \QueueItem.prompt)
-    var queueItems: [QueueItem] = []
-
     // MARK: - Initialization
 
     init(

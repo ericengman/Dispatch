@@ -10,9 +10,15 @@ import Foundation
 
 // MARK: - Capture Result
 
+/// Info about the source window that was captured
+struct CaptureSource {
+    let appName: String
+    let windowTitle: String
+}
+
 /// Result of a screenshot capture operation
 enum CaptureResult {
-    case success(URL) // Path to saved screenshot
+    case success(URL, CaptureSource?) // Path to saved screenshot + optional source info
     case cancelled // User pressed Escape
     case error(Error) // screencapture failed
 }
@@ -95,7 +101,7 @@ final class ScreenshotCaptureService {
                 // Check if file was created
                 if FileManager.default.fileExists(atPath: outputPath.path) {
                     logInfo("Region captured successfully: \(filename)", category: .capture)
-                    return .success(outputPath)
+                    return .success(outputPath, nil)
                 } else {
                     // Status 0 but no file = user pressed Escape
                     logInfo("Region capture cancelled by user", category: .capture)

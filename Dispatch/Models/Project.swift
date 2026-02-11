@@ -22,6 +22,12 @@ final class Project {
     /// File system path for discovered Claude Code projects (optional)
     var path: String?
 
+    /// PNG data for the project icon (auto-discovered or custom)
+    var iconData: Data?
+
+    /// Whether the icon was manually set by the user (prevents auto-discovery override)
+    var isCustomIcon: Bool = false
+
     // MARK: - Relationships
 
     @Relationship(deleteRule: .nullify, inverse: \Prompt.project)
@@ -80,6 +86,17 @@ final class Project {
     /// Whether this project is linked to a file system path
     var isLinkedToFileSystem: Bool {
         path != nil
+    }
+
+    /// NSImage from stored icon data
+    var iconImage: NSImage? {
+        guard let iconData else { return nil }
+        return NSImage(data: iconData)
+    }
+
+    /// First letter of the project name for icon fallback
+    var initial: String {
+        String(name.prefix(1)).uppercased()
     }
 
     // MARK: - Methods

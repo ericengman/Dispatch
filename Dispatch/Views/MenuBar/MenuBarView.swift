@@ -16,7 +16,6 @@ struct MenuBarPopoverView: View {
 
     @State private var searchText = ""
     @StateObject private var promptVM = PromptViewModel()
-    @StateObject private var queueVM = QueueViewModel.shared
 
     // MARK: - Body
 
@@ -86,49 +85,6 @@ struct MenuBarPopoverView: View {
             }
 
             Divider()
-
-            // Queue status
-            if !queueVM.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Text("Queue (\(queueVM.count))")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-
-                        Spacer()
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.top, 8)
-
-                    HStack(spacing: 8) {
-                        Button {
-                            Task {
-                                await queueVM.runNext()
-                            }
-                        } label: {
-                            Label("Run Next", systemImage: "play.fill")
-                                .font(.caption)
-                        }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
-
-                        Button {
-                            Task {
-                                await queueVM.runAll()
-                            }
-                        } label: {
-                            Label("Run All", systemImage: "forward.fill")
-                                .font(.caption)
-                        }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.bottom, 8)
-                }
-
-                Divider()
-            }
 
             // Actions
             VStack(spacing: 0) {
@@ -218,23 +174,10 @@ struct MenuBarPopoverView: View {
 // MARK: - Menu Bar Icon View
 
 struct MenuBarIconView: View {
-    @ObservedObject var queueVM = QueueViewModel.shared
     @ObservedObject var executionState = ExecutionStateMachine.shared
 
     var body: some View {
-        ZStack {
-            Image(systemName: iconName)
-
-            // Badge for queue count
-            if queueVM.count > 0 && !executionState.state.isActive {
-                Text("\(queueVM.count)")
-                    .font(.system(size: 8, weight: .bold))
-                    .foregroundStyle(.white)
-                    .padding(2)
-                    .background(.red, in: Circle())
-                    .offset(x: 8, y: -8)
-            }
-        }
+        Image(systemName: iconName)
     }
 
     private var iconName: String {

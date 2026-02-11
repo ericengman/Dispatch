@@ -11,7 +11,7 @@ import SwiftData
 
 // MARK: - Screenshot Directory Configuration
 
-struct ScreenshotDirectoryConfig: Sendable {
+nonisolated struct ScreenshotDirectoryConfig: Sendable {
     /// Base directory for all screenshots
     let baseDirectory: URL
 
@@ -51,7 +51,7 @@ struct ScreenshotDirectoryConfig: Sendable {
 // MARK: - Run Manifest
 
 /// Manifest file written by Claude Code skill to describe a run
-struct RunManifest: Codable, Sendable {
+nonisolated struct RunManifest: Codable, Sendable {
     let runId: UUID
     let projectName: String
     let runName: String
@@ -367,7 +367,7 @@ actor ScreenshotWatcherService {
 
 // MARK: - Screenshot Watcher Errors
 
-enum ScreenshotWatcherError: Error, LocalizedError {
+nonisolated enum ScreenshotWatcherError: Error, LocalizedError {
     case cannotOpenDirectory(String)
     case manifestNotFound
     case invalidManifest

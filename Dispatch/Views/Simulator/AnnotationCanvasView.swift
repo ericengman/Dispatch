@@ -17,6 +17,7 @@ struct AnnotationCanvasView: View {
     @State private var containerSize: CGSize = .zero
     @State private var currentDrawing: [CGPoint] = []
     @State private var dragStart: CGPoint?
+    @State private var currentDragEnd: CGPoint?
 
     // MARK: - Body
 
@@ -74,6 +75,11 @@ struct AnnotationCanvasView: View {
                 if !currentDrawing.isEmpty {
                     drawCurrentPath(in: &context)
                 }
+
+                // Draw live preview for arrow/rectangle while dragging
+                if let start = dragStart, let end = currentDragEnd {
+                    drawLivePreview(from: start, to: end, in: &context)
+                }
             }
             .frame(width: displaySize.width, height: displaySize.height)
 
@@ -86,7 +92,17 @@ struct AnnotationCanvasView: View {
                         annotationVM.cropRect = newRect
                     },
                     onApply: {
-                        annotationVM.applyCrop(annotationVM.cropRect!)
+                        // Convert view coordinates to image coordinates for storage
+                        let viewRect = annotationVM.cropRect!
+                        let scaleX = nsImage.size.width / displaySize.width
+                        let scaleY = nsImage.size.height / displaySize.height
+                        let imageRect = CGRect(
+                            x: viewRect.origin.x * scaleX,
+                            y: viewRect.origin.y * scaleY,
+                            width: viewRect.width * scaleX,
+                            height: viewRect.height * scaleY
+                        )
+                        annotationVM.applyCrop(imageRect)
                         annotationVM.cropRect = nil
                     },
                     onCancel: {
@@ -96,10 +112,14 @@ struct AnnotationCanvasView: View {
                 .frame(width: displaySize.width, height: displaySize.height)
             }
 
-            // Drawing gesture overlay
-            Color.clear
-                .contentShape(Rectangle())
-                .gesture(drawingGesture(imageSize: displaySize))
+            // Drawing gesture overlay — must match canvas frame to keep coordinates aligned
+            // Hide when crop overlay is showing to allow button interaction
+            if !(annotationVM.currentTool == .crop && annotationVM.cropRect != nil) {
+                Color.clear
+                    .contentShape(Rectangle())
+                    .frame(width: displaySize.width, height: displaySize.height)
+                    .gesture(drawingGesture(imageSize: displaySize))
+            }
         }
         .onAppear {
             imageSize = nsImage.size
@@ -234,6 +254,63 @@ struct AnnotationCanvasView: View {
         )
     }
 
+    private func drawLivePreview(from start: CGPoint, to end: CGPoint, in context: inout GraphicsContext) {
+        let color = annotationVM.currentColor.color
+        let lineWidth: CGFloat = 3.0
+
+        switch annotationVM.currentTool {
+        case .rectangle:
+            let rect = CGRect(
+                x: min(start.x, end.x),
+                y: min(start.y, end.y),
+                width: abs(end.x - start.x),
+                height: abs(end.y - start.y)
+            )
+            let path = Path { p in p.addRect(rect) }
+            context.stroke(path, with: .color(color), lineWidth: lineWidth)
+
+        case .arrow:
+            // Line
+            let linePath = Path { p in
+                p.move(to: start)
+                p.addLine(to: end)
+            }
+            context.stroke(linePath, with: .color(color), lineWidth: lineWidth)
+
+            // Arrowhead
+            let angle = atan2(end.y - start.y, end.x - start.x)
+            let arrowLength: CGFloat = 15.0
+            let arrowAngle: CGFloat = .pi / 6
+            let arrowPath = Path { p in
+                p.move(to: end)
+                p.addLine(to: CGPoint(
+                    x: end.x - arrowLength * cos(angle - arrowAngle),
+                    y: end.y - arrowLength * sin(angle - arrowAngle)
+                ))
+                p.addLine(to: CGPoint(
+                    x: end.x - arrowLength * cos(angle + arrowAngle),
+                    y: end.y - arrowLength * sin(angle + arrowAngle)
+                ))
+                p.closeSubpath()
+            }
+            context.fill(arrowPath, with: .color(color))
+
+        case .crop:
+            // Crop preview rectangle
+            let rect = CGRect(
+                x: min(start.x, end.x),
+                y: min(start.y, end.y),
+                width: abs(end.x - start.x),
+                height: abs(end.y - start.y)
+            )
+            let path = Path { p in p.addRect(rect) }
+            context.stroke(path, with: .color(.white), style: StrokeStyle(lineWidth: 2, dash: [6, 3]))
+
+        default:
+            break
+        }
+    }
+
     // MARK: - Gestures
 
     private var panGesture: some Gesture {
@@ -265,23 +342,22 @@ struct AnnotationCanvasView: View {
             }
     }
 
-    private func handleDrawingChanged(value: DragGesture.Value, imageSize: CGSize) {
+    private func handleDrawingChanged(value: DragGesture.Value, imageSize _: CGSize) {
         let tool = annotationVM.currentTool
-
-        // Convert to image coordinates
-        let location = convertToImageCoordinates(value.location, imageSize: imageSize)
 
         switch tool {
         case .crop:
+            // Crop uses view coordinates since CropOverlayView displays in view space
+            let viewLocation = value.location
             if dragStart == nil {
-                dragStart = location
+                dragStart = viewLocation
             }
             let start = dragStart!
             annotationVM.cropRect = CGRect(
-                x: min(start.x, location.x),
-                y: min(start.y, location.y),
-                width: abs(location.x - start.x),
-                height: abs(location.y - start.y)
+                x: min(start.x, viewLocation.x),
+                y: min(start.y, viewLocation.y),
+                width: abs(viewLocation.x - start.x),
+                height: abs(viewLocation.y - start.y)
             )
 
         case .freehand:
@@ -291,7 +367,7 @@ struct AnnotationCanvasView: View {
             if dragStart == nil {
                 dragStart = value.location
             }
-            // Preview will be drawn based on dragStart and current location
+            currentDragEnd = value.location
 
         case .text:
             // Text tool uses tap, not drag
@@ -338,12 +414,19 @@ struct AnnotationCanvasView: View {
         }
 
         dragStart = nil
+        currentDragEnd = nil
         annotationVM.isDrawing = false
     }
 
     // MARK: - Helpers
 
     private func calculateDisplaySize(for imageSize: CGSize) -> CGSize {
+        guard containerSize.width > 40, containerSize.height > 40,
+              imageSize.width > 0, imageSize.height > 0
+        else {
+            return CGSize(width: 1, height: 1)
+        }
+
         let maxWidth = containerSize.width - 40
         let maxHeight = containerSize.height - 40
 
@@ -352,8 +435,8 @@ struct AnnotationCanvasView: View {
         let ratio = min(widthRatio, heightRatio)
 
         return CGSize(
-            width: imageSize.width * ratio,
-            height: imageSize.height * ratio
+            width: max(1, imageSize.width * ratio),
+            height: max(1, imageSize.height * ratio)
         )
     }
 

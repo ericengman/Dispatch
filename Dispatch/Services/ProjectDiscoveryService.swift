@@ -5,12 +5,12 @@
 //  Service for discovering Claude Code projects by finding directories with CLAUDE.md files
 //
 
-import Foundation
 import Combine
+import Foundation
 
 // MARK: - Discovered Project
 
-struct DiscoveredProject: Identifiable, Hashable, Sendable {
+nonisolated struct DiscoveredProject: Identifiable, Hashable, Sendable {
     let id: UUID
     let name: String
     let path: URL
@@ -18,17 +18,17 @@ struct DiscoveredProject: Identifiable, Hashable, Sendable {
     let lastModified: Date?
 
     init(path: URL, claudeFilePath: URL) {
-        self.id = UUID()
-        self.name = path.lastPathComponent
+        id = UUID()
+        name = path.lastPathComponent
         self.path = path
         self.claudeFilePath = claudeFilePath
 
         // Get last modified date
         if let attrs = try? FileManager.default.attributesOfItem(atPath: claudeFilePath.path),
            let modDate = attrs[.modificationDate] as? Date {
-            self.lastModified = modDate
+            lastModified = modDate
         } else {
-            self.lastModified = nil
+            lastModified = nil
         }
     }
 }
@@ -60,7 +60,6 @@ actor ProjectDiscoveryService {
             home.appendingPathComponent("Desktop"),
             home
         ]
-
     }
 
     // MARK: - Configuration
@@ -125,16 +124,16 @@ actor ProjectDiscoveryService {
         // Skip hidden directories and common non-project directories
         let name = url.lastPathComponent
         if name.hasPrefix(".") ||
-           name == "node_modules" ||
-           name == "Pods" ||
-           name == "Carthage" ||
-           name == "build" ||
-           name == "Build" ||
-           name == "DerivedData" ||
-           name == ".git" ||
-           name == "vendor" ||
-           name == "venv" ||
-           name == "__pycache__" {
+            name == "node_modules" ||
+            name == "Pods" ||
+            name == "Carthage" ||
+            name == "build" ||
+            name == "Build" ||
+            name == "DerivedData" ||
+            name == ".git" ||
+            name == "vendor" ||
+            name == "venv" ||
+            name == "__pycache__" {
             return []
         }
 
@@ -181,7 +180,7 @@ actor ProjectDiscoveryService {
         let claudeFilePath = path.appendingPathComponent(claudeFileName)
         let claudeFilePathLower = path.appendingPathComponent(claudeFileNameLower)
         return fileManager.fileExists(atPath: claudeFilePath.path) ||
-               fileManager.fileExists(atPath: claudeFilePathLower.path)
+            fileManager.fileExists(atPath: claudeFilePathLower.path)
     }
 
     /// Gets the CLAUDE.md content for a project
@@ -215,8 +214,7 @@ final class ProjectDiscoveryManager: ObservableObject {
 
     // MARK: - Initialization
 
-    private init() {
-    }
+    private init() {}
 
     // MARK: - Discovery
 

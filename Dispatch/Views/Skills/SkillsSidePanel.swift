@@ -57,17 +57,27 @@ struct SkillsSidePanel: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 0) {
-                // Section 1: Screenshot Runs
+                // Section 1: Quick Capture
+                QuickCaptureSection(
+                    project: project,
+                    isExpanded: expandedSections.contains("capture"),
+                    onToggle: { toggleSection("capture") }
+                )
+
+                // Section 2: Screenshot Runs
                 screenshotRunsSection
 
-                // Section 2: Memory
+                // Section 3: Memory
                 memorySection
 
-                // Section 3: Skills
+                // Section 4: Skills
                 skillsSection
             }
         }
+        .scrollIndicators(.hidden, axes: .horizontal)
         .frame(width: 320)
+        .fixedSize(horizontal: true, vertical: false)
+        .padding(.trailing, 10)
         .background(Color(nsColor: .windowBackgroundColor))
         .onAppear {
             loadSkills()
@@ -363,7 +373,7 @@ struct SkillsSidePanel: View {
         guard let data = UserDefaults.standard.data(forKey: expandedSectionsKey),
               let sections = try? JSONDecoder().decode(Set<String>.self, from: data)
         else {
-            return ["runs", "memory", "skills"]
+            return ["capture", "runs", "memory", "skills"]
         }
         return sections
     }
@@ -475,7 +485,7 @@ struct SkillsSidePanel: View {
 
 // MARK: - Section Header Bar
 
-struct SectionHeaderBar: View {
+struct SectionHeaderBar<TrailingContent: View>: View {
     let title: String
     let icon: String
     let iconColor: Color
@@ -483,7 +493,30 @@ struct SectionHeaderBar: View {
     let isExpanded: Bool
     let isRefreshing: Bool
     let onToggle: () -> Void
-    let onRefresh: () -> Void
+    let onRefresh: (() -> Void)?
+    let trailingContent: TrailingContent
+
+    init(
+        title: String,
+        icon: String,
+        iconColor: Color,
+        count: Int,
+        isExpanded: Bool,
+        isRefreshing: Bool = false,
+        onToggle: @escaping () -> Void,
+        onRefresh: (() -> Void)? = nil,
+        @ViewBuilder trailingContent: () -> TrailingContent
+    ) {
+        self.title = title
+        self.icon = icon
+        self.iconColor = iconColor
+        self.count = count
+        self.isExpanded = isExpanded
+        self.isRefreshing = isRefreshing
+        self.onToggle = onToggle
+        self.onRefresh = onRefresh
+        self.trailingContent = trailingContent()
+    }
 
     var body: some View {
         HStack {
@@ -512,19 +545,50 @@ struct SectionHeaderBar: View {
 
             Spacer()
 
-            // Refresh button
-            Button(action: onRefresh) {
-                Image(systemName: "arrow.clockwise")
-                    .font(.caption)
-                    .rotationEffect(.degrees(isRefreshing ? 360 : 0))
-                    .animation(isRefreshing ? .linear(duration: 1).repeatForever(autoreverses: false) : .default, value: isRefreshing)
+            // Custom trailing content (e.g., capture buttons)
+            trailingContent
+
+            // Refresh button (shown only when onRefresh is provided)
+            if let onRefresh {
+                Button(action: onRefresh) {
+                    Image(systemName: "arrow.clockwise")
+                        .font(.caption)
+                        .rotationEffect(.degrees(isRefreshing ? 360 : 0))
+                        .animation(isRefreshing ? .linear(duration: 1).repeatForever(autoreverses: false) : .default, value: isRefreshing)
+                }
+                .buttonStyle(.plain)
+                .disabled(isRefreshing)
             }
-            .buttonStyle(.plain)
-            .disabled(isRefreshing)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
         .background(.bar)
+    }
+}
+
+// Convenience initializer without trailing content
+extension SectionHeaderBar where TrailingContent == EmptyView {
+    init(
+        title: String,
+        icon: String,
+        iconColor: Color,
+        count: Int,
+        isExpanded: Bool,
+        isRefreshing: Bool = false,
+        onToggle: @escaping () -> Void,
+        onRefresh: (() -> Void)? = nil
+    ) {
+        self.init(
+            title: title,
+            icon: icon,
+            iconColor: iconColor,
+            count: count,
+            isExpanded: isExpanded,
+            isRefreshing: isRefreshing,
+            onToggle: onToggle,
+            onRefresh: onRefresh,
+            trailingContent: { EmptyView() }
+        )
     }
 }
 

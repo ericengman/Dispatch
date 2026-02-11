@@ -55,12 +55,10 @@ struct RunDetailView: View {
         .onKeyPress(keys: [.delete, .deleteForward]) { _ in
             handleDeleteKey()
         }
-        .onKeyPress(characters: CharacterSet(charactersIn: "cdartzCDART")) { press in
-            handleToolShortcut(press.characters)
-        }
-        .onKeyPress(characters: CharacterSet(charactersIn: "1234567")) { press in
-            handleColorShortcut(press.characters)
-        }
+        .onKeyPress(characters: CharacterSet(charactersIn: "12345"), phases: .down, action: { press in
+            guard press.modifiers.contains(.command) else { return .ignored }
+            return handleToolShortcut(press.characters)
+        })
     }
 
     // MARK: - Header Bar
@@ -297,7 +295,7 @@ struct RunDetailView: View {
                 return
             }
 
-            let dispatched = embeddedService.dispatchPrompt(prompt)
+            let dispatched = await embeddedService.dispatchPrompt(prompt)
             guard dispatched else {
                 logError("Failed to dispatch to embedded terminal", category: .simulator)
                 return
@@ -328,34 +326,22 @@ struct RunDetailView: View {
     }
 
     private func handleToolShortcut(_ characters: String) -> KeyPress.Result {
-        guard let char = characters.lowercased().first else { return .ignored }
+        guard let char = characters.first else { return .ignored }
 
         switch char {
-        case "c":
+        case "1":
             annotationVM.selectTool(.crop)
-        case "d":
+        case "2":
             annotationVM.selectTool(.freehand)
-        case "a":
+        case "3":
             annotationVM.selectTool(.arrow)
-        case "r":
+        case "4":
             annotationVM.selectTool(.rectangle)
-        case "t":
+        case "5":
             annotationVM.selectTool(.text)
         default:
             return .ignored
         }
-        return .handled
-    }
-
-    private func handleColorShortcut(_ characters: String) -> KeyPress.Result {
-        guard let char = characters.first,
-              let number = Int(String(char)),
-              let color = AnnotationColor.fromShortcut(number)
-        else {
-            return .ignored
-        }
-
-        annotationVM.selectColor(color)
         return .handled
     }
 }

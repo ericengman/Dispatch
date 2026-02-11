@@ -506,7 +506,7 @@ final class ExecutionManager: ObservableObject {
             // Use embedded terminal (PTY dispatch)
             logInfo("Dispatching via embedded terminal", category: .execution)
 
-            let dispatched = embeddedService.dispatchPrompt(content)
+            let dispatched = await embeddedService.dispatchPrompt(content)
             guard dispatched else {
                 throw TerminalServiceError.scriptExecutionFailed("Embedded terminal dispatch failed")
             }

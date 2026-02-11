@@ -5,9 +5,9 @@
 //  Model for CLAUDE.md configuration files
 //
 
-import Foundation
 import AppKit
 import Combine
+import Foundation
 
 // MARK: - Claude File Scope
 
@@ -34,7 +34,7 @@ enum ClaudeFileScope: String, Sendable, Identifiable, CaseIterable {
 
 // MARK: - Claude File
 
-struct ClaudeFile: Identifiable, Hashable, Sendable {
+nonisolated struct ClaudeFile: Identifiable, Hashable, Sendable {
     let id: UUID
     let scope: ClaudeFileScope
     let filePath: URL

@@ -96,8 +96,6 @@ struct GeneralSettingsView: View {
                     Text("90 days").tag(90)
                     Text("1 year").tag(365)
                 }
-
-                Toggle("Clear queue on quit", isOn: autoClearQueueBinding)
             }
 
             Section {
@@ -168,16 +166,6 @@ struct GeneralSettingsView: View {
             get: { settingsManager.settings?.historyRetentionDays ?? 30 },
             set: {
                 settingsManager.settings?.setHistoryRetention(days: $0)
-                settingsManager.save()
-            }
-        )
-    }
-
-    private var autoClearQueueBinding: Binding<Bool> {
-        Binding(
-            get: { settingsManager.settings?.autoClearQueueOnQuit ?? false },
-            set: {
-                settingsManager.settings?.autoClearQueueOnQuit = $0
                 settingsManager.save()
             }
         )

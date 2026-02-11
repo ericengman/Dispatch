@@ -254,11 +254,9 @@ struct ScreenshotThumbnailView: View {
     private func loadThumbnail() {
         guard thumbnail == nil else { return }
 
-        Task.detached(priority: .userInitiated) {
+        Task {
             let image = screenshot.thumbnail
-            await MainActor.run {
-                self.thumbnail = image
-            }
+            self.thumbnail = image
         }
     }
 }

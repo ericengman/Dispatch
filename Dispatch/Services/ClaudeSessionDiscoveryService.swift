@@ -29,10 +29,10 @@ actor ClaudeSessionDiscoveryService {
         let projectDir = claudeProjectsPath + "/" + escapedPath
         let indexPath = projectDir + "/sessions-index.json"
 
-        logDebug("Looking for sessions at: \(indexPath)", category: .terminal)
+        logInfo("RESUME-DBG discoverSessions: projectPath=\(projectPath), escapedPath=\(escapedPath), indexPath=\(indexPath)", category: .terminal)
 
         guard fileManager.fileExists(atPath: indexPath) else {
-            logDebug("No sessions-index.json found at \(indexPath)", category: .terminal)
+            logInfo("RESUME-DBG discoverSessions: sessions-index.json NOT FOUND at \(indexPath)", category: .terminal)
             return []
         }
 
@@ -40,16 +40,21 @@ actor ClaudeSessionDiscoveryService {
             let data = try Data(contentsOf: URL(fileURLWithPath: indexPath))
             let index = try JSONDecoder().decode(ClaudeSessionsIndex.self, from: data)
 
+            logInfo("RESUME-DBG discoverSessions: raw entries count=\(index.entries.count)", category: .terminal)
+            for entry in index.entries {
+                logInfo("RESUME-DBG discoverSessions:   entry sessionId=\(entry.sessionId), isSidechain=\(entry.isSidechain), modified=\(entry.modified), prompt='\(entry.firstPrompt.prefix(40))'", category: .terminal)
+            }
+
             // Filter out sidechains and sort by modified (most recent first)
             let sessions = index.entries
                 .filter { !$0.isSidechain }
                 .sorted { $0.modified > $1.modified }
 
-            logInfo("Discovered \(sessions.count) sessions for \(projectPath)", category: .terminal)
+            logInfo("RESUME-DBG discoverSessions: after filtering sidechains: \(sessions.count) sessions for \(projectPath)", category: .terminal)
             return sessions
 
         } catch {
-            logError("Failed to parse sessions-index.json: \(error)", category: .terminal)
+            logError("RESUME-DBG discoverSessions: FAILED to parse sessions-index.json: \(error)", category: .terminal)
             return []
         }
     }

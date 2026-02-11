@@ -53,6 +53,22 @@ enum NavigationSelection: Hashable, Identifiable, Codable {
     }
 }
 
+// MARK: - Sidebar Mode
+
+enum SidebarMode: String {
+    case expanded
+    case condensed
+
+    static func loadSaved() -> SidebarMode {
+        let raw = UserDefaults.standard.string(forKey: "mainView.sidebarMode") ?? "expanded"
+        return SidebarMode(rawValue: raw) ?? .expanded
+    }
+
+    func save() {
+        UserDefaults.standard.set(rawValue, forKey: "mainView.sidebarMode")
+    }
+}
+
 // MARK: - Main View
 
 struct MainView: View {
@@ -64,18 +80,38 @@ struct MainView: View {
     // MARK: - State
 
     @State private var selection: NavigationSelection? = NavigationSelection.loadSaved()
-    @State private var columnVisibility: NavigationSplitViewVisibility = .all
-    @State private var showingQueue: Bool = false
-    @State private var queueHeight: CGFloat = 150
+    @State private var sidebarMode: SidebarMode = .loadSaved()
+    @State private var isBuilding = false
+    @State private var buildError: String?
+    @State private var columnVisibility: NavigationSplitViewVisibility = {
+        guard let rawValue = UserDefaults.standard.string(forKey: "mainView.columnVisibility") else {
+            return .all
+        }
+        switch rawValue {
+        case "all": return .all
+        case "detailOnly": return .detailOnly
+        case "doubleColumn": return .doubleColumn
+        default: return .all
+        }
+    }()
+
     @State private var selectedSkill: Skill?
     @State private var selectedClaudeFile: ClaudeFile?
     @State private var selectedRun: SimulatorRun?
-    @State private var showTerminal: Bool = true // Default to showing terminal
-    @State private var sessionManager = TerminalSessionManager.shared
 
     /// True when a file viewer (skill, claude file, or run) is active
     private var isFileViewerActive: Bool {
         selectedSkill != nil || selectedClaudeFile != nil || selectedRun != nil
+    }
+
+    /// True when terminal panel should be visible (not just rendered)
+    private var isTerminalVisible: Bool {
+        !isFileViewerActive
+    }
+
+    /// Whether the content wrapper needs to expand (file viewer open or non-project content)
+    private var shouldContentWrapperExpand: Bool {
+        isFileViewerActive || selection?.projectId == nil
     }
 
     /// Path of the currently selected project (nil if no project selected)
@@ -92,51 +128,80 @@ struct MainView: View {
 
     @StateObject private var projectVM = ProjectViewModel.shared
     @StateObject private var chainVM = ChainViewModel.shared
-    @StateObject private var queueVM = QueueViewModel.shared
     @StateObject private var executionState = ExecutionStateMachine.shared
     @ObservedObject private var captureCoordinator = CaptureCoordinator.shared
 
     // MARK: - Body
 
     var body: some View {
-        NavigationSplitView(columnVisibility: $columnVisibility) {
-            SidebarView(selection: $selection)
+        HStack(spacing: 0) {
+            // Condensed icon strip (shown when sidebar is condensed)
+            if sidebarMode == .condensed {
+                CondensedSidebarView(
+                    selection: $selection,
+                    onToggleExpand: { toggleSidebarMode() }
+                )
                 .environmentObject(projectVM)
-                .environmentObject(chainVM)
-        } detail: {
-            VStack(spacing: 0) {
-                // Main content area with optional skills panel and terminal
-                // Terminal is hidden when file viewer is active
-                if showTerminal && !isFileViewerActive {
-                    HSplitView {
-                        contentWrapper
-                            .frame(minWidth: 400)
 
-                        // Multi-session terminal panel
-                        // Use smaller minWidth when empty to prevent squashing skills panel
+                Divider()
+            }
+
+            NavigationSplitView(columnVisibility: $columnVisibility) {
+                if sidebarMode == .expanded {
+                    SidebarView(selection: $selection, onCollapse: { toggleSidebarMode() })
+                        .environmentObject(projectVM)
+                } else {
+                    Spacer()
+                        .navigationSplitViewColumnWidth(0)
+                }
+            } detail: {
+                VStack(spacing: 0) {
+                    // Main content area with skills panel and terminal
+                    // Terminal is always rendered to preserve processes; hidden via zero frame when not visible
+                    HStack(spacing: 0) {
+                        contentWrapper
+                            .frame(maxWidth: shouldContentWrapperExpand ? .infinity : nil)
+
+                        if isTerminalVisible {
+                            Divider()
+                        }
+
                         MultiSessionTerminalView(projectPath: selectedProjectPath)
-                            .frame(minWidth: sessionManager.sessions.isEmpty ? 250 : 400)
+                            .frame(maxWidth: isTerminalVisible ? .infinity : 0)
+                            .frame(width: isTerminalVisible ? nil : 0)
+                            .clipped()
+                            .allowsHitTesting(isTerminalVisible)
+                            .opacity(isTerminalVisible ? 1 : 0)
                     }
                     .frame(maxHeight: .infinity)
-                } else {
-                    contentWrapper
-                        .frame(maxHeight: .infinity)
                 }
-
-                // Queue panel (collapsible)
-                Divider()
-
-                CollapsibleQueuePanel(
-                    isExpanded: $showingQueue,
-                    expandedHeight: queueHeight
-                )
-                .environmentObject(queueVM)
             }
+            .navigationSplitViewStyle(.balanced)
+            .toolbar(removing: .sidebarToggle)
         }
-        .navigationSplitViewStyle(.balanced)
         .frame(minWidth: 800, minHeight: 600)
         .onAppear {
             configureViewModels()
+            syncColumnVisibility()
+        }
+        .onChange(of: columnVisibility) { _, newVisibility in
+            // Prevent sidebar overlay from appearing in condensed mode
+            if sidebarMode == .condensed && newVisibility != .detailOnly {
+                columnVisibility = .detailOnly
+                return
+            }
+            let rawValue: String
+            switch newVisibility {
+            case .all: rawValue = "all"
+            case .detailOnly: rawValue = "detailOnly"
+            case .doubleColumn: rawValue = "doubleColumn"
+            default: rawValue = "all"
+            }
+            UserDefaults.standard.set(rawValue, forKey: "mainView.columnVisibility")
+        }
+        .onChange(of: sidebarMode) { _, newMode in
+            newMode.save()
+            syncColumnVisibility()
         }
         .onChange(of: selection) { _, newSelection in
             newSelection?.save()
@@ -154,6 +219,11 @@ struct MainView: View {
         .toolbar {
             toolbarContent
         }
+        .onReceive(NotificationCenter.default.publisher(for: .createNewTerminalSession)) { _ in
+            let path = selectedProjectPath
+            logDebug("Cmd+T: creating new terminal session (project: \(path ?? "none"))", category: .terminal)
+            TerminalSessionManager.shared.createSession(workingDirectory: path)
+        }
     }
 
     // MARK: - Content Wrapper (with skills panel)
@@ -170,38 +240,42 @@ struct MainView: View {
                     selectedClaudeFile: $selectedClaudeFile,
                     selectedRun: $selectedRun
                 )
-                Divider()
             }
 
-            // Main content, run detail, skill viewer, or claude file editor
+            // File viewer content (run detail, skill viewer, or claude file editor)
             if let run = selectedRun {
+                Divider()
                 RunDetailView(run: run) {
                     withAnimation(.easeInOut(duration: 0.2)) {
                         selectedRun = nil
                     }
                 }
-                .id(run.id) // Force new view when run changes
+                .id(run.id)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if let claudeFile = selectedClaudeFile {
+                Divider()
                 ClaudeFileEditor(file: claudeFile) {
                     withAnimation(.easeInOut(duration: 0.2)) {
                         selectedClaudeFile = nil
                     }
                 }
-                .id(claudeFile.id) // Force new view when file changes
+                .id(claudeFile.id)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if let skill = selectedSkill {
+                Divider()
                 SkillFileViewer(skill: skill) {
                     withAnimation(.easeInOut(duration: 0.2)) {
                         selectedSkill = nil
                     }
                 }
-                .id(skill.id) // Force new view when skill changes
+                .id(skill.id)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
+            } else if selection?.projectId == nil {
+                // Non-project content (chains, empty states)
                 contentView
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
+            // When project selected with no file viewer: just SkillsSidePanel, terminal gets remaining space
         }
     }
 
@@ -259,34 +333,114 @@ struct MainView: View {
                 .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 6))
             }
 
-            // Terminal toggle button
+            // Build & Run button
             Button {
-                showTerminal.toggle()
-                logInfo("Terminal toggled: \(showTerminal)", category: .terminal)
+                buildAndRun()
             } label: {
-                Label("Terminal", systemImage: showTerminal ? "terminal.fill" : "terminal")
-            }
-            .keyboardShortcut("t", modifiers: [.command, .shift])
-
-            // New session shortcut (only when terminal visible)
-            if showTerminal {
-                Button {
-                    _ = TerminalSessionManager.shared.createSession(workingDirectory: selectedProjectPath)
-                } label: {
-                    Label("New Session", systemImage: "plus.rectangle")
+                if isBuilding {
+                    ProgressView()
+                        .scaleEffect(0.6)
+                        .frame(width: 16, height: 16)
+                } else {
+                    Image(systemName: "hammer.fill")
                 }
-                .keyboardShortcut("t", modifiers: .command)
-                .disabled(!TerminalSessionManager.shared.canCreateSession)
             }
+            .help("Build & Run (clean build)")
+            .disabled(isBuilding)
         }
     }
 
     // MARK: - Actions
 
+    private func toggleSidebarMode() {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            sidebarMode = sidebarMode == .expanded ? .condensed : .expanded
+        }
+    }
+
+    private func syncColumnVisibility() {
+        switch sidebarMode {
+        case .expanded:
+            columnVisibility = .all
+        case .condensed:
+            columnVisibility = .detailOnly
+        }
+    }
+
+    private func buildAndRun() {
+        isBuilding = true
+        buildError = nil
+        logInfo("Build & Run triggered from toolbar", category: .app)
+
+        Task.detached {
+            let projectPath = "/Users/eric/Dispatch/Dispatch.xcodeproj"
+            let appPath = NSHomeDirectory() + "/Library/Developer/Xcode/DerivedData/Dispatch-ajldofgzlvjejddhgyyjzhniryrz/Build/Products/Debug/Dispatch.app"
+
+            // 1. Build
+            let buildProcess = Process()
+            buildProcess.executableURL = URL(fileURLWithPath: "/usr/bin/xcodebuild")
+            buildProcess.arguments = [
+                "-project", projectPath,
+                "-scheme", "Dispatch",
+                "-destination", "platform=macOS",
+                "build"
+            ]
+            let pipe = Pipe()
+            buildProcess.standardOutput = pipe
+            buildProcess.standardError = pipe
+
+            do {
+                try buildProcess.run()
+                buildProcess.waitUntilExit()
+            } catch {
+                await MainActor.run {
+                    buildError = error.localizedDescription
+                    isBuilding = false
+                    logError("Build failed to launch: \(error)", category: .app)
+                }
+                return
+            }
+
+            guard buildProcess.terminationStatus == 0 else {
+                let data = pipe.fileHandleForReading.readDataToEndOfFile()
+                let output = String(data: data, encoding: .utf8) ?? "Unknown error"
+                // Extract last few lines for a useful message
+                let lastLines = output.components(separatedBy: .newlines).suffix(20).joined(separator: "\n")
+                await MainActor.run {
+                    buildError = lastLines
+                    isBuilding = false
+                    logError("Build failed (exit \(buildProcess.terminationStatus))", category: .app)
+                }
+                return
+            }
+
+            // 2. Kill existing instance
+            let killProcess = Process()
+            killProcess.executableURL = URL(fileURLWithPath: "/usr/bin/pkill")
+            killProcess.arguments = ["-9", "-x", "Dispatch"]
+            try? killProcess.run()
+            killProcess.waitUntilExit()
+
+            // Small delay for process cleanup
+            try? await Task.sleep(for: .milliseconds(300))
+
+            // 3. Launch fresh
+            let openProcess = Process()
+            openProcess.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+            openProcess.arguments = ["-F", appPath]
+            try? openProcess.run()
+            openProcess.waitUntilExit()
+
+            await MainActor.run {
+                isBuilding = false
+                logInfo("Build & Run completed successfully", category: .app)
+            }
+        }
+    }
+
     private func configureViewModels() {
         projectVM.configure(with: modelContext)
         chainVM.configure(with: modelContext)
-        queueVM.configure(with: modelContext)
         SettingsManager.shared.configure(with: modelContext)
 
         logInfo("ViewModels configured", category: .app)
@@ -301,7 +455,6 @@ struct MainView: View {
             Project.self,
             PromptChain.self,
             ChainItem.self,
-            QueueItem.self,
             AppSettings.self
         ], inMemory: true)
 }
