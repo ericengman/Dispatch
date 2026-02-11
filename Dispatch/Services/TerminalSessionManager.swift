@@ -14,7 +14,7 @@ final class TerminalSessionManager {
     private(set) var sessions: [TerminalSession] = []
     var activeSessionId: UUID?
 
-    let maxSessions: Int = 4 // SESS-06: limit to prevent resource exhaustion
+    let maxSessions: Int = 10 // Allow many concurrent sessions
     private var nextSessionNumber: Int = 1
     private(set) var hasRestoredSessions = false
 
@@ -102,7 +102,7 @@ final class TerminalSessionManager {
 
         let sessionName = name ?? "Session \(nextSessionNumber)"
         nextSessionNumber += 1
-        let session = TerminalSession(name: sessionName, workingDirectory: workingDirectory)
+        let session = TerminalSession(name: sessionName, tabOrder: sessions.count, workingDirectory: workingDirectory)
         // Note: Do NOT set session.lastActivity here - init already sets both createdAt
         // and lastActivity to Date(). Setting lastActivity again would make lastActivity > createdAt,
         // which causes launchMode to return .claudeCodeContinue instead of .claudeCode (fresh start).
@@ -175,6 +175,7 @@ final class TerminalSessionManager {
 
         let session = TerminalSession(
             name: sessionName,
+            tabOrder: sessions.count,
             claudeSessionId: claudeSession.sessionId,
             workingDirectory: claudeSession.projectPath
         )
@@ -279,17 +280,32 @@ final class TerminalSessionManager {
         focusTerminal(sessionId)
     }
 
-    /// Cycle to the next or previous terminal session within the current project
+    /// Cycle to the next or previous terminal session within the current project.
+    /// Skips condensed (brew mode) sessions so focus always lands on a visible terminal.
     func cycleActiveSession(forward: Bool) {
         guard let active = activeSession, let path = active.workingDirectory else { return }
         let projectSessions = sessionsForProject(id: nil, path: path)
         guard projectSessions.count >= 2 else { return }
         guard let currentIndex = projectSessions.firstIndex(where: { $0.id == activeSessionId }) else { return }
-        let nextIndex = forward
-            ? (currentIndex + 1) % projectSessions.count
-            : (currentIndex - 1 + projectSessions.count) % projectSessions.count
-        setActiveSession(projectSessions[nextIndex].id)
-        logDebug("Cycled to \(forward ? "next" : "previous") session: \(projectSessions[nextIndex].name)", category: .terminal)
+
+        let brewController = BrewModeController.shared
+        let count = projectSessions.count
+
+        // Walk forward/backward, skipping condensed sessions
+        for offset in 1 ..< count {
+            let candidateIndex = forward
+                ? (currentIndex + offset) % count
+                : (currentIndex - offset + count) % count
+            let candidateId = projectSessions[candidateIndex].id
+
+            if !brewController.isCondensed(candidateId) {
+                setActiveSession(candidateId)
+                logDebug("Cycled to \(forward ? "next" : "previous") session: \(projectSessions[candidateIndex].name)", category: .terminal)
+                return
+            }
+        }
+
+        logDebug("No non-condensed session to cycle to", category: .terminal)
     }
 
     // MARK: - Per-Project Session Management
@@ -392,10 +408,94 @@ final class TerminalSessionManager {
         statusMonitors[sessionId]
     }
 
+    // MARK: - Session Name Updates
+
+    /// Look up the first user prompt for a Claude session.
+    /// Checks sessions-index.json first, falls back to JSONL file parsing.
+    nonisolated static func lookupFirstPrompt(claudeSessionId: String, workingDirectory: String) -> String? {
+        struct Entry: Decodable {
+            let type: String?
+            let message: Msg?
+            struct Msg: Decodable {
+                let role: String?
+                let content: [C]?
+                struct C: Decodable {
+                    let type: String?
+                    let text: String?
+                }
+            }
+        }
+
+        let escapedPath = workingDirectory.replacingOccurrences(of: "/", with: "-")
+        let projectDir = NSHomeDirectory() + "/.claude/projects/" + escapedPath
+
+        // Try sessions-index.json first (clean, pre-extracted by Claude Code)
+        let indexPath = projectDir + "/sessions-index.json"
+        if let data = FileManager.default.contents(atPath: indexPath),
+           let index = try? JSONDecoder().decode(ClaudeSessionsIndex.self, from: data),
+           let entry = index.entries.first(where: { $0.sessionId == claudeSessionId }) {
+            let prompt = entry.firstPrompt.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !prompt.isEmpty { return prompt }
+        }
+
+        // Fallback: parse JSONL for first user text message
+        let jsonlPath = projectDir + "/" + claudeSessionId + ".jsonl"
+        guard let handle = FileHandle(forReadingAtPath: jsonlPath) else { return nil }
+        defer { try? handle.close() }
+
+        let data = handle.readData(ofLength: 65536) // First 64KB only
+        guard let content = String(data: data, encoding: .utf8) else { return nil }
+
+        for line in content.split(separator: "\n", omittingEmptySubsequences: true) {
+            guard line.contains("\"user\"") else { continue }
+            guard let lineData = String(line).data(using: .utf8),
+                  let entry = try? JSONDecoder().decode(Entry.self, from: lineData),
+                  entry.type == "message",
+                  entry.message?.role == "user",
+                  let contents = entry.message?.content else { continue }
+
+            for block in contents where block.type == "text" {
+                guard let text = block.text else { continue }
+                let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !trimmed.isEmpty, !trimmed.hasPrefix("<system-reminder>") {
+                    return trimmed
+                }
+            }
+        }
+
+        return nil
+    }
+
+    /// Update a session's tab name from its first Claude prompt.
+    /// Only updates sessions with generic names ("Session N" or "Resumed N").
+    func updateSessionNameFromPrompt(for sessionId: UUID) {
+        guard let session = sessions.first(where: { $0.id == sessionId }),
+              session.name.hasPrefix("Session ") || session.name.hasPrefix("Resumed "),
+              let claudeSessionId = session.claudeSessionId,
+              let workDir = session.workingDirectory else { return }
+
+        Task.detached {
+            guard let prompt = Self.lookupFirstPrompt(claudeSessionId: claudeSessionId, workingDirectory: workDir) else { return }
+
+            // Truncate to first line, max 30 chars
+            let firstLine = prompt.split(separator: "\n", maxSplits: 1).first.map(String.init) ?? prompt
+            let tabName = firstLine.count <= 30 ? firstLine : String(firstLine.prefix(27)) + "..."
+
+            await MainActor.run { [weak self] in
+                guard let self,
+                      let session = self.sessions.first(where: { $0.id == sessionId }),
+                      session.name.hasPrefix("Session ") || session.name.hasPrefix("Resumed ") else { return }
+
+                session.name = tabName
+                logInfo("Updated session tab name to: '\(tabName)'", category: .terminal)
+            }
+        }
+    }
+
     // MARK: - Persistence Management
 
     /// Load persisted sessions from SwiftData on app launch
-    /// Returns sessions sorted by lastActivity (most recent first)
+    /// Returns sessions sorted by tabOrder (preserving original tab position)
     func loadPersistedSessions() -> [TerminalSession] {
         guard let modelContext = modelContext else {
             logWarning("Cannot load sessions: modelContext not configured", category: .terminal)
@@ -403,7 +503,7 @@ final class TerminalSessionManager {
         }
 
         var descriptor = FetchDescriptor<TerminalSession>(
-            sortBy: [SortDescriptor(\.lastActivity, order: .reverse)]
+            sortBy: [SortDescriptor(\.tabOrder, order: .forward)]
         )
         // Limit to sessions from last 7 days
         let cutoff = Date().addingTimeInterval(-7 * 24 * 3600)
@@ -679,6 +779,13 @@ final class TerminalSessionManager {
                 logError("Failed to persist refreshed session IDs: \(error)", category: .terminal)
             }
         }
+
+        // Update generic session names from first prompts
+        for session in sessions where session.claudeSessionId != nil && session.workingDirectory != nil {
+            if session.name.hasPrefix("Session ") || session.name.hasPrefix("Resumed ") {
+                updateSessionNameFromPrompt(for: session.id)
+            }
+        }
     }
 
     /// Detect and store the Claude session ID for a freshly launched session.
@@ -693,14 +800,23 @@ final class TerminalSessionManager {
 
             // Phase 1: lsof-based detection (deterministic, PID-correlated)
             // Poll every 2s for up to 30s (15 attempts)
+            let terminalExists = terminals[sessionId] != nil
+            logInfo("RESUME-DBG detectClaudeSessionId: terminal exists=\(terminalExists) for session \(sessionId)", category: .terminal)
+
             for attempt in 1 ... 15 {
                 try? await Task.sleep(nanoseconds: 2_000_000_000)
 
-                let pid = terminals[sessionId]?.process.shellPid ?? 0
-                guard pid > 0 else {
-                    logInfo("RESUME-DBG detectClaudeSessionId: attempt \(attempt) — no PID yet for session \(sessionId)", category: .terminal)
+                let terminalView = terminals[sessionId]
+                guard let terminalView else {
+                    logWarning("RESUME-DBG detectClaudeSessionId: attempt \(attempt) — terminals[\(sessionId)] is nil", category: .terminal)
                     continue
                 }
+                let pid = terminalView.process.shellPid
+                guard pid > 0 else {
+                    logInfo("RESUME-DBG detectClaudeSessionId: attempt \(attempt) — PID=0 for session \(sessionId)", category: .terminal)
+                    continue
+                }
+                logDebug("RESUME-DBG detectClaudeSessionId: attempt \(attempt) — PID=\(pid) for session \(sessionId)", category: .terminal)
 
                 // Run lsof off main actor to avoid blocking UI
                 let detectedId = await Task.detached {
@@ -718,14 +834,16 @@ final class TerminalSessionManager {
             // Phase 2: Fallback to filesystem scanning (probabilistic, creation-time-based)
             logWarning("RESUME-DBG detectClaudeSessionId: lsof failed after 15 attempts, falling back to filesystem scan for session \(sessionId)", category: .terminal)
             let currentlyClaimed = Set(sessions.compactMap(\.claudeSessionId))
+            logInfo("RESUME-DBG detectClaudeSessionId: currentlyClaimed=\(currentlyClaimed.sorted())", category: .terminal)
             let recentCutoff = Date().addingTimeInterval(-60) // Files created in the last minute
 
-            if let fsSessionId = scanFileSystemForNewSession(workingDirectory: workingDirectory, after: recentCutoff, excluding: currentlyClaimed) {
+            let fsSessionId = scanFileSystemForNewSession(workingDirectory: workingDirectory, after: recentCutoff, excluding: currentlyClaimed)
+            if let fsSessionId {
                 storeDetectedSessionId(fsSessionId, for: sessionId, method: "filesystem fallback")
                 return
             }
 
-            logWarning("RESUME-DBG detectClaudeSessionId: ALL detection methods failed for session \(sessionId)", category: .terminal)
+            logWarning("RESUME-DBG detectClaudeSessionId: ALL detection methods failed for session \(sessionId) — scanFileSystemForNewSession returned nil (workingDir=\(workingDirectory), cutoff=\(recentCutoff), excluding \(currentlyClaimed.count) claimed IDs)", category: .terminal)
         }
     }
 
@@ -749,6 +867,9 @@ final class TerminalSessionManager {
 
         // Start status monitoring now that we have the session ID
         startStatusMonitoring(for: session)
+
+        // Update session name from first prompt if still generic
+        updateSessionNameFromPrompt(for: terminalSessionId)
     }
 
     /// Mark session restoration as complete so views don't re-trigger it
@@ -775,6 +896,10 @@ final class TerminalSessionManager {
     /// and marks restoration complete. Does NOT set activeSessionId — that happens
     /// per-project via `switchToProject()`.
     func restoreAllPersistedSessions() {
+        let perfTimer = PerformanceLogger("restoreAllPersistedSessions", category: .terminal)
+
+        logInfo("RESUME-DBG restoreAllPersistedSessions ENTRY: hasRestoredSessions=\(hasRestoredSessions), sessionCount=\(sessions.count)", category: .terminal)
+
         guard !hasRestoredSessions else {
             logInfo("RESUME-DBG restoreAllPersistedSessions SKIPPED: already restored", category: .terminal)
             return
@@ -785,6 +910,7 @@ final class TerminalSessionManager {
         logInfo("RESUME-DBG restoreAllPersistedSessions: loaded \(persistedSessions.count) persisted session(s)", category: .terminal)
         guard !persistedSessions.isEmpty else {
             logInfo("RESUME-DBG restoreAllPersistedSessions: no persisted sessions to restore", category: .terminal)
+            perfTimer.end()
             return
         }
 
@@ -814,7 +940,8 @@ final class TerminalSessionManager {
         for session in persistedSessions {
             logInfo("RESUME-DBG resuming persisted session '\(session.name)': claudeSessionId=\(session.claudeSessionId ?? "nil")", category: .terminal)
             if resumePersistedSession(session) {
-                associateWithProject(session)
+                let project = associateWithProject(session)
+                logInfo("RESUME-DBG associateWithProject for '\(session.name)': result=\(project?.name ?? "nil (no matching project)")", category: .terminal)
                 restoredCount += 1
             }
         }
@@ -823,6 +950,8 @@ final class TerminalSessionManager {
 
         // Start periodic lsof-based session ID refresh
         if restoredCount > 0 {
+            let alreadyRunning = refreshTask != nil
+            logInfo("RESUME-DBG startSessionIdRefresh: alreadyRunning=\(alreadyRunning)", category: .terminal)
             startSessionIdRefresh()
         }
 
@@ -832,6 +961,8 @@ final class TerminalSessionManager {
                 self.cleanupStaleSessions(olderThanDays: 7)
             }
         }
+
+        perfTimer.end()
     }
 
     /// Save all sessions to SwiftData before app quit.
@@ -846,21 +977,33 @@ final class TerminalSessionManager {
 
         logInfo("RESUME-DBG saveAllSessions: saving \(sessions.count) session(s)", category: .terminal)
 
+        // Persist tab order based on current array position
+        for (index, session) in sessions.enumerated() {
+            session.tabOrder = index
+        }
+
         // Final lsof-based session ID check for all sessions with live terminals
         for session in sessions {
+            let hasTerminal = terminals[session.id] != nil
+            let pid = terminals[session.id]?.process.shellPid ?? 0
+            logInfo("RESUME-DBG saveAllSessions: session '\(session.name)' (id=\(session.id)) hasTerminal=\(hasTerminal), PID=\(pid), workingDir=\(session.workingDirectory ?? "nil"), claudeSessionId=\(session.claudeSessionId ?? "nil")", category: .terminal)
+
             if let terminal = terminals[session.id],
                let workDir = session.workingDirectory {
-                let pid = terminal.process.shellPid
-                if pid > 0,
-                   let detectedId = Self.findOpenJsonlSessionId(pid: pid, workingDirectory: workDir) {
-                    if session.claudeSessionId != detectedId {
-                        logInfo("RESUME-DBG saveAllSessions: lsof updated '\(session.name)' claudeSessionId from \(session.claudeSessionId ?? "nil") to \(detectedId)", category: .terminal)
-                        session.claudeSessionId = detectedId
+                let termPid = terminal.process.shellPid
+                if termPid > 0 {
+                    let detectedId = Self.findOpenJsonlSessionId(pid: termPid, workingDirectory: workDir)
+                    if let detectedId {
+                        if session.claudeSessionId != detectedId {
+                            logInfo("RESUME-DBG saveAllSessions: lsof updated '\(session.name)' claudeSessionId from \(session.claudeSessionId ?? "nil") to \(detectedId)", category: .terminal)
+                            session.claudeSessionId = detectedId
+                        }
+                    } else {
+                        logWarning("RESUME-DBG saveAllSessions: lsof returned nil for '\(session.name)' PID=\(termPid)", category: .terminal)
                     }
                 }
             }
 
-            logInfo("RESUME-DBG saveAllSessions: session '\(session.name)' (id=\(session.id)) claudeSessionId=\(session.claudeSessionId ?? "nil"), workingDir=\(session.workingDirectory ?? "nil")", category: .terminal)
             session.lastActivity = Date()
         }
 
@@ -896,10 +1039,20 @@ final class TerminalSessionManager {
             let projectDir = NSHomeDirectory() + "/.claude/projects/" + escapedPath
             let fm = FileManager.default
 
-            guard let contents = try? fm.contentsOfDirectory(atPath: projectDir) else { continue }
+            logInfo("RESUME-DBG recoverMissingSessionIds: scanning projectDir=\(projectDir) for \(sessionsInDir.count) session(s)", category: .terminal)
+
+            let contents: [String]
+            do {
+                contents = try fm.contentsOfDirectory(atPath: projectDir)
+            } catch {
+                logError("RESUME-DBG recoverMissingSessionIds: contentsOfDirectory FAILED for \(projectDir): \(error)", category: .terminal)
+                continue
+            }
 
             // Find .jsonl files modified within the last 30 minutes, sorted by modification time (most recent first)
             let cutoff = Date().addingTimeInterval(-1800) // 30 minutes
+            let jsonlFiles = contents.filter { $0.hasSuffix(".jsonl") }
+            logInfo("RESUME-DBG recoverMissingSessionIds: found \(jsonlFiles.count) .jsonl file(s), \(claimedIds.count) already claimed", category: .terminal)
             var recentFiles: [(sessionId: String, modified: Date)] = []
 
             for entry in contents where entry.hasSuffix(".jsonl") {
@@ -1012,23 +1165,35 @@ final class TerminalSessionManager {
         return isValid
     }
 
-    /// Handle failed session resume by clearing stale Claude session ID
-    /// Called when Claude Code reports session not found
-    /// Note: User must close and reopen the terminal to launch fresh - clearing the ID
-    /// just prevents future resume attempts with the invalid session
+    /// Handle failed session resume by clearing stale Claude session ID and relaunching fresh.
+    /// Called when Claude Code reports session not found (e.g., "No conversation found").
     func handleStaleSession(_ sessionId: UUID) {
         guard let session = sessions.first(where: { $0.id == sessionId }) else {
             logWarning("RESUME-DBG handleStaleSession: session \(sessionId) not found in active sessions", category: .terminal)
             return
         }
 
-        logWarning("RESUME-DBG handleStaleSession: session '\(session.name)' (id=\(sessionId)) was STALE — clearing claudeSessionId=\(session.claudeSessionId ?? "nil")", category: .terminal)
+        logWarning("RESUME-DBG handleStaleSession: session '\(session.name)' (id=\(sessionId)) was STALE — clearing claudeSessionId=\(session.claudeSessionId ?? "nil") and relaunching fresh", category: .terminal)
 
         // Clear the stale Claude session ID so it won't try to resume again
         session.claudeSessionId = nil
         session.updateActivity()
 
-        // Note: The terminal will need to be recreated to launch fresh
-        // User can close and reopen the terminal tab
+        // Relaunch Claude Code fresh in the existing terminal
+        if let terminal = terminals[sessionId] {
+            ClaudeCodeLauncher.shared.launchClaudeCode(
+                in: terminal,
+                workingDirectory: session.workingDirectory,
+                skipPermissions: true
+            )
+            logInfo("RESUME-DBG handleStaleSession: relaunched fresh Claude Code for session '\(session.name)'", category: .terminal)
+
+            // Detect new session ID
+            if let workDir = session.workingDirectory {
+                detectClaudeSessionId(for: sessionId, workingDirectory: workDir)
+            }
+        } else {
+            logWarning("RESUME-DBG handleStaleSession: no terminal found for session \(sessionId) — cannot relaunch", category: .terminal)
+        }
     }
 }

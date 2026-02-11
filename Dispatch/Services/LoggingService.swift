@@ -72,6 +72,7 @@ nonisolated enum LogCategory: String, CaseIterable, Sendable {
     case simulator = "SIMULATOR" // Simulator screenshot operations
     case status = "STATUS" // Session status monitoring
     case capture = "CAPTURE" // Screenshot capture operations
+    case build = "BUILD" // Build & run operations
 
     var osLog: OSLog {
         OSLog(subsystem: "com.Eric.Dispatch", category: rawValue)

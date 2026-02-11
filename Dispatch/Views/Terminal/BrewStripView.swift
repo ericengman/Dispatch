@@ -94,13 +94,6 @@ struct BrewStripView: View {
                 .stroke((statusMonitor?.status.state.color ?? .gray).opacity(0.3), lineWidth: 1)
         )
         .contentShape(Rectangle())
-        .onHover { hovering in
-            if hovering {
-                brewController.startHoverPeek(session.id)
-            } else {
-                brewController.cancelHoverPeek(session.id)
-            }
-        }
         .onTapGesture {
             brewController.manualExpand(session.id)
         }

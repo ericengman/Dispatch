@@ -2,7 +2,7 @@
 //  MainView.swift
 //  Dispatch
 //
-//  Main application view with navigation split view
+//  Main application view with HStack layout (sidebar + detail)
 //
 
 import SwiftData
@@ -81,19 +81,6 @@ struct MainView: View {
 
     @State private var selection: NavigationSelection? = NavigationSelection.loadSaved()
     @State private var sidebarMode: SidebarMode = .loadSaved()
-    @State private var isBuilding = false
-    @State private var buildError: String?
-    @State private var columnVisibility: NavigationSplitViewVisibility = {
-        guard let rawValue = UserDefaults.standard.string(forKey: "mainView.columnVisibility") else {
-            return .all
-        }
-        switch rawValue {
-        case "all": return .all
-        case "detailOnly": return .detailOnly
-        case "doubleColumn": return .doubleColumn
-        default: return .all
-        }
-    }()
 
     @State private var selectedSkill: Skill?
     @State private var selectedClaudeFile: ClaudeFile?
@@ -130,82 +117,51 @@ struct MainView: View {
     @StateObject private var chainVM = ChainViewModel.shared
     @StateObject private var executionState = ExecutionStateMachine.shared
     @ObservedObject private var captureCoordinator = CaptureCoordinator.shared
+    @Bindable private var buildController = BuildRunController.shared
 
     // MARK: - Body
 
     var body: some View {
         HStack(spacing: 0) {
-            // Condensed icon strip (shown when sidebar is condensed)
-            if sidebarMode == .condensed {
-                CondensedSidebarView(
-                    selection: $selection,
-                    onToggleExpand: { toggleSidebarMode() }
-                )
-                .environmentObject(projectVM)
+            SidebarView(
+                selection: $selection,
+                mode: sidebarMode,
+                onToggleMode: { toggleSidebarMode() }
+            )
+            .environmentObject(projectVM)
 
-                Divider()
-            }
+            Divider()
 
-            NavigationSplitView(columnVisibility: $columnVisibility) {
-                if sidebarMode == .expanded {
-                    SidebarView(selection: $selection, onCollapse: { toggleSidebarMode() })
-                        .environmentObject(projectVM)
-                } else {
-                    Spacer()
-                        .navigationSplitViewColumnWidth(0)
-                }
-            } detail: {
-                VStack(spacing: 0) {
-                    // Main content area with skills panel and terminal
-                    // Terminal is always rendered to preserve processes; hidden via zero frame when not visible
-                    HStack(spacing: 0) {
-                        contentWrapper
-                            .frame(maxWidth: shouldContentWrapperExpand ? .infinity : nil)
+            // Detail content
+            VStack(spacing: 0) {
+                HStack(spacing: 0) {
+                    contentWrapper
+                        .frame(maxWidth: shouldContentWrapperExpand ? .infinity : nil)
 
-                        if isTerminalVisible {
-                            Divider()
-                        }
-
-                        MultiSessionTerminalView(projectPath: selectedProjectPath)
-                            .frame(maxWidth: isTerminalVisible ? .infinity : 0)
-                            .frame(width: isTerminalVisible ? nil : 0)
-                            .clipped()
-                            .allowsHitTesting(isTerminalVisible)
-                            .opacity(isTerminalVisible ? 1 : 0)
+                    if isTerminalVisible {
+                        Divider()
                     }
-                    .frame(maxHeight: .infinity)
+
+                    MultiSessionTerminalView(projectPath: selectedProjectPath)
+                        .frame(maxWidth: isTerminalVisible ? .infinity : 0)
+                        .frame(width: isTerminalVisible ? nil : 0)
+                        .clipped()
+                        .allowsHitTesting(isTerminalVisible)
+                        .opacity(isTerminalVisible ? 1 : 0)
                 }
+                .frame(maxHeight: .infinity)
             }
-            .navigationSplitViewStyle(.balanced)
-            .toolbar(removing: .sidebarToggle)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .frame(minWidth: 800, minHeight: 600)
         .onAppear {
             configureViewModels()
-            syncColumnVisibility()
-        }
-        .onChange(of: columnVisibility) { _, newVisibility in
-            // Prevent sidebar overlay from appearing in condensed mode
-            if sidebarMode == .condensed && newVisibility != .detailOnly {
-                columnVisibility = .detailOnly
-                return
-            }
-            let rawValue: String
-            switch newVisibility {
-            case .all: rawValue = "all"
-            case .detailOnly: rawValue = "detailOnly"
-            case .doubleColumn: rawValue = "doubleColumn"
-            default: rawValue = "all"
-            }
-            UserDefaults.standard.set(rawValue, forKey: "mainView.columnVisibility")
         }
         .onChange(of: sidebarMode) { _, newMode in
             newMode.save()
-            syncColumnVisibility()
         }
         .onChange(of: selection) { _, newSelection in
             newSelection?.save()
-            // Clear selections when navigating away
             selectedSkill = nil
             selectedClaudeFile = nil
             selectedRun = nil
@@ -275,7 +231,6 @@ struct MainView: View {
                 contentView
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            // When project selected with no file viewer: just SkillsSidePanel, terminal gets remaining space
         }
     }
 
@@ -285,11 +240,9 @@ struct MainView: View {
     private var contentView: some View {
         switch selection {
         case .allPrompts, .starred, .history:
-            // These navigation options have been removed - show empty state
             ContentUnavailableView("Select a Project", systemImage: "folder")
 
         case .project:
-            // Project content is shown via skills panel - no additional content needed
             EmptyView()
 
         case let .chain(chainId):
@@ -335,9 +288,13 @@ struct MainView: View {
 
             // Build & Run button
             Button {
-                buildAndRun()
+                if let path = selectedProjectPath {
+                    Task {
+                        await buildController.startBuildForProject(path: path)
+                    }
+                }
             } label: {
-                if isBuilding {
+                if buildController.hasActiveBuilds {
                     ProgressView()
                         .scaleEffect(0.6)
                         .frame(width: 16, height: 16)
@@ -345,8 +302,8 @@ struct MainView: View {
                     Image(systemName: "hammer.fill")
                 }
             }
-            .help("Build & Run (clean build)")
-            .disabled(isBuilding)
+            .help("Build & Run")
+            .disabled(buildController.hasActiveBuilds || selectedProjectPath == nil)
         }
     }
 
@@ -355,86 +312,6 @@ struct MainView: View {
     private func toggleSidebarMode() {
         withAnimation(.easeInOut(duration: 0.2)) {
             sidebarMode = sidebarMode == .expanded ? .condensed : .expanded
-        }
-    }
-
-    private func syncColumnVisibility() {
-        switch sidebarMode {
-        case .expanded:
-            columnVisibility = .all
-        case .condensed:
-            columnVisibility = .detailOnly
-        }
-    }
-
-    private func buildAndRun() {
-        isBuilding = true
-        buildError = nil
-        logInfo("Build & Run triggered from toolbar", category: .app)
-
-        Task.detached {
-            let projectPath = "/Users/eric/Dispatch/Dispatch.xcodeproj"
-            let appPath = NSHomeDirectory() + "/Library/Developer/Xcode/DerivedData/Dispatch-ajldofgzlvjejddhgyyjzhniryrz/Build/Products/Debug/Dispatch.app"
-
-            // 1. Build
-            let buildProcess = Process()
-            buildProcess.executableURL = URL(fileURLWithPath: "/usr/bin/xcodebuild")
-            buildProcess.arguments = [
-                "-project", projectPath,
-                "-scheme", "Dispatch",
-                "-destination", "platform=macOS",
-                "build"
-            ]
-            let pipe = Pipe()
-            buildProcess.standardOutput = pipe
-            buildProcess.standardError = pipe
-
-            do {
-                try buildProcess.run()
-                buildProcess.waitUntilExit()
-            } catch {
-                await MainActor.run {
-                    buildError = error.localizedDescription
-                    isBuilding = false
-                    logError("Build failed to launch: \(error)", category: .app)
-                }
-                return
-            }
-
-            guard buildProcess.terminationStatus == 0 else {
-                let data = pipe.fileHandleForReading.readDataToEndOfFile()
-                let output = String(data: data, encoding: .utf8) ?? "Unknown error"
-                // Extract last few lines for a useful message
-                let lastLines = output.components(separatedBy: .newlines).suffix(20).joined(separator: "\n")
-                await MainActor.run {
-                    buildError = lastLines
-                    isBuilding = false
-                    logError("Build failed (exit \(buildProcess.terminationStatus))", category: .app)
-                }
-                return
-            }
-
-            // 2. Kill existing instance
-            let killProcess = Process()
-            killProcess.executableURL = URL(fileURLWithPath: "/usr/bin/pkill")
-            killProcess.arguments = ["-9", "-x", "Dispatch"]
-            try? killProcess.run()
-            killProcess.waitUntilExit()
-
-            // Small delay for process cleanup
-            try? await Task.sleep(for: .milliseconds(300))
-
-            // 3. Launch fresh
-            let openProcess = Process()
-            openProcess.executableURL = URL(fileURLWithPath: "/usr/bin/open")
-            openProcess.arguments = ["-F", appPath]
-            try? openProcess.run()
-            openProcess.waitUntilExit()
-
-            await MainActor.run {
-                isBuilding = false
-                logInfo("Build & Run completed successfully", category: .app)
-            }
         }
     }
 

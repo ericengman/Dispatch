@@ -25,27 +25,25 @@ struct SimulatorRunsStripView: View {
     // MARK: - Body
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            // Section header
-            HStack {
-                Label("Screenshot Runs", systemImage: "camera.viewfinder")
-                    .font(.headline)
-                    .foregroundStyle(.secondary)
+        Group {
+            if !runs.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    // Section header
+                    HStack {
+                        Label("Screenshot Runs", systemImage: "camera.viewfinder")
+                            .font(.headline)
+                            .foregroundStyle(.secondary)
 
-                Spacer()
+                        Spacer()
 
-                if !runs.isEmpty {
-                    Text("\(runs.count) run\(runs.count == 1 ? "" : "s")")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
+                        Text("\(runs.count) run\(runs.count == 1 ? "" : "s")")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                    .padding(.horizontal)
+
+                    runStrip
                 }
-            }
-            .padding(.horizontal)
-
-            if runs.isEmpty {
-                emptyStateView
-            } else {
-                runStrip
             }
         }
         .onAppear {
@@ -75,31 +73,6 @@ struct SimulatorRunsStripView: View {
             .padding(.vertical, 4)
         }
         .frame(height: 140)
-    }
-
-    // MARK: - Empty State
-
-    private var emptyStateView: some View {
-        HStack {
-            Spacer()
-            VStack(spacing: 8) {
-                Image(systemName: "camera.viewfinder")
-                    .font(.largeTitle)
-                    .foregroundStyle(.quaternary)
-
-                Text("No screenshot runs yet")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-
-                Text("Run a test skill in Claude Code to capture screenshots")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-                    .multilineTextAlignment(.center)
-            }
-            Spacer()
-        }
-        .frame(height: 120)
-        .padding()
     }
 
     // MARK: - Context Menu
@@ -142,8 +115,9 @@ struct SimulatorRunsStripView: View {
 
         descriptor.fetchLimit = 10
 
-        runs = (try? modelContext.fetch(descriptor)) ?? []
-        logDebug("Fetched \(runs.count) runs for strip view", category: .simulator)
+        let fetched = (try? modelContext.fetch(descriptor)) ?? []
+        runs = fetched.filter { $0.screenshotCount > 0 }
+        logDebug("Fetched \(fetched.count) runs, \(runs.count) with screenshots for strip view", category: .simulator)
     }
 
     private func deleteRun(_ run: SimulatorRun) {

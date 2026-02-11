@@ -21,6 +21,17 @@ class SmartScrollTerminalView: LocalProcessTerminalView {
     /// Session ID for this terminal (set during creation for active-session tracking)
     var sessionId: UUID?
 
+    /// Whether this terminal should process scroll/click events.
+    /// Hidden (non-project or condensed) terminals set this to false so their
+    /// AppKit event monitors don't intercept events meant for the visible terminal.
+    var isScrollInteractive = true {
+        didSet {
+            if !isScrollInteractive {
+                isPassingThroughScroll = false
+            }
+        }
+    }
+
     /// Whether the user has scrolled away from the bottom of the terminal.
     private(set) var isUserScrolledUp = false
 
@@ -41,7 +52,7 @@ class SmartScrollTerminalView: LocalProcessTerminalView {
     func setupMouseDownMonitor() {
         guard mouseDownMonitor == nil else { return }
         mouseDownMonitor = NSEvent.addLocalMonitorForEvents(matching: .leftMouseDown) { [weak self] event in
-            guard let self,
+            guard let self, self.isScrollInteractive,
                   let sessionId = self.sessionId,
                   let eventWindow = event.window,
                   eventWindow == self.window else { return event }
@@ -210,12 +221,25 @@ class SmartScrollTerminalView: LocalProcessTerminalView {
     }
 
     private func handleScrollEvent(_ event: NSEvent) -> NSEvent? {
+        // Non-interactive terminals pass events through untouched
+        guard isScrollInteractive else { return event }
+
         // Only intercept events targeting this terminal
         guard let eventWindow = event.window,
               eventWindow == window else { return event }
 
         let locationInSelf = convert(event.locationInWindow, from: nil)
         guard bounds.contains(locationInSelf) else { return event }
+
+        // Non-active terminals pass all scroll events to the parent ScrollView
+        let isActiveTerminal = (sessionId == nil) || (sessionId == TerminalSessionManager.shared.activeSessionId)
+
+        if !isActiveTerminal {
+            if let target = enclosingSwiftUIScrollView() {
+                target.scrollWheel(with: event)
+            }
+            return nil
+        }
 
         let isAtBottom = scrollPosition >= 0.999
         let isAtTop = scrollPosition <= 0.001
@@ -250,7 +274,13 @@ class SmartScrollTerminalView: LocalProcessTerminalView {
             return nil
         }
 
-        return event
+        // Terminal should handle this scroll event internally.
+        // Consume the event and deliver it directly to the terminal's scroll handler.
+        // When multiple terminals are stacked in a ScrollView, returning the event
+        // would let the outer NSScrollView intercept it — scrolling the container
+        // instead of the terminal's scrollback buffer.
+        scrollWheel(with: event)
+        return nil
     }
 
     /// Find the SwiftUI ScrollView's backing NSScrollView by walking up the view hierarchy.

@@ -34,8 +34,11 @@ private struct ScrollViewBridge: NSViewRepresentable {
 struct MultiSessionTerminalView: View {
     @Bindable private var sessionManager = TerminalSessionManager.shared
     @Bindable private var brewController = BrewModeController.shared
+    @Bindable private var buildController = BuildRunController.shared
+    @Bindable private var simulatorAttacher = SimulatorWindowAttacher.shared
     @State private var availableSessions: [ClaudeCodeSession] = []
     @State private var backingScrollView: NSScrollView?
+    @State private var hasXcodeProject = false
 
     // Drag gesture state (ephemeral)
     @State private var dragStartHeights: (CGFloat, CGFloat)?
@@ -53,6 +56,21 @@ struct MultiSessionTerminalView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            // Destination picker strip (shown when Xcode project detected)
+            if hasXcodeProject, let path = projectPath {
+                DestinationPickerStrip(projectPath: path, buildController: buildController)
+                Divider()
+            }
+
+            // Simulator attachment bar
+            SimulatorAttachmentBar(attacher: simulatorAttacher)
+
+            // Build strips (shown when builds are active)
+            if !buildController.orderedBuilds.isEmpty {
+                buildStripsSection
+                Divider()
+            }
+
             // Chrome: tab bar (always shown when project has sessions)
             if projectPath != nil && !projectSessions.isEmpty {
                 SessionTabBar(sessionManager: sessionManager, projectPath: projectPath)
@@ -84,11 +102,13 @@ struct MultiSessionTerminalView: View {
         .task {
             await loadAvailableSessions()
             brewController.startObserving()
+            await detectXcodeProject()
         }
         .onChange(of: projectPath) { _, newPath in
             if let newPath {
                 sessionManager.switchToProject(path: newPath)
             }
+            Task { await detectXcodeProject() }
         }
     }
 
@@ -148,7 +168,8 @@ struct MultiSessionTerminalView: View {
                         let index = projectIndex ?? 0
                         let isSessionCondensed = brewController.isCondensed(session.id)
 
-                        SessionPaneView(session: session, showChrome: !isSingleSession)
+                        let isInteractive = isInProject && !isSessionCondensed
+                        SessionPaneView(session: session, showChrome: !isSingleSession, isScrollInteractive: isInteractive)
                             // Hide terminal content when condensed (but keep in hierarchy)
                             .opacity(isInProject && !isSessionCondensed ? 1.0 : 0.0)
                             .allowsHitTesting(isInProject && !isSessionCondensed)
@@ -199,6 +220,15 @@ struct MultiSessionTerminalView: View {
                                 width: availableWidth,
                                 height: frameHeight(for: session.id, availableHeight: availableHeight, isSingleSession: isSingleSession)
                             )
+                            .contentShape(Rectangle())
+                            .onContinuousHover { phase in
+                                switch phase {
+                                case .active:
+                                    brewController.hoverActive(session.id)
+                                case .ended:
+                                    brewController.hoverEnded(session.id)
+                                }
+                            }
                             .position(
                                 x: horizontalPadding + availableWidth / 2,
                                 y: positionY(for: index, availableHeight: availableHeight, spacing: spacing, topPadding: topPadding, isSingleSession: isSingleSession, projectSessions: currentProjectSessions)
@@ -208,15 +238,21 @@ struct MultiSessionTerminalView: View {
                             .id(session.id)
                     }
 
-                    // Resize handles between stacked panes
+                    // Resize handles between stacked panes (hidden when adjacent session is condensed)
                     if isScrollable {
                         ForEach(0 ..< max(0, sessionCount - 1), id: \.self) { i in
+                            let topCondensed = brewController.isCondensed(currentProjectSessions[i].id)
+                            let bottomCondensed = brewController.isCondensed(currentProjectSessions[i + 1].id)
+                            let hideHandle = topCondensed || bottomCondensed
+
                             ResizeHandleView()
                                 .frame(width: availableWidth, height: 8)
                                 .position(
                                     x: horizontalPadding + availableWidth / 2,
                                     y: handleY(for: i, topPadding: topPadding, spacing: spacing, projectSessions: currentProjectSessions)
                                 )
+                                .opacity(hideHandle ? 0 : 1)
+                                .allowsHitTesting(!hideHandle)
                                 .gesture(
                                     DragGesture()
                                         .onChanged { value in
@@ -253,13 +289,17 @@ struct MultiSessionTerminalView: View {
                                 )
                         }
 
-                        // Trailing resize handle below the last pane
+                        // Trailing resize handle below the last pane (hidden when last session is condensed)
+                        let lastCondensed = brewController.isCondensed(currentProjectSessions[sessionCount - 1].id)
+
                         ResizeHandleView()
                             .frame(width: availableWidth, height: 8)
                             .position(
                                 x: horizontalPadding + availableWidth / 2,
                                 y: trailingHandleY(topPadding: topPadding, spacing: spacing, projectSessions: currentProjectSessions)
                             )
+                            .opacity(lastCondensed ? 0 : 1)
+                            .allowsHitTesting(!lastCondensed)
                             .gesture(
                                 DragGesture()
                                     .onChanged { value in
@@ -335,6 +375,47 @@ struct MultiSessionTerminalView: View {
                 sessionManager.terminalAreaHeight = newHeight
             }
         }
+    }
+
+    // MARK: - Build Strips Section
+
+    @ViewBuilder
+    private var buildStripsSection: some View {
+        VStack(spacing: 0) {
+            ForEach(buildController.orderedBuilds) { build in
+                let isCondensed = buildController.isCondensed(build.id)
+
+                if isCondensed {
+                    BuildStripView(build: build, buildController: buildController)
+                        .onContinuousHover { phase in
+                            switch phase {
+                            case .active: buildController.hoverActive(build.id)
+                            case .ended: buildController.hoverEnded(build.id)
+                            }
+                        }
+                        .onTapGesture {
+                            buildController.manualExpand(build.id)
+                        }
+                        .transition(.opacity)
+                } else {
+                    BuildOutputExpandedView(build: build, buildController: buildController)
+                        .frame(height: 200)
+                        .transition(.opacity)
+                }
+            }
+        }
+        .animation(.easeInOut(duration: 0.2), value: buildController.orderedBuilds.map(\.id))
+    }
+
+    // MARK: - Project Detection
+
+    private func detectXcodeProject() async {
+        guard let path = projectPath else {
+            hasXcodeProject = false
+            return
+        }
+        let info = await buildController.projectInfo(for: path)
+        hasXcodeProject = info != nil
     }
 
     // MARK: - Session Discovery

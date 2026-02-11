@@ -64,8 +64,10 @@ struct SkillsSidePanel: View {
                     onToggle: { toggleSection("capture") }
                 )
 
-                // Section 2: Screenshot Runs
-                screenshotRunsSection
+                // Section 2: Screenshot Runs (hidden when no runs with screenshots)
+                if !runs.isEmpty {
+                    screenshotRunsSection
+                }
 
                 // Section 3: Memory
                 memorySection
@@ -126,72 +128,51 @@ struct SkillsSidePanel: View {
 
             // Content
             if expandedSections.contains("runs") {
-                if runs.isEmpty {
-                    emptyRunsView
-                        .padding(12)
-                } else {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        LazyHStack(spacing: 8) {
-                            ForEach(runs) { run in
-                                UnifiedCard(
-                                    title: run.displayName,
-                                    subtitle: "\(run.screenshotCount) screenshots",
-                                    icon: "photo.stack",
-                                    iconColor: .blue,
-                                    accessory: run.relativeCreatedTime
-                                )
-                                .frame(width: 140)
-                                .onTapGesture {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    LazyHStack(spacing: 8) {
+                        ForEach(runs) { run in
+                            UnifiedCard(
+                                title: run.displayName,
+                                subtitle: "\(run.screenshotCount) screenshots",
+                                icon: "photo.stack",
+                                iconColor: .blue,
+                                accessory: run.relativeCreatedTime
+                            )
+                            .frame(width: 140)
+                            .onTapGesture {
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    selectedRun = run
+                                }
+                            }
+                            .contextMenu {
+                                Button {
                                     withAnimation(.easeInOut(duration: 0.2)) {
                                         selectedRun = run
                                     }
+                                } label: {
+                                    Label("View Details", systemImage: "eye")
                                 }
-                                .contextMenu {
-                                    Button {
-                                        withAnimation(.easeInOut(duration: 0.2)) {
-                                            selectedRun = run
-                                        }
-                                    } label: {
-                                        Label("View Details", systemImage: "eye")
-                                    }
-                                    Button {
-                                        AnnotationWindowController.shared.open(run: run)
-                                    } label: {
-                                        Label("Open in Window", systemImage: "rectangle.on.rectangle")
-                                    }
-                                    Divider()
-                                    Button(role: .destructive) {
-                                        deleteRun(run)
-                                    } label: {
-                                        Label("Delete", systemImage: "trash")
-                                    }
+                                Button {
+                                    AnnotationWindowController.shared.open(run: run)
+                                } label: {
+                                    Label("Open in Window", systemImage: "rectangle.on.rectangle")
+                                }
+                                Divider()
+                                Button(role: .destructive) {
+                                    deleteRun(run)
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
                                 }
                             }
                         }
-                        .padding(12)
                     }
-                    .frame(height: 94)
+                    .padding(12)
                 }
+                .frame(height: 94)
 
                 Divider()
             }
         }
-    }
-
-    private var emptyRunsView: some View {
-        HStack {
-            Spacer()
-            VStack(spacing: 4) {
-                Image(systemName: "camera.viewfinder")
-                    .font(.title3)
-                    .foregroundStyle(.quaternary)
-                Text("No runs yet")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-            }
-            Spacer()
-        }
-        .frame(height: 60)
     }
 
     // MARK: - Section 2: Memory
@@ -399,8 +380,9 @@ struct SkillsSidePanel: View {
 
         descriptor.fetchLimit = 10
 
-        runs = (try? modelContext.fetch(descriptor)) ?? []
-        logDebug("Fetched \(runs.count) runs for side panel", category: .simulator)
+        let fetched = (try? modelContext.fetch(descriptor)) ?? []
+        runs = fetched.filter { $0.screenshotCount > 0 }
+        logDebug("Fetched \(fetched.count) runs, \(runs.count) with screenshots for side panel", category: .simulator)
     }
 
     private func deleteRun(_ run: SimulatorRun) {

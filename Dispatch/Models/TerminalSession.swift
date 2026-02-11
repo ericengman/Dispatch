@@ -12,6 +12,7 @@ final class TerminalSession {
     var name: String
     var createdAt: Date
     var lastActivity: Date
+    var tabOrder: Int = 0 // Persisted tab position for restoring order
 
     // Claude Code session resumption support
     var claudeSessionId: String? // Claude session ID if resuming
@@ -32,6 +33,7 @@ final class TerminalSession {
         name: String,
         createdAt: Date = Date(),
         lastActivity: Date = Date(),
+        tabOrder: Int = 0,
         claudeSessionId: String? = nil,
         workingDirectory: String? = nil,
         project: Project? = nil
@@ -40,6 +42,7 @@ final class TerminalSession {
         self.name = name
         self.createdAt = createdAt
         self.lastActivity = lastActivity
+        self.tabOrder = tabOrder
         self.claudeSessionId = claudeSessionId
         self.workingDirectory = workingDirectory
         self.project = project

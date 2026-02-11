@@ -2,20 +2,21 @@
 //  SidebarView.swift
 //  Dispatch
 //
-//  Sidebar navigation view
+//  Unified sidebar view handling both expanded and condensed modes.
 //
 
 import SwiftUI
 
 struct SidebarView: View {
+    // MARK: - Bindings
+
+    @Binding var selection: NavigationSelection?
+    var mode: SidebarMode
+    var onToggleMode: () -> Void
+
     // MARK: - Environment
 
     @EnvironmentObject private var projectVM: ProjectViewModel
-
-    // MARK: - Binding
-
-    @Binding var selection: NavigationSelection?
-    var onCollapse: () -> Void
 
     // MARK: - State
 
@@ -23,19 +24,24 @@ struct SidebarView: View {
     @State private var newProjectName = ""
     @State private var newProjectColor: ProjectColor = .blue
 
+    private let sessionManager = TerminalSessionManager.shared
+
     // MARK: - Body
 
     var body: some View {
-        List(selection: $selection) {
-            Section {
-                projectList
+        VStack(spacing: 0) {
+            switch mode {
+            case .expanded:
+                expandedContent
+            case .condensed:
+                condensedContent
             }
-        }
-        .listStyle(.sidebar)
-        .frame(minWidth: 140, idealWidth: 160, maxWidth: 200)
-        .safeAreaInset(edge: .bottom) {
+
+            Spacer(minLength: 0)
+
+            // Toggle button (both modes)
             Button {
-                onCollapse()
+                onToggleMode()
             } label: {
                 Image(systemName: "sidebar.left")
                     .font(.system(size: 14))
@@ -44,10 +50,12 @@ struct SidebarView: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.leading, 12)
+            .frame(maxWidth: .infinity, alignment: mode == .expanded ? .leading : .center)
+            .padding(.leading, mode == .expanded ? 12 : 0)
             .padding(.bottom, 4)
         }
+        .frame(width: mode == .expanded ? 160 : 60)
+        .background(.bar)
         .contextMenu {
             Button {
                 Task {
@@ -70,67 +78,24 @@ struct SidebarView: View {
         }
     }
 
-    // MARK: - New Project Sheet
+    // MARK: - Expanded Content
 
-    private var newProjectSheet: some View {
-        NavigationStack {
-            Form {
-                TextField("Project Name", text: $newProjectName)
-
-                Picker("Color", selection: $newProjectColor) {
-                    ForEach(ProjectColor.allCases) { color in
-                        HStack {
-                            Circle()
-                                .fill(color.color)
-                                .frame(width: 12, height: 12)
-                            Text(color.name)
-                        }
-                        .tag(color)
-                    }
-                }
-            }
-            .frame(width: 300, height: 150)
-            .navigationTitle("New Project")
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
-                        showingNewProjectSheet = false
-                        newProjectName = ""
-                    }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Create") {
-                        if !newProjectName.isEmpty {
-                            _ = projectVM.createProject(name: newProjectName, color: newProjectColor)
-                            showingNewProjectSheet = false
-                            newProjectName = ""
-                            newProjectColor = .blue
-                        }
-                    }
-                    .disabled(newProjectName.isEmpty)
-                }
+    private var expandedContent: some View {
+        List(selection: $selection) {
+            Section {
+                expandedProjectList
             }
         }
+        .listStyle(.sidebar)
     }
 
-    // MARK: - Project List View
-
-    private var projectList: some View {
+    private var expandedProjectList: some View {
         ForEach(projectVM.projects) { project in
-            NavigationLink(value: NavigationSelection.project(project.id)) {
-                HStack(spacing: 8) {
-                    projectIcon(for: project)
-                        .frame(width: 28, height: 28)
-                        .clipShape(RoundedRectangle(cornerRadius: 6))
-
-                    Text(project.name)
-                        .lineLimit(1)
-                        .font(.callout)
+            expandedRow(for: project)
+                .tag(NavigationSelection.project(project.id))
+                .contextMenu {
+                    projectContextMenu(for: project)
                 }
-            }
-            .contextMenu {
-                projectContextMenu(for: project)
-            }
         }
         .onMove { source, destination in
             if let from = source.first {
@@ -139,27 +104,99 @@ struct SidebarView: View {
         }
     }
 
-    // MARK: - Project Icon
+    @ViewBuilder
+    private func expandedRow(for project: Project) -> some View {
+        let hasActiveSessions = !sessionManager.sessionsForProject(
+            id: project.id, path: project.path
+        ).isEmpty
+
+        HStack(spacing: 8) {
+            projectIcon(for: project, size: 28, cornerRadius: 6)
+
+            Text(project.name)
+                .lineLimit(1)
+                .font(.callout)
+
+            Spacer()
+
+            if hasActiveSessions {
+                Circle()
+                    .fill(Color.blue)
+                    .frame(width: 6, height: 6)
+            }
+        }
+    }
+
+    // MARK: - Condensed Content
+
+    private var condensedContent: some View {
+        ScrollView {
+            LazyVStack(spacing: 12) {
+                ForEach(projectVM.projects) { project in
+                    condensedIcon(for: project)
+                        .onTapGesture {
+                            selection = .project(project.id)
+                        }
+                        .contextMenu {
+                            projectContextMenu(for: project)
+                        }
+                }
+            }
+            .padding(.vertical, 12)
+        }
+    }
 
     @ViewBuilder
-    private func projectIcon(for project: Project) -> some View {
+    private func condensedIcon(for project: Project) -> some View {
+        let isSelected = selection == .project(project.id)
+        let hasActiveSessions = !sessionManager.sessionsForProject(
+            id: project.id, path: project.path
+        ).isEmpty
+
+        VStack(spacing: 4) {
+            projectIcon(for: project, size: 36, cornerRadius: 8)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(isSelected ? Color.accentColor : .clear, lineWidth: 2)
+                )
+
+            if hasActiveSessions {
+                Circle()
+                    .fill(Color.blue)
+                    .frame(width: 6, height: 6)
+            } else {
+                Color.clear
+                    .frame(width: 6, height: 6)
+            }
+        }
+        .frame(width: 48)
+        .contentShape(Rectangle())
+    }
+
+    // MARK: - Shared Project Icon
+
+    @ViewBuilder
+    private func projectIcon(for project: Project, size: CGFloat, cornerRadius: CGFloat) -> some View {
         if let iconImage = project.iconImage {
             Image(nsImage: iconImage)
                 .resizable()
                 .interpolation(.high)
                 .aspectRatio(contentMode: .fill)
+                .frame(width: size, height: size)
+                .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
         } else {
-            RoundedRectangle(cornerRadius: 6)
+            RoundedRectangle(cornerRadius: cornerRadius)
                 .fill(project.color.gradient)
+                .frame(width: size, height: size)
                 .overlay {
                     Text(project.initial)
-                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                        .font(.system(size: size * 0.46, weight: .semibold, design: .rounded))
                         .foregroundStyle(.white)
                 }
         }
     }
 
-    // MARK: - Shared Context Menu
+    // MARK: - Context Menu
 
     @ViewBuilder
     private func projectContextMenu(for project: Project) -> some View {
@@ -215,12 +252,61 @@ struct SidebarView: View {
             projectVM.deleteProject(project)
         }
     }
+
+    // MARK: - New Project Sheet
+
+    private var newProjectSheet: some View {
+        NavigationStack {
+            Form {
+                TextField("Project Name", text: $newProjectName)
+
+                Picker("Color", selection: $newProjectColor) {
+                    ForEach(ProjectColor.allCases) { color in
+                        HStack {
+                            Circle()
+                                .fill(color.color)
+                                .frame(width: 12, height: 12)
+                            Text(color.name)
+                        }
+                        .tag(color)
+                    }
+                }
+            }
+            .frame(width: 300, height: 150)
+            .navigationTitle("New Project")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        showingNewProjectSheet = false
+                        newProjectName = ""
+                    }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Create") {
+                        if !newProjectName.isEmpty {
+                            _ = projectVM.createProject(name: newProjectName, color: newProjectColor)
+                            showingNewProjectSheet = false
+                            newProjectName = ""
+                            newProjectColor = .blue
+                        }
+                    }
+                    .disabled(newProjectName.isEmpty)
+                }
+            }
+        }
+    }
 }
 
 // MARK: - Preview
 
-#Preview {
-    SidebarView(selection: .constant(nil), onCollapse: {})
+#Preview("Expanded") {
+    SidebarView(selection: .constant(nil), mode: .expanded, onToggleMode: {})
         .environmentObject(ProjectViewModel.shared)
-        .frame(width: 160)
+        .frame(height: 400)
+}
+
+#Preview("Condensed") {
+    SidebarView(selection: .constant(nil), mode: .condensed, onToggleMode: {})
+        .environmentObject(ProjectViewModel.shared)
+        .frame(height: 400)
 }

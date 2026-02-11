@@ -67,9 +67,13 @@ struct SessionTabBar: View {
                 }
             } label: {
                 Image(systemName: "plus")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.primary.opacity(0.7))
                     .frame(width: 24, height: 24)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6)
+                            .strokeBorder(Color.primary.opacity(0.25), lineWidth: 1)
+                    )
                     .contentShape(Rectangle())
             } primaryAction: {
                 _ = sessionManager.createSession(workingDirectory: projectPath)

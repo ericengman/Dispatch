@@ -17,7 +17,7 @@ enum BrewState: Equatable {
     case expanded // Normal terminal view
     case condensing // In 3s debounce before condensing
     case condensed // Showing brew strip
-    case peeking // Temporarily expanded (5s timeout)
+    case peeking // Temporarily expanded via hover (stays while mouse is inside)
     case manuallyExpanded // User clicked Expand, stays until idle
 }
 
@@ -56,15 +56,19 @@ final class BrewModeController {
     /// Current title prefix per session — tracks working/finished state from terminal title.
     var titlePrefixes: [UUID: EmbeddedTerminalView.Coordinator.ClaudeTitlePrefix] = [:]
 
+    /// Sessions the user manually condensed — these resist auto-expand on idle.
+    /// Cleared when the user manually expands or brew mode is toggled off.
+    var userCondensedSessions: Set<UUID> = []
+
     // MARK: - Private State
 
     /// Debounce timers for condensing (3s delay)
     private var condenseTimers: [UUID: Task<Void, Never>] = [:]
 
-    /// Auto-revert timers for peeking (5s)
+    /// Re-condense timers for peeking (0.25s delay after hover exit)
     private var peekTimers: [UUID: Task<Void, Never>] = [:]
 
-    /// Hover-to-peek timers (1s delay before peeking)
+    /// Hover stillness timers (0.15s after mouse stops moving to peek)
     private var hoverTimers: [UUID: Task<Void, Never>] = [:]
 
     /// Alert flash auto-clear timers (2s)
@@ -116,53 +120,76 @@ final class BrewModeController {
         brewStates[sessionId] == .condensed
     }
 
-    /// Hover started on brew strip — start 1s timer to peek
-    func startHoverPeek(_ sessionId: UUID) {
+    /// Mouse is moving within session pane — reset 0.15s stillness timer, cancel any re-condense timer
+    func hoverActive(_ sessionId: UUID) {
+        // Cancel any pending re-condense timer (mouse is still inside)
+        peekTimers[sessionId]?.cancel()
+
+        // Only set up stillness timer if condensed (not yet peeking)
         guard brewStates[sessionId] == .condensed else { return }
 
         hoverTimers[sessionId]?.cancel()
         hoverTimers[sessionId] = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: 1_000_000_000) // 1s delay
+            try? await Task.sleep(nanoseconds: 150_000_000) // 0.15s
             guard !Task.isCancelled, let self else { return }
             guard self.brewStates[sessionId] == .condensed else { return }
 
-            logDebug("Hover peek triggered for session \(sessionId)", category: .terminal)
+            logDebug("Hover stillness peek triggered for session \(sessionId)", category: .terminal)
             withAnimation(.easeInOut(duration: 0.2)) {
                 self.brewStates[sessionId] = .peeking
-            }
-
-            // Auto-revert after 5s if still peeking
-            self.peekTimers[sessionId]?.cancel()
-            self.peekTimers[sessionId] = Task { [weak self] in
-                try? await Task.sleep(nanoseconds: 5_000_000_000)
-                guard !Task.isCancelled, let self else { return }
-                if self.brewStates[sessionId] == .peeking {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        self.brewStates[sessionId] = .condensed
-                    }
-                    logDebug("Hover peek expired, re-condensing session \(sessionId)", category: .terminal)
-                }
             }
         }
     }
 
-    /// Hover ended on brew strip — cancel pending hover timer if still condensed
-    func cancelHoverPeek(_ sessionId: UUID) {
-        // Only cancel if still waiting to peek; don't cancel if already peeking
-        if brewStates[sessionId] == .condensed {
-            hoverTimers[sessionId]?.cancel()
-            hoverTimers.removeValue(forKey: sessionId)
+    /// Mouse left session pane — cancel hover timer, start 0.25s re-condense delay
+    func hoverEnded(_ sessionId: UUID) {
+        hoverTimers[sessionId]?.cancel()
+        hoverTimers.removeValue(forKey: sessionId)
+
+        guard brewStates[sessionId] == .peeking else { return }
+
+        peekTimers[sessionId]?.cancel()
+        peekTimers[sessionId] = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 250_000_000) // 0.25s
+            guard !Task.isCancelled, let self else { return }
+            if self.brewStates[sessionId] == .peeking {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    self.brewStates[sessionId] = .condensed
+                }
+                logDebug("Hover ended, re-condensing session \(sessionId)", category: .terminal)
+            }
         }
     }
 
     /// User clicked brew strip — stays expanded until manually condensed or session goes idle
     func manualExpand(_ sessionId: UUID) {
         logDebug("Manual expand for session \(sessionId)", category: .terminal)
+        userCondensedSessions.remove(sessionId)
         hoverTimers[sessionId]?.cancel()
         cancelCondenseTimer(sessionId)
         peekTimers[sessionId]?.cancel()
         withAnimation(.easeInOut(duration: 0.2)) {
             brewStates[sessionId] = .manuallyExpanded
+        }
+    }
+
+    /// User explicitly condensed a session via the fold button.
+    /// This resists auto-expand — only user action can unfold it.
+    func userCondense(_ sessionId: UUID) {
+        logDebug("User condense for session \(sessionId)", category: .terminal)
+        userCondensedSessions.insert(sessionId)
+        hoverTimers[sessionId]?.cancel()
+        peekTimers[sessionId]?.cancel()
+        cancelCondenseTimer(sessionId)
+        withAnimation(.easeInOut(duration: 0.2)) {
+            brewStates[sessionId] = .condensed
+            if brewStartTimes[sessionId] == nil {
+                brewStartTimes[sessionId] = Date()
+            }
+        }
+        transferFocusIfNeeded(from: sessionId)
+        Task {
+            await snapshotPreviewText(for: sessionId)
         }
     }
 
@@ -177,6 +204,7 @@ final class BrewModeController {
                 brewStartTimes[sessionId] = Date()
             }
         }
+        transferFocusIfNeeded(from: sessionId)
         // Refresh preview text since terminal may have updated
         Task {
             await snapshotPreviewText(for: sessionId)
@@ -190,6 +218,7 @@ final class BrewModeController {
         brewStartTimes.removeValue(forKey: sessionId)
         expandedWithAlert.removeValue(forKey: sessionId)
         titlePrefixes.removeValue(forKey: sessionId)
+        userCondensedSessions.remove(sessionId)
         cancelCondenseTimer(sessionId)
         peekTimers[sessionId]?.cancel()
         peekTimers.removeValue(forKey: sessionId)
@@ -241,6 +270,17 @@ final class BrewModeController {
         cancelCondenseTimer(sessionId)
         peekTimers[sessionId]?.cancel()
 
+        // User-condensed sessions resist auto-expand — only user action can unfold them
+        if userCondensedSessions.contains(sessionId) {
+            // Still cancel the condensing timer if it was running, but stay condensed
+            if currentBrewState == .condensing {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    brewStates[sessionId] = .condensed
+                }
+            }
+            return
+        }
+
         switch currentBrewState {
         case .expanded:
             break
@@ -255,6 +295,36 @@ final class BrewModeController {
                 triggerAlertFlash(sessionId)
             }
         }
+    }
+
+    // MARK: - Focus Transfer
+
+    /// When a session condenses and it was the focused terminal, move focus to the next
+    /// non-condensed session in the same project so the user has an active terminal.
+    private func transferFocusIfNeeded(from condensedSessionId: UUID) {
+        let sessionManager = TerminalSessionManager.shared
+        guard sessionManager.activeSessionId == condensedSessionId else { return }
+
+        // Find the project path for this session
+        guard let session = sessionManager.sessions.first(where: { $0.id == condensedSessionId }),
+              let projectPath = session.workingDirectory else { return }
+
+        let projectSessions = sessionManager.sessionsForProject(id: nil, path: projectPath)
+        guard let currentIndex = projectSessions.firstIndex(where: { $0.id == condensedSessionId }) else { return }
+
+        // Search forward from the condensed session, then wrap around
+        let count = projectSessions.count
+        for offset in 1 ..< count {
+            let candidateIndex = (currentIndex + offset) % count
+            let candidateId = projectSessions[candidateIndex].id
+            if !isCondensed(candidateId), brewStates[candidateId] != .condensing {
+                sessionManager.setActiveSession(candidateId)
+                logDebug("Transferred focus from condensed session \(condensedSessionId) to \(candidateId)", category: .terminal)
+                return
+            }
+        }
+
+        logDebug("No non-condensed session available for focus transfer", category: .terminal)
     }
 
     // MARK: - Timers
@@ -275,6 +345,7 @@ final class BrewModeController {
                 self.brewStates[sessionId] = .condensed
                 self.brewStartTimes[sessionId] = Date()
             }
+            self.transferFocusIfNeeded(from: sessionId)
             logDebug("Session \(sessionId) condensed after 3s debounce", category: .terminal)
         }
     }
@@ -299,6 +370,7 @@ final class BrewModeController {
     // MARK: - Expand All
 
     private func expandAllSessions() {
+        userCondensedSessions.removeAll()
         for (sessionId, state) in brewStates {
             if state != .expanded {
                 cancelCondenseTimer(sessionId)

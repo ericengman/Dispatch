@@ -257,6 +257,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_: Notification) {
         logInfo("Application did finish launching", category: .app)
 
+        // Disable macOS automatic window tabbing — the app manages its own terminal
+        // sessions via SessionTabBar. The native "+" tab button confusingly creates
+        // new windows instead of terminal sessions.
+        NSWindow.allowsAutomaticWindowTabbing = false
+
         // Clear stale manual frame autosave that conflicts with SwiftUI's built-in
         // window frame persistence. SwiftUI's WindowGroup handles save/restore automatically.
         UserDefaults.standard.removeObject(forKey: "NSWindow Frame DispatchMainWindow")

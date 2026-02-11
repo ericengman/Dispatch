@@ -26,6 +26,9 @@ struct EmbeddedTerminalView: NSViewRepresentable {
     // Launch mode determines what process to spawn
     var launchMode: TerminalLaunchMode = .shell
 
+    // Whether this terminal should process scroll/click events
+    var isScrollInteractive: Bool = true
+
     // Optional callback for process exit
     var onProcessExit: ((Int32?) -> Void)?
 
@@ -102,29 +105,43 @@ struct EmbeddedTerminalView: NSViewRepresentable {
 
             // For resume mode, verify session is valid after launch
             Task {
+                logInfo("RESUME-DBG EmbeddedTerminalView: post-resume validation Task STARTED for sessionId=\(sessionId?.uuidString ?? "nil")", category: .terminal)
+
                 // Wait for terminal to initialize
                 try? await Task.sleep(nanoseconds: 3_000_000_000) // 3s
 
                 // Check terminal content for error patterns
-                if let terminal = context.coordinator.terminalView {
-                    let terminalInstance = terminal.getTerminal()
-                    let data = terminalInstance.getBufferAsData()
-                    if let content = String(data: data, encoding: .utf8) {
-                        let snippet = String(content.suffix(500))
-                        logInfo("RESUME-DBG EmbeddedTerminalView: post-resume terminal content (last 500 chars): \(snippet)", category: .terminal)
-                        if content.contains("Session not found") ||
-                            content.contains("No session") ||
-                            content.contains("does not exist") {
-                            logWarning("RESUME-DBG EmbeddedTerminalView: resume FAILED — terminal shows session error, calling handleStaleSession", category: .terminal)
-                            await MainActor.run {
-                                if let sessionId = sessionId {
-                                    TerminalSessionManager.shared.handleStaleSession(sessionId)
-                                }
-                            }
-                        } else {
-                            logInfo("RESUME-DBG EmbeddedTerminalView: post-resume check PASSED — no error patterns found", category: .terminal)
+                guard let terminal = context.coordinator.terminalView else {
+                    logWarning("RESUME-DBG EmbeddedTerminalView: post-resume check — terminalView is nil, cannot validate", category: .terminal)
+                    return
+                }
+
+                let terminalInstance = terminal.getTerminal()
+                let data = terminalInstance.getBufferAsData()
+                logDebug("RESUME-DBG EmbeddedTerminalView: buffer data size=\(data.count) bytes", category: .terminal)
+
+                guard let content = String(data: data, encoding: .utf8) else {
+                    logWarning("RESUME-DBG EmbeddedTerminalView: UTF-8 decode failed for buffer (\(data.count) bytes)", category: .terminal)
+                    return
+                }
+
+                let tail = String(content.suffix(500))
+                let head = String(content.prefix(500))
+                logInfo("RESUME-DBG EmbeddedTerminalView: post-resume terminal content (first 500 chars): \(head)", category: .terminal)
+                logInfo("RESUME-DBG EmbeddedTerminalView: post-resume terminal content (last 500 chars): \(tail)", category: .terminal)
+
+                if content.contains("Session not found") ||
+                    content.contains("No session") ||
+                    content.contains("No conversation found") ||
+                    content.contains("does not exist") {
+                    logWarning("RESUME-DBG EmbeddedTerminalView: resume FAILED — terminal shows session error, calling handleStaleSession", category: .terminal)
+                    await MainActor.run {
+                        if let sessionId = sessionId {
+                            TerminalSessionManager.shared.handleStaleSession(sessionId)
                         }
                     }
+                } else {
+                    logInfo("RESUME-DBG EmbeddedTerminalView: post-resume check PASSED — no error patterns found", category: .terminal)
                 }
             }
 
@@ -148,9 +165,9 @@ struct EmbeddedTerminalView: NSViewRepresentable {
         return terminal
     }
 
-    func updateNSView(_: SmartScrollTerminalView, context: Context) {
-        // Update coordinator's callback reference
+    func updateNSView(_ nsView: SmartScrollTerminalView, context: Context) {
         context.coordinator.onProcessExit = onProcessExit
+        nsView.isScrollInteractive = isScrollInteractive
     }
 
     func makeCoordinator() -> Coordinator {
